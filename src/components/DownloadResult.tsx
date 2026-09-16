@@ -69,26 +69,47 @@ export default function DownloadResult({
 
   const displayTitle = cleanAndDecodeTitle(media.title);
 
+  const [imgSrc, setImgSrc] = React.useState<string | undefined>(media.thumbnailUrl);
   const [imgError, setImgError] = React.useState(false);
+  const [isImgLoading, setIsImgLoading] = React.useState(true);
+  const [hasTriedProxy, setHasTriedProxy] = React.useState(false);
 
-  // Reset img error on media change
+  // Reset img states on media change
   React.useEffect(() => {
-    setImgError(false);
+    setImgSrc(media.thumbnailUrl);
+    setImgError(!media.thumbnailUrl);
+    setIsImgLoading(!!media.thumbnailUrl);
+    setHasTriedProxy(false);
   }, [media.id, media.thumbnailUrl]);
+
+  const handleImageError = () => {
+    if (!hasTriedProxy && media.thumbnailUrl && !media.thumbnailUrl.startsWith('/api/thumbnail')) {
+      // Retry through internal thumbnail proxy (bypasses CORS & cross-origin referrers)
+      setHasTriedProxy(true);
+      setImgSrc(`/api/thumbnail?url=${encodeURIComponent(media.thumbnailUrl)}`);
+    } else {
+      setImgError(true);
+      setIsImgLoading(false);
+    }
+  };
 
   return (
     <div className={styles.resultCard} role="region" aria-label="Media Download Information">
       <div className={styles.resultGrid}>
         {/* Guaranteed Thumbnail Preview */}
         <div className={styles.thumbnailWrapper}>
-          {media.thumbnailUrl && !imgError ? (
+          {isImgLoading && !imgError && <div className={styles.thumbnailSkeleton} />}
+          {imgSrc && !imgError ? (
             <Image
-              src={media.thumbnailUrl}
+              src={imgSrc}
               alt={displayTitle}
               fill
               unoptimized
+              referrerPolicy="no-referrer"
               className={styles.thumbnailImg}
-              onError={() => setImgError(true)}
+              style={{ opacity: isImgLoading ? 0 : 1 }}
+              onLoad={() => setIsImgLoading(false)}
+              onError={handleImageError}
             />
           ) : (
             <div className={`${styles.fallbackThumbnail} ${styles[`fallback_${media.platform}`] || ''}`}>

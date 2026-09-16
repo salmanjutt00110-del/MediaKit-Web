@@ -3,7 +3,6 @@ import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
 import { cleanAndDecodeTitle } from '../string-utils';
 
-// In-memory cache for Facebook media information and streams
 interface FbCacheEntry {
   data: MediaMetadata;
   expiresAt: number;
@@ -24,9 +23,9 @@ function getCachedMedia(key: string): MediaMetadata | null {
 function setCachedMedia(key: string, data: MediaMetadata) {
   fbMediaCache.set(key, {
     data,
-    expiresAt: Date.now() + 5 * 60 * 1000,
+    expiresAt: Date.now() + 10 * 60 * 1000,
   });
-  if (fbMediaCache.size > 100) {
+  if (fbMediaCache.size > 150) {
     const first = fbMediaCache.keys().next().value;
     if (first) fbMediaCache.delete(first);
   }
@@ -68,23 +67,23 @@ export class FacebookAdapter extends MediaProvider {
       target = `https://${target}`;
     }
 
-    // Expand short links (fb.watch or facebook.com/share)
+    // Fast expansion of short share links (e.g. facebook.com/share/r/1Bu9dcvRh or fb.watch)
     if (target.includes('fb.watch') || target.includes('/share/')) {
       try {
         const headRes = await fetch(target, {
-          method: 'GET',
+          method: 'HEAD',
           redirect: 'follow',
           headers: {
             'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           },
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(3500),
         });
         if (headRes.url && headRes.url !== target) {
           target = headRes.url;
         }
       } catch (err) {
-        logger.warn('Facebook short URL expand error', { target, err });
+        logger.warn('Facebook short URL expand warning', { target, err });
       }
     }
 
@@ -101,7 +100,7 @@ export class FacebookAdapter extends MediaProvider {
       const res = await fetch(url, {
         headers: {
           'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           Accept:
             'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
@@ -109,7 +108,7 @@ export class FacebookAdapter extends MediaProvider {
           'Sec-Fetch-Mode': 'navigate',
           'Sec-Fetch-Site': 'none',
         },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(4500), // Fast 4.5s timeout prevents hanging
       });
 
       if (res.ok) {
@@ -117,7 +116,9 @@ export class FacebookAdapter extends MediaProvider {
 
         // Extract title
         let title: string | undefined;
-        const ogTitle = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+        const ogTitle =
+          html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+          html.match(/content="([^"]+)"\s+property="og:title"/i) ||
           html.match(/<title>([^<]+)<\/title>/i);
         if (ogTitle) {
           title = cleanAndDecodeTitle(ogTitle[1]);
@@ -125,13 +126,15 @@ export class FacebookAdapter extends MediaProvider {
 
         // Extract thumbnail
         let thumbnailUrl: string | undefined;
-        const ogImage = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
+        const ogImage =
+          html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
+          html.match(/content="([^"]+)"\s+property="og:image"/i) ||
           html.match(/"preferred_thumbnail":\{"image":\{"uri":"([^"]+)"/i);
         if (ogImage) {
           thumbnailUrl = ogImage[1].replace(/&amp;/g, '&').replace(/\\\//g, '/');
         }
 
-        // Extract video URLs
+        // Extract direct video streams if embedded in public page
         let hdUrl: string | undefined;
         let sdUrl: string | undefined;
 
@@ -151,8 +154,8 @@ export class FacebookAdapter extends MediaProvider {
 
         return { title, thumbnailUrl, hdUrl, sdUrl };
       }
-    } catch (err) {
-      logger.warn('Facebook page scrape error', { url, err });
+    } catch (err: any) {
+      logger.warn('Facebook page scrape warning', { url, msg: err.message });
     }
     return {};
   }
@@ -165,11 +168,15 @@ export class FacebookAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(videoId);
     if (cached) return cached;
 
-    // Scrape metadata and potential direct streams
+    // Scrape metadata
     const scraped = await this.scrapeFacebookPage(resolvedUrl);
 
     const title = scraped.title || `Facebook Video (${videoId})`;
-    const thumbnailUrl = scraped.thumbnailUrl || undefined;
+    // Wrap with thumbnail proxy to avoid cross-origin and CDN referrer blocks
+    const rawThumb = scraped.thumbnailUrl;
+    const thumbnailUrl = rawThumb
+      ? `/api/thumbnail?url=${encodeURIComponent(rawThumb)}`
+      : undefined;
 
     const formats: MediaFormat[] = [
       {
@@ -234,7 +241,7 @@ export class FacebookAdapter extends MediaProvider {
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
 
-    // 1. Check if format already has a direct URL extracted
+    // 1. Direct return if format already has prepared download URL
     const format = media.formats.find((f) => f.id === formatId);
     if (format && format.downloadUrl) {
       return {
@@ -255,7 +262,7 @@ export class FacebookAdapter extends MediaProvider {
       };
     }
 
-    // 3. Try loader.to conversion service
+    // 3. Fast check via loader.to with maximum 2s wait
     try {
       const convFormat = isMp3 ? 'mp3' : formatId.includes('1080') ? '1080' : '720';
       const initRes = await fetch(
@@ -268,7 +275,7 @@ export class FacebookAdapter extends MediaProvider {
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             Referer: 'https://loader.to/',
           },
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.timeout(3500),
         }
       );
 
@@ -289,11 +296,11 @@ export class FacebookAdapter extends MediaProvider {
         const progressUrl =
           init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-        for (let attempt = 0; attempt < 25; attempt++) {
-          await new Promise((r) => setTimeout(r, 600));
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await new Promise((r) => setTimeout(r, 450));
           const pRes = await fetch(progressUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
-            signal: AbortSignal.timeout(5000),
+            signal: AbortSignal.timeout(2000),
           });
           const pData = await pRes.json();
           if (pData.text === 'Failed' || pData.success === -1) {
@@ -312,11 +319,9 @@ export class FacebookAdapter extends MediaProvider {
           }
         }
       }
-    } catch (err) {
-      logger.warn('Facebook loader.to attempt failed, using direct stream proxy fallback', { err });
-    }
+    } catch {}
 
-    // 4. Final Fallback: Direct stream proxy
+    // 4. Clean stream proxy fallback
     const cleanTitle = (media.title || 'facebook-media')
       .replace(/[/\\?%*:|"<>]/g, '_')
       .trim();

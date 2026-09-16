@@ -1,8 +1,8 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
+import { ytDlpRunner } from '../ytdlp';
 
-// 5-minute in-memory cache to prevent hitting rate limits between media-info & download calls
 interface CacheEntry {
   data: MediaMetadata;
   expiresAt: number;
@@ -20,14 +20,11 @@ function getFromCache(key: string): MediaMetadata | null {
 }
 
 function setInCache(key: string, data: MediaMetadata) {
-  // Retain for 5 minutes
   mediaCache.set(key, {
     data,
-    expiresAt: Date.now() + 5 * 60 * 1000,
+    expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes cache
   });
-
-  // Limit cache size to 100 items
-  if (mediaCache.size > 100) {
+  if (mediaCache.size > 150) {
     const firstKey = mediaCache.keys().next().value;
     if (firstKey) mediaCache.delete(firstKey);
   }
@@ -69,7 +66,7 @@ export class TikTokAdapter extends MediaProvider {
       target = `https://${target}`;
     }
 
-    // Expand short links if needed
+    // Expand short links (e.g. /t/ZP83tPtQX/, vm.tiktok.com)
     if (
       target.includes('vm.tiktok.com') ||
       target.includes('vt.tiktok.com') ||
@@ -81,19 +78,19 @@ export class TikTokAdapter extends MediaProvider {
           redirect: 'follow',
           headers: {
             'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           },
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(7000),
         });
-        if (headRes.url && headRes.url.includes('tiktok.com/@')) {
-          target = headRes.url;
+        if (headRes.url && (headRes.url.includes('/video/') || headRes.url.includes('/photo/') || headRes.url.includes('/@'))) {
+          target = headRes.url.split('?')[0]; // strip tracking params
         }
       } catch (err) {
         logger.warn('Failed to expand short TikTok URL', { target, err });
       }
     }
 
-    // Ensure canonical starts with www.tiktok.com for oEmbed & TikWM compatibility
     try {
       const parsed = new URL(target);
       if (parsed.hostname === 'tiktok.com') {
@@ -105,6 +102,108 @@ export class TikTokAdapter extends MediaProvider {
     return target;
   }
 
+  /**
+   * Tier 1: Direct serverless page extraction via TikTok Universal Data
+   */
+  private async extractUniversalData(url: string): Promise<{
+    title?: string;
+    author?: string;
+    thumbnailUrl?: string;
+    playUrl?: string;
+    hdUrl?: string;
+    musicUrl?: string;
+    duration?: string;
+  } | null> {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        signal: AbortSignal.timeout(6000),
+      });
+
+      if (!res.ok) return null;
+      const html = await res.text();
+      const match = html.match(
+        /<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application\/json">([^<]+)<\/script>/
+      );
+      if (!match) return null;
+
+      const data = JSON.parse(match[1]);
+      const defaultScope = data['__DEFAULT_SCOPE__'];
+      const itemDetail = defaultScope?.['webapp.video-detail']?.itemInfo?.itemStruct;
+
+      if (!itemDetail) return null;
+
+      const title = itemDetail.desc || undefined;
+      const author = itemDetail.author?.nickname || itemDetail.author?.uniqueId ? `@${itemDetail.author.uniqueId}` : undefined;
+      const thumbnailUrl = itemDetail.video?.cover || itemDetail.video?.originCover;
+      const playUrl = itemDetail.video?.downloadAddr || itemDetail.video?.playAddr;
+      const musicUrl = itemDetail.music?.playUrl;
+      const duration = itemDetail.video?.duration ? `${itemDetail.video.duration}s` : undefined;
+
+      return {
+        title,
+        author,
+        thumbnailUrl,
+        playUrl,
+        hdUrl: playUrl,
+        musicUrl,
+        duration,
+      };
+    } catch (err: any) {
+      logger.warn('TikTok Universal Data extraction error', err.message);
+      return null;
+    }
+  }
+
+  /**
+   * Tier 2: Extraction via bundled yt-dlp binary
+   */
+  private async extractViaYtDlp(url: string): Promise<MediaMetadata | null> {
+    if (!ytDlpRunner.isAvailable()) return null;
+    try {
+      return await ytDlpRunner.getMediaInfo(url);
+    } catch (err: any) {
+      logger.warn('TikTok yt-dlp extraction warning', err.message);
+      return null;
+    }
+  }
+
+  /**
+   * Tier 3: TikWM public API fallback
+   */
+  private async fetchTikWM(url: string, rawUrl?: string): Promise<any | null> {
+    const urlsToTry = [url];
+    if (rawUrl && rawUrl !== url) urlsToTry.push(rawUrl);
+
+    for (const u of urlsToTry) {
+      try {
+        const res = await fetch(`https://tikwm.com/api/?url=${encodeURIComponent(u)}`, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          },
+          signal: AbortSignal.timeout(6500),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.code === 0 && data.data) {
+            return data.data;
+          }
+        }
+      } catch {}
+    }
+    return null;
+  }
+
+  /**
+   * Tier 4: Official TikTok oEmbed for fast metadata
+   */
   private async fetchOfficialOEmbed(url: string): Promise<{
     title?: string;
     author_name?: string;
@@ -117,10 +216,10 @@ export class TikTokAdapter extends MediaProvider {
       const res = await fetch(oembedEndpoint, {
         headers: {
           'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           Accept: 'application/json',
         },
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(4000),
       });
 
       if (res.ok) {
@@ -133,41 +232,7 @@ export class TikTokAdapter extends MediaProvider {
           video_id: data.embed_product_id,
         };
       }
-    } catch (e) {
-      logger.warn('TikTok oEmbed request error', { url, err: e });
-    }
-    return null;
-  }
-
-  private async fetchTikWM(url: string, rawUrl?: string): Promise<any | null> {
-    const urlsToTry = [url];
-    if (rawUrl && rawUrl !== url) urlsToTry.push(rawUrl);
-
-    for (const u of urlsToTry) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          if (attempt > 0) {
-            // Short backoff if rate-limited
-            await new Promise((r) => setTimeout(r, 850));
-          }
-
-          const res = await fetch(`https://tikwm.com/api/?url=${encodeURIComponent(u)}`, {
-            headers: {
-              'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            },
-            signal: AbortSignal.timeout(9000),
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.code === 0 && data.data) {
-              return data.data;
-            }
-          }
-        } catch {}
-      }
-    }
+    } catch {}
     return null;
   }
 
@@ -181,31 +246,56 @@ export class TikTokAdapter extends MediaProvider {
       return cached;
     }
 
-    // Run official TikTok oEmbed and TikWM stream resolver in parallel
-    const [oembedResult, tikwmData] = await Promise.all([
-      this.fetchOfficialOEmbed(resolvedUrl),
+    // Run Tier 1 (Universal Data), TikWM, and oEmbed in parallel
+    const [universalData, tikwmData, oembedResult] = await Promise.all([
+      this.extractUniversalData(resolvedUrl),
       this.fetchTikWM(resolvedUrl, rawUrl),
+      this.fetchOfficialOEmbed(resolvedUrl),
     ]);
 
-    // Build consolidated metadata
+    // Consolidate metadata
     const finalTitle =
+      universalData?.title ||
       tikwmData?.title?.trim() ||
       oembedResult?.title?.trim() ||
       `TikTok Video (${videoId})`;
 
     const finalAuthor =
+      universalData?.author ||
       tikwmData?.author?.nickname ||
-      tikwmData?.author?.unique_id ||
+      (tikwmData?.author?.unique_id ? `@${tikwmData.author.unique_id}` : undefined) ||
       oembedResult?.author_name ||
       (oembedResult?.author_unique_id ? `@${oembedResult.author_unique_id}` : 'TikTok Creator');
 
     const finalThumbnail =
+      universalData?.thumbnailUrl ||
       tikwmData?.cover ||
       tikwmData?.origin_cover ||
       oembedResult?.thumbnail_url ||
       undefined;
 
-    const finalDuration = tikwmData?.duration ? `${tikwmData.duration}s` : undefined;
+    const finalDuration =
+      universalData?.duration ||
+      (tikwmData?.duration ? `${tikwmData.duration}s` : undefined);
+
+    // Pick best available stream URLs
+    const hdDownloadUrl =
+      universalData?.hdUrl ||
+      universalData?.playUrl ||
+      tikwmData?.hdplay ||
+      tikwmData?.play ||
+      undefined;
+
+    const sdDownloadUrl =
+      universalData?.playUrl ||
+      tikwmData?.play ||
+      tikwmData?.hdplay ||
+      undefined;
+
+    const mp3DownloadUrl =
+      universalData?.musicUrl ||
+      tikwmData?.music ||
+      undefined;
 
     const formats: MediaFormat[] = [
       {
@@ -215,7 +305,7 @@ export class TikTokAdapter extends MediaProvider {
         resolution: '1080x1920',
         hasAudio: true,
         hasVideo: true,
-        downloadUrl: tikwmData?.hdplay || tikwmData?.play || undefined,
+        downloadUrl: hdDownloadUrl,
       },
       {
         id: 'sd',
@@ -224,7 +314,7 @@ export class TikTokAdapter extends MediaProvider {
         resolution: '720x1280',
         hasAudio: true,
         hasVideo: true,
-        downloadUrl: tikwmData?.play || undefined,
+        downloadUrl: sdDownloadUrl,
       },
       {
         id: 'mp3',
@@ -232,9 +322,22 @@ export class TikTokAdapter extends MediaProvider {
         quality: 'Original Audio',
         hasAudio: true,
         hasVideo: false,
-        downloadUrl: tikwmData?.music || undefined,
+        downloadUrl: mp3DownloadUrl,
       },
     ];
+
+    // If stream URLs were not found via Tier 1 or Tier 3, attempt Tier 2 yt-dlp fallback
+    if (!hdDownloadUrl && ytDlpRunner.isAvailable()) {
+      try {
+        const ytdlpMeta = await this.extractViaYtDlp(resolvedUrl);
+        if (ytdlpMeta && ytdlpMeta.formats.length > 0) {
+          // Merge formats from yt-dlp
+          setInCache(resolvedUrl, ytdlpMeta);
+          setInCache(rawUrl, ytdlpMeta);
+          return ytdlpMeta;
+        }
+      } catch {}
+    }
 
     const result: MediaMetadata = {
       id: String(tikwmData?.id || oembedResult?.video_id || videoId),
@@ -248,7 +351,6 @@ export class TikTokAdapter extends MediaProvider {
       requiresProviderSetup: false,
     };
 
-    // Save in cache
     setInCache(resolvedUrl, result);
     setInCache(rawUrl, result);
     setInCache(result.id, result);
@@ -261,7 +363,9 @@ export class TikTokAdapter extends MediaProvider {
   }
 
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
-    // 1. Check if the format already has a prepared download URL
+    const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
+
+    // 1. Direct return if format already has prepared download URL
     const format = media.formats.find((f) => f.id === formatId);
     if (format && format.downloadUrl) {
       return {
@@ -284,32 +388,54 @@ export class TikTokAdapter extends MediaProvider {
       }
     }
 
-    // 3. Re-fetch from TikWM with retry if needed
-    try {
-      const resolvedUrl = await this.resolveCanonicalUrl(media.sourceUrl);
-      const tikwmData = await this.fetchTikWM(resolvedUrl, media.sourceUrl);
+    // 3. Re-extract via Universal Data (Tier 1)
+    const resolvedUrl = await this.resolveCanonicalUrl(media.sourceUrl);
+    const uData = await this.extractUniversalData(resolvedUrl);
+    if (uData) {
+      const dlUrl = isMp3 ? uData.musicUrl : (uData.hdUrl || uData.playUrl);
+      if (dlUrl) {
+        if (format) format.downloadUrl = dlUrl;
+        return {
+          success: true,
+          downloadUrl: dlUrl,
+          message: 'Direct media download prepared successfully.',
+        };
+      }
+    }
 
-      if (tikwmData) {
-        const isMp3 = formatId.toLowerCase().includes('mp3');
-        const dlUrl = isMp3 ? tikwmData.music : (tikwmData.hdplay || tikwmData.play);
+    // 4. Fallback to TikWM (Tier 3)
+    const tikwmData = await this.fetchTikWM(resolvedUrl, media.sourceUrl);
+    if (tikwmData) {
+      const dlUrl = isMp3 ? tikwmData.music : (tikwmData.hdplay || tikwmData.play);
+      if (dlUrl) {
+        if (format) format.downloadUrl = dlUrl;
+        return {
+          success: true,
+          downloadUrl: dlUrl,
+          message: 'Direct media download prepared successfully.',
+        };
+      }
+    }
 
-        if (dlUrl) {
-          // Update cached entry
-          if (format) format.downloadUrl = dlUrl;
+    // 5. Fallback to yt-dlp stream extractor (Tier 2)
+    if (ytDlpRunner.isAvailable()) {
+      try {
+        const streamUrl = await ytDlpRunner.getStreamUrl(resolvedUrl, formatId);
+        if (streamUrl) {
           return {
             success: true,
-            downloadUrl: dlUrl,
-            message: 'Direct media download prepared successfully.',
+            downloadUrl: streamUrl,
+            message: 'Direct media stream prepared successfully.',
           };
         }
+      } catch (err: any) {
+        logger.warn('TikTok yt-dlp stream extraction failed', err.message);
       }
-    } catch (err) {
-      logger.error('TikTok download extraction error', err);
     }
 
     return {
       success: false,
-      message: 'Unable to process TikTok download stream. Please try again in a moment.',
+      message: 'Unable to process this video. Please check the URL or try another supported TikTok link.',
     };
   }
 }

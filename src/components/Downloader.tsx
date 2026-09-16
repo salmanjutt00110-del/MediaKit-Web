@@ -9,6 +9,8 @@ import {
   Check,
   ClipboardPaste,
   RotateCw,
+  CheckCircle2,
+  RefreshCw,
 } from 'lucide-react';
 import { detectPlatform, getPlatformDisplayName } from '@/lib/detect';
 import {
@@ -35,6 +37,24 @@ export default function Downloader() {
   const [isFocused, setIsFocused] = useState(false);
   const [clipboardToast, setClipboardToast] = useState<string | null>(null);
   const [downloadingFormatId, setDownloadingFormatId] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{
+    percent: number;
+    receivedMB: string;
+    totalMB: string;
+    active: boolean;
+    formatTitle?: string;
+  }>({
+    percent: 0,
+    receivedMB: '0 MB',
+    totalMB: '',
+    active: false,
+  });
+  const [completedInfo, setCompletedInfo] = useState<{
+    title: string;
+    ext: string;
+    formatId: string;
+  } | null>(null);
+
   const isProcessingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -54,7 +74,7 @@ export default function Downloader() {
         setDetection(null);
         setIsDetecting(false);
         setError(null);
-        if (state !== 'ready') setState('idle');
+        if (state !== 'ready' && state !== 'downloading' && state !== 'completed') setState('idle');
         return;
       }
 
@@ -65,21 +85,8 @@ export default function Downloader() {
 
       if (result.valid) {
         setError(null);
-        if (state !== 'ready' && state !== 'processing') {
+        if (state !== 'ready' && state !== 'processing' && state !== 'downloading' && state !== 'completed') {
           setState('url_entered');
-        }
-
-        // Instant background pre-warming for YouTube right when valid link is typed or pasted
-        if (result.platform === 'youtube' && result.normalizedUrl) {
-          fetch('/api/download', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              url: result.normalizedUrl,
-              formatId: '720p',
-              prewarm: true,
-            }),
-          }).catch(() => {});
         }
       } else if (trimmed.length > 7) {
         if (result.errorCode === 'UNSUPPORTED_PLATFORM') {
@@ -105,32 +112,15 @@ export default function Downloader() {
     return () => clearTimeout(timer);
   }, [url, state]);
 
-  // Background stream pre-warming for instantaneous download response
-  useEffect(() => {
-    if (
-      mediaInfo &&
-      (mediaInfo.platform === 'youtube' || mediaInfo.platform === 'instagram') &&
-      mediaInfo.sourceUrl
-    ) {
-      fetch('/api/download', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: mediaInfo.sourceUrl,
-          formatId: '720p',
-          prewarm: true,
-        }),
-      }).catch(() => {});
-    }
-  }, [mediaInfo]);
-
   // Handle immediate detection upon paste
   const handlePasteEvent = (pastedText: string) => {
     const trimmed = pastedText.trim();
     if (!trimmed) return;
 
     setUrl(trimmed);
-    setMediaInfo(null); // Clear stale previous media card immediately
+    setMediaInfo(null);
+    setCompletedInfo(null);
+    setDownloadProgress({ percent: 0, receivedMB: '0 MB', totalMB: '', active: false });
     setError(null);
     setIsDetecting(true);
     const result = detectPlatform(trimmed);
@@ -140,24 +130,6 @@ export default function Downloader() {
     if (result.valid) {
       setError(null);
       setState('url_entered');
-
-      // Pre-warm conversion immediately in background so it is ready when user clicks download
-      if (
-        (result.platform === 'youtube' || result.platform === 'instagram') &&
-        result.normalizedUrl
-      ) {
-        fetch('/api/download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: result.normalizedUrl,
-            formatId: '720p',
-            prewarm: true,
-          }),
-        }).catch(() => {});
-      }
-
-      // Automatically start fetching newly pasted media
       handleSubmit(undefined, trimmed);
     } else if (result.errorCode === 'UNSUPPORTED_PLATFORM') {
       setError({
@@ -191,7 +163,6 @@ export default function Downloader() {
       }
     } catch {}
 
-    // If clipboard read is blocked by browser permissions, focus and select input for quick pasting
     inputRef.current?.focus();
     inputRef.current?.select();
     setClipboardToast('Press Ctrl+V to paste your link');
@@ -207,6 +178,8 @@ export default function Downloader() {
     setState('idle');
     setLoadingStage('idle');
     setDownloadingFormatId(null);
+    setCompletedInfo(null);
+    setDownloadProgress({ percent: 0, receivedMB: '0 MB', totalMB: '', active: false });
     isProcessingRef.current = false;
   };
 
@@ -226,7 +199,13 @@ export default function Downloader() {
       return;
     }
 
-    // Duplicate submission protection
+    // Direct Download Requirement: If media is already resolved and user clicks Download, start immediately!
+    if (mediaInfo && mediaInfo.formats && mediaInfo.formats.length > 0 && targetUrl === mediaInfo.sourceUrl) {
+      const bestFmt = mediaInfo.formats[0];
+      handleDownloadFormat(bestFmt.id);
+      return;
+    }
+
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
 
@@ -234,12 +213,14 @@ export default function Downloader() {
       setState('processing');
       setError(null);
       setMediaInfo(null);
+      setCompletedInfo(null);
+      setDownloadProgress({ percent: 0, receivedMB: '0 MB', totalMB: '', active: false });
 
-      // Stage 1: Checking your link...
+      // Stage 1: Checking link
       setLoadingStage('checking_link');
-      await new Promise((r) => setTimeout(r, 160));
+      await new Promise((r) => setTimeout(r, 120));
 
-      // Stage 2: Detecting platform...
+      // Stage 2: Detecting platform
       setLoadingStage('detecting_platform');
       const detectResponse = await fetch('/api/detect', {
         method: 'POST',
@@ -282,23 +263,9 @@ export default function Downloader() {
         return;
       }
 
-      // Stage 3: Fetching media information...
+      // Stage 3: Fetching media info
       setLoadingStage('fetching_media');
       const normalizedUrl = detectData.normalizedUrl || targetUrl;
-
-      // Early pre-warm for YouTube streams while metadata is being fetched
-      if (detectData.platform === 'youtube') {
-        fetch('/api/download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: normalizedUrl, formatId: '720p', prewarm: true }),
-        }).catch(() => {});
-        fetch('/api/download', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: normalizedUrl, formatId: 'mp3', prewarm: true }),
-        }).catch(() => {});
-      }
 
       const mediaResponse = await fetch('/api/media-info', {
         method: 'POST',
@@ -320,16 +287,16 @@ export default function Downloader() {
             ? 'Content Unavailable'
             : errCode === 'RATE_LIMITED'
             ? 'Rate Limit'
-            : 'Processing Error';
+            : 'Unable to Process';
 
         const errMsg =
           errCode === 'PRIVATE_CONTENT'
             ? 'This content is private and cannot be accessed.'
             : errCode === 'UNAVAILABLE_CONTENT'
-            ? 'This content is not available.'
+            ? 'This content is not available or has been removed.'
             : errCode === 'RATE_LIMITED'
             ? 'Too many requests. Please try again later.'
-            : "We couldn't process this link right now. Please try again.";
+            : "We couldn't process this link right now. Please check the URL and try again.";
 
         setError({
           type: errCode,
@@ -344,9 +311,9 @@ export default function Downloader() {
         return;
       }
 
-      // Stage 4: Preparing available downloads...
+      // Stage 4: Preparing downloads
       setLoadingStage('preparing_downloads');
-      await new Promise((r) => setTimeout(r, 140));
+      await new Promise((r) => setTimeout(r, 120));
 
       // Stage 5: Ready
       setLoadingStage('ready');
@@ -357,7 +324,7 @@ export default function Downloader() {
         type: 'NETWORK_ERROR',
         code: 'NETWORK_ERROR',
         title: 'Connection Issue',
-        message: "We couldn't process this link right now. Please check your network and try again.",
+        message: "We couldn't process this link right now. Please check your internet and try again.",
         retryable: true,
       });
       setState('error');
@@ -367,13 +334,28 @@ export default function Downloader() {
     }
   };
 
+  // Direct fast download with real-time progress tracking
   const handleDownloadFormat = async (formatId: string) => {
     if (!mediaInfo) return;
 
     try {
       setDownloadingFormatId(formatId);
       setState('downloading');
+      setError(null);
+      setCompletedInfo(null);
 
+      const targetFormat = mediaInfo.formats?.find((f) => f.id === formatId);
+      const formatQuality = targetFormat?.quality || formatId;
+
+      setDownloadProgress({
+        percent: 0,
+        receivedMB: '0 MB',
+        totalMB: '',
+        active: true,
+        formatTitle: formatQuality,
+      });
+
+      // 1. Obtain stream endpoint from /api/download
       const response = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -385,7 +367,7 @@ export default function Downloader() {
 
       const data = await response.json();
 
-      if (!response.ok || !data.success) {
+      if (!response.ok || !data.success || !data.data?.downloadUrl) {
         const errCode = (data?.error?.code as ErrorType) || 'DOWNLOAD_ERROR';
         setError({
           type: errCode,
@@ -393,42 +375,100 @@ export default function Downloader() {
           title: 'Download Notice',
           message:
             data?.error?.message ||
-            'Stream extraction credentials will be configured in Prompt 4. Only authentic formats are displayed.',
+            'Unable to process this download stream right now. Please try again in a moment.',
           retryable: true,
         });
         setState('ready');
         setDownloadingFormatId(null);
+        setDownloadProgress((prev) => ({ ...prev, active: false }));
         return;
       }
 
-      if (data.data?.downloadUrl) {
-        const isAudio =
-          formatId.toLowerCase().includes('mp3') ||
-          formatId.toLowerCase().includes('audio') ||
-          data.data.downloadUrl.endsWith('.mp3');
-        const ext = isAudio ? 'mp3' : 'mp4';
-        const safeTitle = (mediaInfo.title || 'media').replace(/[/\\?%*:|"<>]/g, '_');
+      const rawDlUrl = data.data.downloadUrl;
+      const isAudio =
+        formatId.toLowerCase().includes('mp3') ||
+        formatId.toLowerCase().includes('audio') ||
+        rawDlUrl.endsWith('.mp3');
+      const ext = isAudio ? 'mp3' : 'mp4';
+      const safeTitle = (mediaInfo.title || 'media')
+        .replace(/[/\\?%*:|"<>]/g, '_')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const filename = `${safeTitle}.${ext}`;
 
-        const downloadLink = document.createElement('a');
-        downloadLink.href = data.data.downloadUrl;
-        downloadLink.setAttribute('download', `${safeTitle}.${ext}`);
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
+      // 2. Stream download with active byte-level progress reporting
+      let streamSucceeded = false;
+      try {
+        const streamRes = await fetch(rawDlUrl);
+        if (streamRes.ok && streamRes.body) {
+          const reader = streamRes.body.getReader();
+          const contentLength = +(streamRes.headers.get('content-length') || 0);
+          const totalMBStr = contentLength > 0 ? `${(contentLength / (1024 * 1024)).toFixed(1)} MB` : '';
+          let receivedBytes = 0;
+          const chunks: Uint8Array[] = [];
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              chunks.push(value);
+              receivedBytes += value.length;
+              const receivedMBStr = `${(receivedBytes / (1024 * 1024)).toFixed(1)} MB`;
+              const percent = contentLength > 0 ? Math.min(100, Math.round((receivedBytes / contentLength) * 100)) : 0;
+              setDownloadProgress({
+                percent,
+                receivedMB: receivedMBStr,
+                totalMB: totalMBStr,
+                active: true,
+                formatTitle: formatQuality,
+              });
+            }
+          }
+
+          // Complete: save file directly to disk
+          const blob = new Blob(chunks as BlobPart[], { type: isAudio ? 'audio/mpeg' : 'video/mp4' });
+          const blobUrl = URL.createObjectURL(blob);
+          const dlAnchor = document.createElement('a');
+          dlAnchor.href = blobUrl;
+          dlAnchor.setAttribute('download', filename);
+          document.body.appendChild(dlAnchor);
+          dlAnchor.click();
+          document.body.removeChild(dlAnchor);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+          streamSucceeded = true;
+        }
+      } catch (streamErr: any) {
+        // If stream reading fails (e.g. cross-origin restrictions), gracefully fall back to native anchor download
+      }
+
+      if (!streamSucceeded) {
+        // Fallback: Trigger native browser download directly
+        const dlAnchor = document.createElement('a');
+        dlAnchor.href = rawDlUrl;
+        dlAnchor.setAttribute('download', filename);
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        document.body.removeChild(dlAnchor);
       }
 
       setState('completed');
+      setCompletedInfo({
+        title: safeTitle,
+        ext,
+        formatId,
+      });
     } catch {
       setError({
         type: 'NETWORK_ERROR',
         code: 'NETWORK_ERROR',
-        title: 'Network Error',
-        message: 'A network error occurred while initiating the download.',
+        title: 'Download Interrupted',
+        message: 'A network error occurred while downloading. Please try again.',
         retryable: true,
       });
       setState('ready');
     } finally {
       setDownloadingFormatId(null);
+      setDownloadProgress((prev) => ({ ...prev, active: false }));
     }
   };
 
@@ -450,15 +490,15 @@ export default function Downloader() {
   const renderLoadingStageText = () => {
     switch (loadingStage) {
       case 'checking_link':
-        return 'Checking your link...';
+        return 'Analyzing link...';
       case 'detecting_platform':
         return 'Detecting platform...';
       case 'fetching_media':
-        return 'Fetching media information...';
+        return 'Fetching video information...';
       case 'preparing_downloads':
         return 'Preparing available downloads...';
       case 'ready':
-        return 'Ready';
+        return 'Download ready';
       default:
         return 'Processing...';
     }
@@ -574,6 +614,66 @@ export default function Downloader() {
                   <span>{getPlatformDisplayName(detection.platform)} detected</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Live Download Progress Card */}
+          {state === 'downloading' && downloadProgress.active && (
+            <div className={styles.downloadProgressCard} role="status" aria-live="polite">
+              <div className={styles.progressHeader}>
+                <span className={styles.progressTitle}>
+                  {mediaInfo?.title || 'Downloading media...'} ({downloadProgress.formatTitle})
+                </span>
+                <span className={styles.progressPercent}>
+                  {downloadProgress.percent > 0 ? `${downloadProgress.percent}%` : 'Downloading...'}
+                </span>
+              </div>
+              <div className={styles.progressBarTrack}>
+                <div
+                  className={`${styles.progressBarFill} ${
+                    downloadProgress.percent === 0 ? styles.progressBarIndeterminate : ''
+                  }`}
+                  style={{ width: downloadProgress.percent > 0 ? `${downloadProgress.percent}%` : undefined }}
+                />
+              </div>
+              <div className={styles.progressDetails}>
+                <span>
+                  {downloadProgress.totalMB
+                    ? `${downloadProgress.receivedMB} / ${downloadProgress.totalMB}`
+                    : downloadProgress.receivedMB}
+                </span>
+                <span>Please keep this page open while downloading</span>
+              </div>
+            </div>
+          )}
+
+          {/* Download Complete Card */}
+          {state === 'completed' && completedInfo && (
+            <div className={styles.downloadCompleteCard} role="status" aria-live="polite">
+              <div className={styles.completeHeader}>
+                <CheckCircle2 size={20} color="#059669" />
+                <span>Download Complete!</span>
+              </div>
+              <p className={styles.completeSubtext}>
+                <strong>{completedInfo.title}.{completedInfo.ext}</strong> is ready in your browser Downloads.
+              </p>
+              <div className={styles.completeActions}>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadFormat(completedInfo.formatId)}
+                  className={styles.actionBtnPrimary}
+                >
+                  <RefreshCw size={14} />
+                  <span>Download Again</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className={styles.actionBtnSecondary}
+                >
+                  <span>Download Another Video</span>
+                </button>
+              </div>
             </div>
           )}
 

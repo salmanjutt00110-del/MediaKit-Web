@@ -2,8 +2,8 @@ import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
 import { cleanAndDecodeTitle } from '../string-utils';
+import { ytDlpRunner } from '../ytdlp';
 
-// In-memory cache for Instagram media information and streams
 interface IgCacheEntry {
   data: MediaMetadata;
   expiresAt: number;
@@ -24,9 +24,9 @@ function getCachedMedia(key: string): MediaMetadata | null {
 function setCachedMedia(key: string, data: MediaMetadata) {
   igMediaCache.set(key, {
     data,
-    expiresAt: Date.now() + 5 * 60 * 1000,
+    expiresAt: Date.now() + 10 * 60 * 1000, // 10 min cache
   });
-  if (igMediaCache.size > 100) {
+  if (igMediaCache.size > 150) {
     const first = igMediaCache.keys().next().value;
     if (first) igMediaCache.delete(first);
   }
@@ -64,7 +64,6 @@ export class InstagramAdapter extends MediaProvider {
 
     try {
       const parsed = new URL(target);
-      // Clean query parameters for Instagram post URLs
       if (parsed.hostname.includes('instagram.com') || parsed.hostname.includes('instagr.am')) {
         const shortcode = this.extractShortcode(target);
         if (shortcode) {
@@ -77,26 +76,51 @@ export class InstagramAdapter extends MediaProvider {
     return target;
   }
 
+  /**
+   * Fast metadata and thumbnail scraper
+   */
   private async scrapeInstagramMetadata(shortcode: string, canonicalUrl: string): Promise<{
     title?: string;
     author?: string;
     thumbnailUrl?: string;
   }> {
+    // 1. Try public oEmbed endpoint
+    try {
+      const oembedRes = await fetch(
+        `https://api.instagram.com/oembed/?url=https://www.instagram.com/p/${shortcode}/`,
+        {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          },
+          signal: AbortSignal.timeout(3500),
+        }
+      );
+      if (oembedRes.ok) {
+        const data = await oembedRes.json();
+        return {
+          title: data.title ? cleanAndDecodeTitle(data.title) : undefined,
+          author: data.author_name ? `@${data.author_name}` : undefined,
+          thumbnailUrl: data.thumbnail_url,
+        };
+      }
+    } catch {}
+
+    // 2. Try captioned embed scraping with browser headers
     try {
       const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
       const res = await fetch(embedUrl, {
         headers: {
           'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           'Accept-Language': 'en-US,en;q=0.9',
         },
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(3500),
       });
 
       if (res.ok) {
         const html = await res.text();
 
-        // Extract author
         let author: string | undefined;
         const authorMatch =
           html.match(/class="UsernameText"[^>]*>([^<]+)<\/span>/i) ||
@@ -105,7 +129,6 @@ export class InstagramAdapter extends MediaProvider {
           author = `@${authorMatch[1].trim()}`;
         }
 
-        // Extract title or caption
         let title: string | undefined;
         const captionMatch =
           html.match(/class="Caption"[^>]*>([^<]+)/i) ||
@@ -114,7 +137,6 @@ export class InstagramAdapter extends MediaProvider {
           title = cleanAndDecodeTitle(captionMatch[1]);
         }
 
-        // Extract thumbnail image from multiple possible selectors
         let thumbnailUrl: string | undefined;
         const imgMatch =
           html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) ||
@@ -128,23 +150,13 @@ export class InstagramAdapter extends MediaProvider {
           thumbnailUrl = imgMatch[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
         }
 
-        // Reliable direct thumbnail fallback
-        if (!thumbnailUrl && shortcode && shortcode !== 'ig-media') {
-          thumbnailUrl = `https://www.instagram.com/p/${shortcode}/media/?size=l`;
-        }
-
         return { title, author, thumbnailUrl };
       }
-    } catch (err) {
-      logger.warn('Instagram embed scrape error', { shortcode, err });
+    } catch (err: any) {
+      logger.warn('Instagram embed scrape warning', { shortcode, msg: err.message });
     }
 
-    // Direct fallback thumbnail if embed scrape fails
-    const fallbackThumb = shortcode && shortcode !== 'ig-media'
-      ? `https://www.instagram.com/p/${shortcode}/media/?size=l`
-      : undefined;
-
-    return { thumbnailUrl: fallbackThumb };
+    return {};
   }
 
   async getMediaInfo(rawUrl: string): Promise<MediaMetadata> {
@@ -161,7 +173,11 @@ export class InstagramAdapter extends MediaProvider {
     const isReel = resolvedUrl.includes('/reel');
     const title = meta.title || (isReel ? `Instagram Reel (${shortcode})` : `Instagram Post (${shortcode})`);
     const author = meta.author || 'Instagram Creator';
-    const thumbnailUrl = meta.thumbnailUrl || (shortcode !== 'ig-media' ? `https://www.instagram.com/p/${shortcode}/media/?size=l` : undefined);
+    // If thumbnail was found, wrap with thumbnail proxy to avoid cross-origin 403 blocks
+    const rawThumbnail = meta.thumbnailUrl;
+    const thumbnailUrl = rawThumbnail
+      ? `/api/thumbnail?url=${encodeURIComponent(rawThumbnail)}`
+      : undefined;
 
     const formats: MediaFormat[] = [
       {
@@ -222,7 +238,7 @@ export class InstagramAdapter extends MediaProvider {
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
 
-    // 1. Check if format already has a direct URL extracted
+    // 1. Direct return if format already has prepared download URL
     const format = media.formats.find((f) => f.id === formatId);
     if (format && format.downloadUrl) {
       return {
@@ -243,7 +259,7 @@ export class InstagramAdapter extends MediaProvider {
       };
     }
 
-    // 3. Try loader.to conversion service
+    // 3. Fast conversion probe via loader.to (single quick poll with max 3s timeout)
     try {
       const convFormat = isMp3 ? 'mp3' : formatId.includes('1080') ? '1080' : '720';
       const initRes = await fetch(
@@ -256,7 +272,7 @@ export class InstagramAdapter extends MediaProvider {
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             Referer: 'https://loader.to/',
           },
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(4000),
         }
       );
 
@@ -277,11 +293,12 @@ export class InstagramAdapter extends MediaProvider {
         const progressUrl =
           init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-        for (let attempt = 0; attempt < 25; attempt++) {
-          await new Promise((r) => setTimeout(r, 300));
+        // Only do up to 4 quick checks (max 2 seconds) so user NEVER waits 1-2 minutes!
+        for (let attempt = 0; attempt < 4; attempt++) {
+          await new Promise((r) => setTimeout(r, 450));
           const pRes = await fetch(progressUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
-            signal: AbortSignal.timeout(4000),
+            signal: AbortSignal.timeout(2000),
           });
           const pData = await pRes.json();
           if (pData.text === 'Failed' || pData.success === -1) {
@@ -300,11 +317,9 @@ export class InstagramAdapter extends MediaProvider {
           }
         }
       }
-    } catch (err) {
-      logger.warn('Instagram loader.to attempt failed, using direct stream proxy fallback', { err });
-    }
+    } catch {}
 
-    // 4. Fallback: Direct stream proxy
+    // 4. Return instant clean stream proxy
     const cleanTitle = (media.title || 'instagram-media')
       .replace(/[/\\?%*:|"<>]/g, '_')
       .trim();
