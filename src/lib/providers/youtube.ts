@@ -200,17 +200,21 @@ export class YouTubeAdapter extends MediaProvider {
         const progressUrl =
           init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-        // Fast high-frequency polling every 500ms
-        for (let attempt = 0; attempt < 35; attempt++) {
+        // Fast high-frequency polling every 350ms
+        for (let attempt = 0; attempt < 45; attempt++) {
           if (attempt > 0) {
-            await new Promise((r) => setTimeout(r, 500));
+            await new Promise((r) => setTimeout(r, 350));
           }
 
           const pRes = await fetch(progressUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
-            signal: AbortSignal.timeout(5000),
+            signal: AbortSignal.timeout(4000),
           });
           const pData = await pRes.json();
+
+          if (pData.text === 'Failed' || pData.success === -1) {
+            break;
+          }
 
           if (pData.success === 1 && pData.download_url) {
             youtubeStreamCache.set(cacheKey, {

@@ -68,6 +68,19 @@ export default function Downloader() {
         if (state !== 'ready' && state !== 'processing') {
           setState('url_entered');
         }
+
+        // Instant background pre-warming for YouTube right when valid link is typed or pasted
+        if (result.platform === 'youtube' && result.normalizedUrl) {
+          fetch('/api/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: result.normalizedUrl,
+              formatId: '720p',
+              prewarm: true,
+            }),
+          }).catch(() => {});
+        }
       } else if (trimmed.length > 7) {
         if (result.errorCode === 'UNSUPPORTED_PLATFORM') {
           setError({
@@ -265,6 +278,20 @@ export default function Downloader() {
       // Stage 3: Fetching media information...
       setLoadingStage('fetching_media');
       const normalizedUrl = detectData.normalizedUrl || targetUrl;
+
+      // Early pre-warm for YouTube streams while metadata is being fetched
+      if (detectData.platform === 'youtube') {
+        fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: normalizedUrl, formatId: '720p', prewarm: true }),
+        }).catch(() => {});
+        fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: normalizedUrl, formatId: 'mp3', prewarm: true }),
+        }).catch(() => {});
+      }
 
       const mediaResponse = await fetch('/api/media-info', {
         method: 'POST',

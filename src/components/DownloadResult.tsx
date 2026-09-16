@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Download, Clock, User, Check, Info } from 'lucide-react';
 import { MediaFormat, MediaMetadata, PlatformType } from '@/lib/types';
 import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon } from './PlatformIcons';
+import { cleanAndDecodeTitle } from '@/lib/string-utils';
 import styles from './DownloadResult.module.css';
 
 interface DownloadResultProps {
@@ -66,7 +67,7 @@ export default function DownloadResult({
     (f) => f.format !== 'mp4' && f.format !== 'mp3'
   );
 
-  const displayTitle = media.title?.trim() || 'Media File';
+  const displayTitle = cleanAndDecodeTitle(media.title);
 
   const [imgError, setImgError] = React.useState(false);
 

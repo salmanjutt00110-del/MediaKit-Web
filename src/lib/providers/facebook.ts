@@ -1,6 +1,7 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
+import { cleanAndDecodeTitle } from '../string-utils';
 
 // In-memory cache for Facebook media information and streams
 interface FbCacheEntry {
@@ -119,12 +120,7 @@ export class FacebookAdapter extends MediaProvider {
         const ogTitle = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
           html.match(/<title>([^<]+)<\/title>/i);
         if (ogTitle) {
-          title = ogTitle[1]
-            .replace(/&amp;/g, '&')
-            .replace(/&#039;/g, "'")
-            .replace(/&quot;/g, '"')
-            .replace(/\s*\|\s*Facebook$/i, '')
-            .trim();
+          title = cleanAndDecodeTitle(ogTitle[1]);
         }
 
         // Extract thumbnail
