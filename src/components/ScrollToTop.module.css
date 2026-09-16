@@ -1,0 +1,53 @@
+.scrollBtn {
+  position: fixed;
+  bottom: 84px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-surface-elevated);
+  color: var(--brand-blue);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 99;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: popIn 0.25s ease-out;
+}
+
+.scrollBtn:hover {
+  background: var(--brand-blue);
+  color: #ffffff;
+  border-color: var(--brand-blue);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
+}
+
+.scrollBtn:active {
+  transform: translateY(0);
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.7) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .scrollBtn {
+    bottom: 80px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+}

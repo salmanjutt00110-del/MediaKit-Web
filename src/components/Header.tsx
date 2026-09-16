@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Moon, Sun, Globe, ChevronDown, Zap, Menu, X } from 'lucide-react';
+import { GitHubIcon } from './PlatformIcons';
 import styles from './Header.module.css';
 
 export default function Header() {
@@ -32,15 +33,22 @@ export default function Header() {
     localStorage.setItem('mediakit-theme', nextTheme);
   };
 
+  const scrollToTop = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setActiveNav('home');
+  };
+
   return (
     <header className={styles.headerWrapper}>
       <div className={`app-container ${styles.headerContainer}`}>
-        {/* LEFT: Logo + Title + Tagline */}
+        {/* LEFT: Logo + Title + Tagline (Click scrolls to top) */}
         <Link
           href="/"
           className={styles.brandWrapper}
           aria-label="MediaKit Home"
-          onClick={() => setActiveNav('home')}
+          onClick={scrollToTop}
+          title="Scroll to Top"
         >
           <Image
             src="/logo.png"
@@ -60,18 +68,22 @@ export default function Header() {
         <nav className={styles.navCenter} aria-label="Main Navigation">
           <ul className={styles.navLinks}>
             <li className={styles.navItem}>
-              <Link
+              <a
                 href="#home"
                 className={`${styles.navLink} ${
                   activeNav === 'home' ? styles.navLinkActive : ''
                 }`}
-                onClick={() => setActiveNav('home')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  setActiveNav('home');
+                }}
               >
                 Home
-              </Link>
+              </a>
             </li>
             <li className={styles.navItem}>
-              <Link
+              <a
                 href="#how-it-works"
                 className={`${styles.navLink} ${
                   activeNav === 'how-it-works' ? styles.navLinkActive : ''
@@ -79,10 +91,10 @@ export default function Header() {
                 onClick={() => setActiveNav('how-it-works')}
               >
                 How It Works
-              </Link>
+              </a>
             </li>
             <li className={styles.navItem}>
-              <Link
+              <a
                 href="#faq"
                 className={`${styles.navLink} ${
                   activeNav === 'faq' ? styles.navLinkActive : ''
@@ -90,10 +102,21 @@ export default function Header() {
                 onClick={() => setActiveNav('faq')}
               >
                 FAQ
-              </Link>
+              </a>
             </li>
             <li className={styles.navItem}>
-              <Link
+              <a
+                href="#disclaimer"
+                className={`${styles.navLink} ${
+                  activeNav === 'disclaimer' ? styles.navLinkActive : ''
+                }`}
+                onClick={() => setActiveNav('disclaimer')}
+              >
+                Disclaimer
+              </a>
+            </li>
+            <li className={styles.navItem}>
+              <a
                 href="#contact"
                 className={`${styles.navLink} ${
                   activeNav === 'contact' ? styles.navLinkActive : ''
@@ -101,13 +124,24 @@ export default function Header() {
                 onClick={() => setActiveNav('contact')}
               >
                 Contact
-              </Link>
+              </a>
             </li>
           </ul>
         </nav>
 
-        {/* RIGHT: Theme, Language, Fast & Free Button */}
+        {/* RIGHT: Theme, Language, GitHub, Fast & Free Button */}
         <div className={styles.actionsRight}>
+          <a
+            href="https://github.com/salmanjutt00110-del/MediaKit-Web"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.actionIconBtn}
+            aria-label="GitHub Repository"
+            title="MediaKit on GitHub"
+          >
+            <GitHubIcon size={18} />
+          </a>
+
           <button
             type="button"
             className={styles.actionIconBtn}
@@ -123,10 +157,10 @@ export default function Header() {
             <ChevronDown size={14} />
           </div>
 
-          <Link href="#downloader" className={styles.fastFreeBtn}>
+          <a href="#downloader" className={styles.fastFreeBtn}>
             <Zap size={15} fill="#ffffff" />
             <span>Fast &amp; Free</span>
-          </Link>
+          </a>
 
           <button
             type="button"
@@ -142,17 +176,19 @@ export default function Header() {
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
         <div className={styles.mobileDrawerOpen}>
-          <Link
+          <a
             href="#home"
             className={styles.mobileNavLink}
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
               setActiveNav('home');
               setIsMobileMenuOpen(false);
             }}
           >
             Home
-          </Link>
-          <Link
+          </a>
+          <a
             href="#how-it-works"
             className={styles.mobileNavLink}
             onClick={() => {
@@ -161,8 +197,8 @@ export default function Header() {
             }}
           >
             How It Works
-          </Link>
-          <Link
+          </a>
+          <a
             href="#faq"
             className={styles.mobileNavLink}
             onClick={() => {
@@ -171,8 +207,28 @@ export default function Header() {
             }}
           >
             FAQ
-          </Link>
-          <Link
+          </a>
+          <a
+            href="#disclaimer"
+            className={styles.mobileNavLink}
+            onClick={() => {
+              setActiveNav('disclaimer');
+              setIsMobileMenuOpen(false);
+            }}
+          >
+            Disclaimer
+          </a>
+          <a
+            href="#privacy"
+            className={styles.mobileNavLink}
+            onClick={() => {
+              setActiveNav('privacy');
+              setIsMobileMenuOpen(false);
+            }}
+          >
+            Privacy Policy
+          </a>
+          <a
             href="#contact"
             className={styles.mobileNavLink}
             onClick={() => {
@@ -181,7 +237,18 @@ export default function Header() {
             }}
           >
             Contact
-          </Link>
+          </a>
+          <a
+            href="https://github.com/salmanjutt00110-del/MediaKit-Web"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.mobileNavLink}
+            onClick={() => setIsMobileMenuOpen(false)}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <GitHubIcon size={18} />
+            <span>GitHub Repository</span>
+          </a>
         </div>
       )}
     </header>

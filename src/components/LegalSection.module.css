@@ -1,0 +1,237 @@
+.sectionWrapper {
+  padding: 80px 0 60px 0;
+  border-top: 1px solid var(--border-light);
+  scroll-margin-top: 80px;
+}
+
+.sectionHeader {
+  text-align: center;
+  max-width: 680px;
+  margin: 0 auto 40px auto;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--brand-blue-light);
+  color: var(--brand-blue);
+  border: 1px solid var(--brand-blue-border);
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+[data-theme='dark'] .badge {
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(96, 165, 250, 0.25);
+  color: #93c5fd;
+}
+
+.sectionTitle {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+.sectionSubtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: 24px;
+}
+
+/* Tabs switcher */
+.tabsWrapper {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  padding: 4px;
+  border-radius: var(--radius-full);
+  gap: 4px;
+}
+
+.tabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tabBtn:hover {
+  color: var(--text-primary);
+}
+
+.tabBtnActive {
+  background: var(--bg-surface);
+  color: var(--brand-blue);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme='dark'] .tabBtnActive {
+  background: var(--bg-surface-elevated);
+  color: #60a5fa;
+}
+
+/* Content Card */
+.contentCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-xl);
+  padding: 36px 40px;
+  box-shadow: var(--shadow-md);
+  max-width: 920px;
+  margin: 0 auto;
+  scroll-margin-top: 100px;
+  transition: all 0.3s ease;
+}
+
+.cardVisible {
+  display: block;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.cardHidden {
+  display: none;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 28px;
+}
+
+.iconBox {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.iconWarning {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+[data-theme='dark'] .iconWarning {
+  background: rgba(217, 119, 6, 0.15);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+}
+
+.iconSafe {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+[data-theme='dark'] .iconSafe {
+  background: rgba(5, 150, 105, 0.15);
+  border-color: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+}
+
+.cardTitle {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.015em;
+  margin-bottom: 4px;
+}
+
+.cardDesc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Points Grid */
+.gridPoints {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.pointItem {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.pointIcon {
+  color: var(--brand-blue);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pointTitle {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.pointText {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .sectionWrapper {
+    padding: 50px 0 40px 0;
+  }
+
+  .sectionTitle {
+    font-size: 1.65rem;
+  }
+
+  .contentCard {
+    padding: 24px 20px;
+    border-radius: var(--radius-lg);
+  }
+
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding-bottom: 18px;
+    margin-bottom: 20px;
+  }
+
+  .gridPoints {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
