@@ -132,20 +132,6 @@ export class YouTubeAdapter extends MediaProvider {
   }
 
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
-    const videoId = this.extractVideoId(media.sourceUrl);
-
-    // Fast response for cached test video
-    if (videoId === 'j18MRhEfmPk') {
-      const isMp3 =
-        formatId.toLowerCase().includes('mp3') ||
-        formatId.toLowerCase().includes('audio');
-      return {
-        success: true,
-        downloadUrl: isMp3 ? '/downloads/Ishqa_Ve.mp3' : '/downloads/Ishqa_Ve_HD.mp4',
-        message: 'Media download prepared successfully.',
-      };
-    }
-
     // Direct authentic conversion and stream extraction for ANY YouTube video
     try {
       const isMp3 =
