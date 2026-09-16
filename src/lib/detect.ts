@@ -161,10 +161,19 @@ export function detectPlatform(rawUrl: string): DetectionResult {
     hostname === 'vt.tiktok.com';
 
   if (isTikTokHost) {
+    let normalized = norm.normalizedUrl;
+    try {
+      const parsedUrl = new URL(normalized);
+      if (parsedUrl.hostname === 'tiktok.com') {
+        parsedUrl.hostname = 'www.tiktok.com';
+        normalized = parsedUrl.toString();
+      }
+    } catch {}
+
     return {
       platform: 'tiktok',
       valid: true,
-      normalizedUrl: norm.normalizedUrl,
+      normalizedUrl: normalized,
       originalUrl: rawUrl,
     };
   }

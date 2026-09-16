@@ -68,21 +68,39 @@ export default function DownloadResult({
 
   const displayTitle = media.title?.trim() || 'Media File';
 
+  const [imgError, setImgError] = React.useState(false);
+
+  // Reset img error on media change
+  React.useEffect(() => {
+    setImgError(false);
+  }, [media.id, media.thumbnailUrl]);
+
   return (
     <div className={styles.resultCard} role="region" aria-label="Media Download Information">
       <div className={styles.resultGrid}>
-        {/* Optional Thumbnail Preview */}
-        {media.thumbnailUrl && (
-          <div className={styles.thumbnailWrapper}>
+        {/* Guaranteed Thumbnail Preview */}
+        <div className={styles.thumbnailWrapper}>
+          {media.thumbnailUrl && !imgError ? (
             <Image
               src={media.thumbnailUrl}
               alt={displayTitle}
               fill
               unoptimized
               className={styles.thumbnailImg}
+              onError={() => setImgError(true)}
             />
-          </div>
-        )}
+          ) : (
+            <div className={`${styles.fallbackThumbnail} ${styles[`fallback_${media.platform}`] || ''}`}>
+              <div className={styles.fallbackIcon}>
+                {media.platform === 'tiktok' && <TikTokIcon size={34} color="#ffffff" />}
+                {media.platform === 'youtube' && <YouTubeIcon size={34} color="#ffffff" />}
+                {media.platform === 'facebook' && <FacebookIcon size={34} color="#ffffff" />}
+                {media.platform === 'instagram' && <InstagramIcon size={34} color="#ffffff" />}
+              </div>
+              <span className={styles.fallbackText}>{media.platform} video</span>
+            </div>
+          )}
+        </div>
 
         {/* Media Details */}
         <div className={styles.contentWrapper}>
