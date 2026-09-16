@@ -11,6 +11,7 @@ import {
   RotateCw,
   CheckCircle2,
   RefreshCw,
+  ArrowDownToLine,
 } from 'lucide-react';
 import { detectPlatform, getPlatformDisplayName } from '@/lib/detect';
 import {
@@ -54,6 +55,10 @@ export default function Downloader() {
     ext: string;
     formatId: string;
   } | null>(null);
+  const [downloadToast, setDownloadToast] = useState<{
+    title: string;
+    ext: string;
+  } | null>(null);
 
   const isProcessingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -65,6 +70,14 @@ export default function Downloader() {
       return () => clearTimeout(timer);
     }
   }, [clipboardToast]);
+
+  // Auto-dismiss download notification toast
+  useEffect(() => {
+    if (downloadToast) {
+      const timer = setTimeout(() => setDownloadToast(null), 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [downloadToast]);
 
   // Client-side auto-detection with debouncing for typing
   useEffect(() => {
@@ -404,6 +417,12 @@ export default function Downloader() {
       dlAnchor.click();
       document.body.removeChild(dlAnchor);
 
+      // Trigger floating top toast notification
+      setDownloadToast({
+        title: safeTitle,
+        ext,
+      });
+
       setState('completed');
       setCompletedInfo({
         title: safeTitle,
@@ -459,6 +478,27 @@ export default function Downloader() {
 
   return (
     <section id="downloader" className={styles.downloaderSection} aria-label="Media Downloader">
+      {/* Floating Download Notification Toast */}
+      {downloadToast && (
+        <div className={styles.downloadToast} role="alert" aria-live="assertive">
+          <div className={styles.toastIconWrapper}>
+            <ArrowDownToLine size={16} />
+          </div>
+          <div className={styles.toastContent}>
+            <span className={styles.toastTitle}>Downloading Video...</span>
+            <span className={styles.toastMessage}>{downloadToast.title}.{downloadToast.ext}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDownloadToast(null)}
+            className={styles.toastCloseBtn}
+            aria-label="Close notification"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="app-container">
         <div className={styles.downloaderContainer}>
           <form onSubmit={handleSubmit} noValidate>
@@ -604,7 +644,9 @@ export default function Downloader() {
           {state === 'completed' && completedInfo && (
             <div className={styles.downloadCompleteCard} role="status" aria-live="polite">
               <div className={styles.completeHeader}>
-                <CheckCircle2 size={20} color="#059669" />
+                <div className={styles.completeHeaderIcon}>
+                  <ArrowDownToLine size={18} />
+                </div>
                 <span>Download Started!</span>
               </div>
               <p className={styles.completeSubtext}>
