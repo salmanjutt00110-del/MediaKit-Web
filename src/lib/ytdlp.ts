@@ -4,8 +4,42 @@ import fs from 'fs';
 import os from 'os';
 import { MediaFormat, MediaMetadata } from './types';
 
-// Path to the bundled yt-dlp executable
-const YTDLP_PATH = path.resolve(process.cwd(), 'bin/yt-dlp.exe');
+const isWin = process.platform === 'win32';
+
+function getExecutablePath(): string | null {
+  if (isWin) {
+    const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
+    return fs.existsSync(winPath) ? winPath : null;
+  }
+
+  // Linux / Vercel Serverless environment
+  const tmpBinary = '/tmp/yt-dlp';
+  if (fs.existsSync(tmpBinary)) {
+    try {
+      fs.chmodSync(tmpBinary, 0o755);
+    } catch {}
+    return tmpBinary;
+  }
+
+  // Source binary bundled in deployment
+  const bundledPath = path.resolve(process.cwd(), 'bin', 'yt-dlp');
+  if (fs.existsSync(bundledPath)) {
+    try {
+      // Copy to writable /tmp directory to guarantee execution permissions
+      fs.copyFileSync(bundledPath, tmpBinary);
+      fs.chmodSync(tmpBinary, 0o755);
+      return tmpBinary;
+    } catch {
+      // If copy fails, fallback to bundled path
+      try {
+        fs.chmodSync(bundledPath, 0o755);
+      } catch {}
+      return bundledPath;
+    }
+  }
+
+  return null;
+}
 
 interface YtDlpFormatRaw {
   format_id: string;
@@ -44,21 +78,20 @@ function formatBytes(bytes?: number): string | undefined {
 
 export const ytDlpRunner = {
   isAvailable(): boolean {
-    return fs.existsSync(YTDLP_PATH);
+    return !!getExecutablePath();
   },
 
   /**
    * Fetches authentic media metadata and available formats for any supported URL.
    */
   async getMediaInfo(targetUrl: string): Promise<MediaMetadata> {
-    if (!this.isAvailable()) {
+    const executable = getExecutablePath();
+    if (!executable) {
       throw new Error('yt-dlp engine executable not found in bin directory.');
     }
 
     return new Promise((resolve, reject) => {
       const args = [
-        '--js-runtimes',
-        'node',
         '-j',
         '--skip-download',
         '--no-playlist',
@@ -66,7 +99,7 @@ export const ytDlpRunner = {
       ];
 
       execFile(
-        YTDLP_PATH,
+        /*turbopackIgnore: true*/ executable,
         args,
         { maxBuffer: 15 * 1024 * 1024, timeout: 25000 },
         (error, stdout, stderr) => {
@@ -279,7 +312,12 @@ export const ytDlpRunner = {
         );
       }
 
-      execFile(YTDLP_PATH, args, { timeout: 120000 }, (error, stdout, stderr) => {
+      const executable = getExecutablePath();
+      if (!executable) {
+        return reject(new Error('yt-dlp executable not available.'));
+      }
+
+      execFile(/*turbopackIgnore: true*/ executable, args, { timeout: 120000 }, (error, stdout, stderr) => {
         if (error) {
           // If the file was produced despite error code
           if (fs.existsSync(tempOutputFile)) {
@@ -319,15 +357,26 @@ export const ytDlpRunner = {
     }
 
     return new Promise((resolve, reject) => {
-      // If formatId starts with mp3, select best audio
-      const formatArg = formatId.startsWith('mp3')
-        ? 'ba/b'
-        : formatId
-        ? `${formatId}/best`
-        : 'best';
+      const isMp3 =
+        formatId.toLowerCase().includes('mp3') ||
+        formatId.toLowerCase().includes('audio');
+
+      // Prefer progressive mp4 formats (18 for 360p, 22 for 720p) or audio stream
+      const formatArg = isMp3
+        ? 'ba/140/b'
+        : formatId &&
+          formatId !== '720p' &&
+          formatId !== '360p' &&
+          formatId !== '1080p' &&
+          formatId !== '480p'
+        ? `${formatId}/22/18/b`
+        : '22/18/b';
+
       const args = [
         '--js-runtimes',
         'node',
+        '--extractor-args',
+        'youtube:player_client=android,web',
         '-g',
         '-f',
         formatArg,
@@ -335,10 +384,15 @@ export const ytDlpRunner = {
         targetUrl,
       ];
 
+      const executable = getExecutablePath();
+      if (!executable) {
+        return reject(new Error('yt-dlp executable not available.'));
+      }
+
       execFile(
-        YTDLP_PATH,
+        /*turbopackIgnore: true*/ executable,
         args,
-        { timeout: 20000 },
+        { timeout: 25000 },
         (error, stdout, stderr) => {
           if (error) {
             return reject(new Error(stderr || error.message));

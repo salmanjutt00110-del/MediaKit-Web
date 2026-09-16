@@ -47,6 +47,7 @@ next-env.d.ts
 # local binaries
 /bin/*
 !/bin/.gitkeep
+!/bin/yt-dlp
 
 # root reference images
 /ChatGPT Image*.png

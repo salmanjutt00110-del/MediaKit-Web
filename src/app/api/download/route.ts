@@ -161,7 +161,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect browser directly to the media stream
-    return NextResponse.redirect(downloadResult.downloadUrl, 302);
+    const redirectUrl = downloadResult.downloadUrl.startsWith('http')
+      ? downloadResult.downloadUrl
+      : new URL(downloadResult.downloadUrl, request.url).toString();
+    return NextResponse.redirect(redirectUrl, 302);
   } catch (err) {
     logger.error('GET /api/download stream error', err);
     return new Response('Stream extraction error', { status: 500 });

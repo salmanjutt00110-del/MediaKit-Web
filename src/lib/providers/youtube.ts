@@ -170,16 +170,15 @@ export class YouTubeAdapter extends MediaProvider {
       } catch {}
     }
 
-    // 3. Direct cloud stream download bridge
-    const isMp3 = formatId.toLowerCase().includes('mp3');
-    const cloudDownloadUrl = isMp3
-      ? `https://loader.to/api/button/?url=${encodeURIComponent(media.sourceUrl)}&f=mp3`
-      : `https://loader.to/api/button/?url=${encodeURIComponent(media.sourceUrl)}&f=${formatId.replace('p', '') || '720'}`;
+    // Direct internal media stream route (no third-party websites or redirects)
+    const streamEndpoint = `/api/download/stream?url=${encodeURIComponent(
+      media.sourceUrl
+    )}&formatId=${encodeURIComponent(formatId)}`;
 
     return {
       success: true,
-      downloadUrl: cloudDownloadUrl,
-      message: 'Cloud download stream prepared.',
+      downloadUrl: streamEndpoint,
+      message: 'Direct media stream prepared.',
     };
   }
 }
