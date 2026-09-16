@@ -92,6 +92,21 @@ export default function Downloader() {
     return () => clearTimeout(timer);
   }, [url, state]);
 
+  // Background stream pre-warming for instantaneous download response
+  useEffect(() => {
+    if (mediaInfo && mediaInfo.platform === 'youtube' && mediaInfo.sourceUrl) {
+      fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: mediaInfo.sourceUrl,
+          formatId: '720p',
+          prewarm: true,
+        }),
+      }).catch(() => {});
+    }
+  }, [mediaInfo]);
+
   // Handle immediate detection upon paste
   const handlePasteEvent = (pastedText: string) => {
     const trimmed = pastedText.trim();

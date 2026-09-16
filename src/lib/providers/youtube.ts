@@ -2,6 +2,9 @@ import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { ytDlpRunner } from '../ytdlp';
 
+// In-memory stream cache to make repeat and pre-warmed downloads instantaneous
+const youtubeStreamCache = new Map<string, { url: string; expiry: number }>();
+
 export class YouTubeAdapter extends MediaProvider {
   readonly platform: PlatformType = 'youtube';
   readonly displayName = 'YouTube';
@@ -48,7 +51,6 @@ export class YouTubeAdapter extends MediaProvider {
         if (err.code === 'PRIVATE_CONTENT' || err.code === 'UNAVAILABLE_CONTENT') {
           throw err;
         }
-        // Fallback to basic details if extraction fails
       }
     }
 
@@ -71,7 +73,6 @@ export class YouTubeAdapter extends MediaProvider {
       }
     } catch {}
 
-    // Authentic standard formats for cloud deployment
     const fallbackFormats: MediaFormat[] = [
       {
         id: '1080p',
@@ -132,6 +133,19 @@ export class YouTubeAdapter extends MediaProvider {
   }
 
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
+    const videoId = this.extractVideoId(media.sourceUrl) || media.id;
+    const cacheKey = `${videoId}_${formatId}`;
+
+    // Instant return if stream was pre-warmed or previously fetched
+    const cached = youtubeStreamCache.get(cacheKey);
+    if (cached && cached.expiry > Date.now()) {
+      return {
+        success: true,
+        downloadUrl: cached.url,
+        message: 'Instant stream retrieved from cache.',
+      };
+    }
+
     // Direct authentic conversion and stream extraction for ANY YouTube video
     try {
       const isMp3 =
@@ -158,19 +172,39 @@ export class YouTubeAdapter extends MediaProvider {
         throw new Error(init.message || 'Unable to initialize download stream.');
       }
 
+      // If already finished at initialization
+      if (init.download_url) {
+        youtubeStreamCache.set(cacheKey, {
+          url: init.download_url,
+          expiry: Date.now() + 2 * 60 * 60 * 1000,
+        });
+        return {
+          success: true,
+          downloadUrl: init.download_url,
+          message: 'Direct media file prepared successfully.',
+        };
+      }
+
       const progressUrl =
         init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-      // Poll until the direct download file URL is prepared
-      for (let attempt = 0; attempt < 16; attempt++) {
-        await new Promise((r) => setTimeout(r, 1500));
+      // High-frequency polling (first check immediate, then every 650ms)
+      for (let attempt = 0; attempt < 22; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, 650));
+        }
+
         const pRes = await fetch(progressUrl, {
           headers: { 'User-Agent': 'Mozilla/5.0' },
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(6000),
         });
         const pData = await pRes.json();
 
         if (pData.success === 1 && pData.download_url) {
+          youtubeStreamCache.set(cacheKey, {
+            url: pData.download_url,
+            expiry: Date.now() + 2 * 60 * 60 * 1000,
+          });
           return {
             success: true,
             downloadUrl: pData.download_url,

@@ -6,9 +6,9 @@ import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Rate Limiting: 30 requests per minute per IP
+    // 1. Rate Limiting: 90 requests per minute per IP
     const clientId = getClientIdentifier(request.headers);
-    const rateCheck = checkRateLimit(`download:${clientId}`, { limit: 30, windowMs: 60 * 1000 });
+    const rateCheck = checkRateLimit(`download:${clientId}`, { limit: 90, windowMs: 60 * 1000 });
     if (!rateCheck.allowed) {
       logger.warn('Rate limit exceeded on /api/download', { clientId });
       return NextResponse.json(
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse request body
     const body = await request.json().catch(() => ({}));
-    const { url, formatId } = body;
+    const { url, formatId, prewarm } = body;
 
     if (!url || !formatId || typeof url !== 'string' || typeof formatId !== 'string') {
       return NextResponse.json(
