@@ -112,9 +112,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let finalDownloadUrl = downloadResult.downloadUrl;
+    if (finalDownloadUrl && (finalDownloadUrl.startsWith('http://') || finalDownloadUrl.startsWith('https://'))) {
+      const isAudio =
+        formatId.toLowerCase().includes('mp3') ||
+        formatId.toLowerCase().includes('audio');
+      const ext = isAudio ? 'mp3' : 'mp4';
+      const cleanTitle = (mediaInfo.title || 'media')
+        .replace(/[/\\?%*:|"<>]/g, '_')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      finalDownloadUrl = `/api/download/file?url=${encodeURIComponent(
+        finalDownloadUrl
+      )}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
+    }
+
     return NextResponse.json({
       success: true,
-      data: downloadResult,
+      data: {
+        ...downloadResult,
+        downloadUrl: finalDownloadUrl,
+      },
     });
   } catch (err) {
     logger.error('Error in /api/download', err);
@@ -160,11 +179,20 @@ export async function GET(request: NextRequest) {
       return new Response(downloadResult.message || 'Stream extraction failed', { status: 422 });
     }
 
-    // Redirect browser directly to the media stream
-    const redirectUrl = downloadResult.downloadUrl.startsWith('http')
-      ? downloadResult.downloadUrl
-      : new URL(downloadResult.downloadUrl, request.url).toString();
-    return NextResponse.redirect(redirectUrl, 302);
+    const isAudio =
+      formatId.toLowerCase().includes('mp3') ||
+      formatId.toLowerCase().includes('audio');
+    const ext = isAudio ? 'mp3' : 'mp4';
+    const cleanTitle = (mediaInfo.title || 'media')
+      .replace(/[/\\?%*:|"<>]/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const proxyPath = `/api/download/file?url=${encodeURIComponent(
+      downloadResult.downloadUrl
+    )}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
+
+    return NextResponse.redirect(new URL(proxyPath, request.url).toString(), 302);
   } catch (err) {
     logger.error('GET /api/download stream error', err);
     return new Response('Stream extraction error', { status: 500 });

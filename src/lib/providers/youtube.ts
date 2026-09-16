@@ -5,6 +5,9 @@ import { ytDlpRunner } from '../ytdlp';
 // In-memory stream cache to make repeat and pre-warmed downloads instantaneous
 const youtubeStreamCache = new Map<string, { url: string; expiry: number }>();
 
+// In-flight conversion promise map to de-duplicate simultaneous prewarm and user requests
+const inFlightConversions = new Map<string, Promise<ProviderDownloadResult>>();
+
 export class YouTubeAdapter extends MediaProvider {
   readonly platform: PlatformType = 'youtube';
   readonly displayName = 'YouTube';
@@ -146,79 +149,99 @@ export class YouTubeAdapter extends MediaProvider {
       };
     }
 
-    // Direct authentic conversion and stream extraction for ANY YouTube video
-    try {
-      const isMp3 =
-        formatId.toLowerCase().includes('mp3') ||
-        formatId.toLowerCase().includes('audio');
-      const format = isMp3 ? 'mp3' : formatId.replace(/[^0-9]/g, '') || '720';
-
-      const initRes = await fetch(
-        `https://loader.to/ajax/download.php?button=1&start=1&end=1&format=${format}&url=${encodeURIComponent(
-          media.sourceUrl
-        )}`,
-        {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            Referer: 'https://loader.to/',
-          },
-          signal: AbortSignal.timeout(12000),
-        }
-      );
-
-      const init = await initRes.json();
-      if (!init.id) {
-        throw new Error(init.message || 'Unable to initialize download stream.');
+    // If already in flight, reuse the ongoing conversion promise
+    if (inFlightConversions.has(cacheKey)) {
+      try {
+        return await inFlightConversions.get(cacheKey)!;
+      } catch {
+        // Fallback to launching fresh if previous crashed
       }
+    }
 
-      // If already finished at initialization
-      if (init.download_url) {
-        youtubeStreamCache.set(cacheKey, {
-          url: init.download_url,
-          expiry: Date.now() + 2 * 60 * 60 * 1000,
-        });
-        return {
-          success: true,
-          downloadUrl: init.download_url,
-          message: 'Direct media file prepared successfully.',
-        };
-      }
+    const conversionPromise = (async (): Promise<ProviderDownloadResult> => {
+      try {
+        const isMp3 =
+          formatId.toLowerCase().includes('mp3') ||
+          formatId.toLowerCase().includes('audio');
+        const format = isMp3 ? 'mp3' : formatId.replace(/[^0-9]/g, '') || '720';
 
-      const progressUrl =
-        init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
+        const initRes = await fetch(
+          `https://loader.to/ajax/download.php?button=1&start=1&end=1&format=${format}&url=${encodeURIComponent(
+            media.sourceUrl
+          )}`,
+          {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              Referer: 'https://loader.to/',
+            },
+            signal: AbortSignal.timeout(12000),
+          }
+        );
 
-      // High-frequency polling (first check immediate, then every 650ms)
-      for (let attempt = 0; attempt < 22; attempt++) {
-        if (attempt > 0) {
-          await new Promise((r) => setTimeout(r, 650));
+        const init = await initRes.json();
+        if (!init.id) {
+          throw new Error(init.message || 'Unable to initialize download stream.');
         }
 
-        const pRes = await fetch(progressUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0' },
-          signal: AbortSignal.timeout(6000),
-        });
-        const pData = await pRes.json();
-
-        if (pData.success === 1 && pData.download_url) {
+        // If already finished at initialization
+        if (init.download_url) {
           youtubeStreamCache.set(cacheKey, {
-            url: pData.download_url,
-            expiry: Date.now() + 2 * 60 * 60 * 1000,
+            url: init.download_url,
+            expiry: Date.now() + 3 * 60 * 60 * 1000,
           });
           return {
             success: true,
-            downloadUrl: pData.download_url,
+            downloadUrl: init.download_url,
             message: 'Direct media file prepared successfully.',
           };
         }
-      }
 
-      throw new Error('Conversion processing timeout. Please retry in a moment.');
+        const progressUrl =
+          init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
+
+        // Fast high-frequency polling every 500ms
+        for (let attempt = 0; attempt < 35; attempt++) {
+          if (attempt > 0) {
+            await new Promise((r) => setTimeout(r, 500));
+          }
+
+          const pRes = await fetch(progressUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            signal: AbortSignal.timeout(5000),
+          });
+          const pData = await pRes.json();
+
+          if (pData.success === 1 && pData.download_url) {
+            youtubeStreamCache.set(cacheKey, {
+              url: pData.download_url,
+              expiry: Date.now() + 3 * 60 * 60 * 1000,
+            });
+            return {
+              success: true,
+              downloadUrl: pData.download_url,
+              message: 'Direct media file prepared successfully.',
+            };
+          }
+        }
+
+        throw new Error('Conversion processing timeout. Please retry in a moment.');
+      } finally {
+        inFlightConversions.delete(cacheKey);
+      }
+    })();
+
+    inFlightConversions.set(cacheKey, conversionPromise);
+
+    try {
+      return await conversionPromise;
     } catch (err: any) {
-      // Fallback to internal streaming endpoint
-      const streamEndpoint = `/api/download/stream?url=${encodeURIComponent(
+      // Internal stream proxy fallback
+      const streamEndpoint = `/api/download/file?url=${encodeURIComponent(
         media.sourceUrl
-      )}&formatId=${encodeURIComponent(formatId)}`;
+      )}&title=${encodeURIComponent(media.title || 'media')}&ext=${
+        formatId.includes('mp3') ? 'mp3' : 'mp4'
+      }`;
 
       return {
         success: true,
@@ -228,3 +251,4 @@ export class YouTubeAdapter extends MediaProvider {
     }
   }
 }
+

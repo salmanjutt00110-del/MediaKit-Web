@@ -123,6 +123,20 @@ export default function Downloader() {
     if (result.valid) {
       setError(null);
       setState('url_entered');
+
+      // Pre-warm conversion immediately in background so it is ready when user clicks download
+      if (result.platform === 'youtube' && result.normalizedUrl) {
+        fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: result.normalizedUrl,
+            formatId: '720p',
+            prewarm: true,
+          }),
+        }).catch(() => {});
+      }
+
       // Automatically start fetching newly pasted media
       handleSubmit(undefined, trimmed);
     } else if (result.errorCode === 'UNSUPPORTED_PLATFORM') {
