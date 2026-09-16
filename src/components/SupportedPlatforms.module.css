@@ -1,0 +1,174 @@
+.sectionWrapper {
+  padding: 60px 0 50px 0;
+}
+
+.sectionHeader {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 40px auto;
+}
+
+.sectionTitle {
+  font-size: clamp(2rem, 3.2vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.blueHighlight {
+  color: var(--brand-blue);
+}
+
+.sectionSubtitle {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+}
+
+.platformGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.platformCard {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-xl);
+  padding: 32px 24px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 220px;
+  position: relative;
+  overflow: hidden;
+}
+
+.platformCard:hover {
+  transform: translateY(-4px);
+  border-color: rgba(37, 99, 235, 0.25);
+  box-shadow: var(--shadow-md);
+}
+
+/* Individual subtle ambient card backgrounds matching Reference 2 */
+.cardYouTube {
+  background: linear-gradient(180deg, #ffffff 60%, #fff6f6 100%);
+  border-color: rgba(255, 0, 0, 0.08);
+}
+
+.cardTikTok {
+  background: linear-gradient(180deg, #ffffff 60%, #f8fafc 100%);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.cardFacebook {
+  background: linear-gradient(180deg, #ffffff 60%, #f4f8ff 100%);
+  border-color: rgba(24, 119, 242, 0.08);
+}
+
+.cardInstagram {
+  background: linear-gradient(180deg, #ffffff 60%, #fdf5fb 100%);
+  border-color: rgba(225, 48, 108, 0.08);
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.iconSquircle {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.squircleYouTube {
+  background: #ff0000;
+}
+
+.squircleTikTok {
+  background: #000000;
+}
+
+.squircleFacebook {
+  background: #1877f2;
+}
+
+.squircleInstagram {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+}
+
+.cardBottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardDetails {
+  display: flex;
+  flex-direction: column;
+}
+
+.platformName {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+}
+
+.platformDesc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.arrowCircleBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.platformCard:hover .arrowCircleBtn {
+  transform: translateX(3px);
+}
+
+.btnRed {
+  background: #ffebeb;
+  color: #ff0000;
+}
+
+.btnBlue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.btnPurple {
+  background: #fdf2f8;
+  color: #c026d3;
+}
+
+@media (max-width: 980px) {
+  .platformGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .platformGrid {
+    grid-template-columns: 1fr;
+  }
+}

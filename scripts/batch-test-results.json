@@ -1,0 +1,143 @@
+[
+  {
+    "index": 1,
+    "category": "MrBeast",
+    "title": "$456,000 Squid Game In Real Life!",
+    "duration": "25:41",
+    "mp3Path": "/downloads/0e3GPea1Tyg_mp3-251-22.mp3",
+    "mp3Size": "44.58 MB",
+    "vidPath": "/downloads/0e3GPea1Tyg_136.mp4",
+    "vidSize": "216.90 MB",
+    "vidQuality": "720p",
+    "elapsed": "112.7s",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 2,
+    "category": "MrBeast",
+    "title": "Press This Button To Win $100,000!",
+    "duration": "15:11",
+    "mp3Path": "/downloads/GLoeAJUcz38_mp3-251-24.mp3",
+    "mp3Size": "22.95 MB",
+    "vidPath": "/downloads/GLoeAJUcz38_136.mp4",
+    "vidSize": "97.53 MB",
+    "vidQuality": "720p",
+    "elapsed": "53.3s",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 3,
+    "category": "MrBeast",
+    "title": "I Spent 50 Hours Buried Alive",
+    "duration": "12:39",
+    "mp3Path": "/downloads/9bqk6ZUsKyA_mp3-251-22.mp3",
+    "mp3Size": "19.94 MB",
+    "vidPath": "/downloads/9bqk6ZUsKyA_136.mp4",
+    "vidSize": "103.18 MB",
+    "vidQuality": "720p",
+    "elapsed": "81.7s",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 4,
+    "category": "IShowSpeed",
+    "label": "IShowSpeed - World Cup Official Song",
+    "error": "No downloadable formats available",
+    "elapsed": "2.9s",
+    "status": "FAILED"
+  },
+  {
+    "index": 5,
+    "category": "IShowSpeed",
+    "label": "IShowSpeed - Meets Cristiano Ronaldo",
+    "error": "No downloadable formats available",
+    "elapsed": "2.4s",
+    "status": "FAILED"
+  },
+  {
+    "index": 6,
+    "category": "IShowSpeed",
+    "label": "IShowSpeed - Shake Pt 2 Music Video",
+    "error": "No downloadable formats available",
+    "elapsed": "2.5s",
+    "status": "FAILED"
+  },
+  {
+    "index": 7,
+    "category": "Songs / Music",
+    "title": "Ishqa Ve - Zeeshan Ali | Yuvraj Tung | Seerat Mast | Sandeep Aulakh | Latest Punjabi Songs 2025",
+    "duration": "3:49",
+    "mp3Path": "/downloads/Ishqa_Ve.mp3",
+    "mp3Size": "6.90 MB",
+    "vidPath": "/downloads/Ishqa_Ve_HD.mp4",
+    "vidSize": "42.17 MB",
+    "vidQuality": "720p",
+    "elapsed": "4.4s",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 8,
+    "category": "Songs / Music",
+    "title": "Luis Fonsi - Despacito ft. Daddy Yankee",
+    "duration": "4:42",
+    "mp3Path": "/downloads/kJQP7kiw5Fk_mp3-251.mp3",
+    "mp3Size": "8.48 MB",
+    "vidPath": "/downloads/kJQP7kiw5Fk_136.mp4",
+    "vidSize": "44.40 MB",
+    "vidQuality": "720p",
+    "elapsed": "49.2s",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 9,
+    "category": "Songs / Music",
+    "title": "Ed Sheeran - Shape of You (Official Music Video)",
+    "duration": "4:23",
+    "mp3Path": "/downloads/JGwWNGJdvx8_mp3-140.mp3",
+    "mp3Size": "7.76 MB",
+    "vidPath": "/downloads/JGwWNGJdvx8_136.mp4",
+    "vidSize": "26.78 MB",
+    "vidQuality": "720p",
+    "elapsed": "39.9s",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 10,
+    "category": "Dramas / Clips",
+    "title": "Legal Instagram Video Downloader Website: 12,000 Monthly Users (No Copyright Issues)",
+    "duration": "7:51",
+    "mp3Path": "/downloads/zNNYy1QYKrI_mp3-251-0.mp3",
+    "mp3Size": "11.30 MB",
+    "vidPath": "/downloads/zNNYy1QYKrI_298.mp4",
+    "vidSize": "28.17 MB",
+    "vidQuality": "720p",
+    "elapsed": "6.2s",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 11,
+    "category": "Dramas / Clips",
+    "title": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)",
+    "duration": "3:33",
+    "mp3Path": "/downloads/dQw4w9WgXcQ_mp3-140.mp3",
+    "mp3Size": "6.72 MB",
+    "vidPath": "/downloads/dQw4w9WgXcQ_136.mp4",
+    "vidSize": "28.58 MB",
+    "vidQuality": "720p",
+    "elapsed": "41.4s",
+    "status": "SUCCESS"
+  },
+  {
+    "index": 12,
+    "category": "Dramas / Clips",
+    "title": "PSY - GANGNAM STYLE(강남스타일) M/V",
+    "duration": "4:12",
+    "mp3Path": "/downloads/9bZkp7q19f0_mp3-140.mp3",
+    "mp3Size": "7.22 MB",
+    "vidPath": "/downloads/9bZkp7q19f0_136.mp4",
+    "vidSize": "36.28 MB",
+    "vidQuality": "720p",
+    "elapsed": "34.9s",
+    "status": "SUCCESS"
+  }
+]

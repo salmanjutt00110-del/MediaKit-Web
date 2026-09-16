@@ -1,0 +1,310 @@
+.downloaderSection {
+  padding: 16px 0 35px 0;
+  position: relative;
+}
+
+.downloaderContainer {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.downloaderCard {
+  background: #ffffff;
+  border: 1.5px solid rgba(226, 232, 240, 0.95);
+  border-radius: var(--radius-full);
+  padding: 7px 8px 7px 22px;
+  box-shadow: 0 16px 40px -8px rgba(37, 99, 235, 0.14),
+              0 0 45px rgba(236, 72, 153, 0.1),
+              0 0 50px rgba(0, 198, 255, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+:global([data-theme='dark']) .downloaderCard {
+  background: var(--bg-surface);
+  border-color: #2c3b52;
+  box-shadow: 0 16px 40px -8px rgba(37, 99, 235, 0.25),
+              0 0 40px rgba(0, 198, 255, 0.15);
+}
+
+.downloaderCardFocus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 20px 50px -8px rgba(37, 99, 235, 0.24),
+              0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.linkIcon {
+  color: var(--text-primary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.urlInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 1.05rem;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  padding: 12px 0;
+  min-width: 0;
+}
+
+.urlInput::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.clearBtn,
+.pasteBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.clearBtn:hover,
+.pasteBtn:hover {
+  background: var(--border-light);
+  color: var(--text-primary);
+}
+
+.pasteBtn {
+  color: var(--brand-blue);
+  background: var(--brand-blue-light);
+}
+
+.pasteBtn:hover {
+  background: #dbeafe;
+  color: var(--brand-blue-hover);
+}
+
+.downloadBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--brand-blue);
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 13px 32px;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.32);
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.downloadBtn:hover:not(:disabled) {
+  background: var(--brand-blue-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
+}
+
+.downloadBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Toast Notification */
+.clipboardToast {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.clipboardToast span {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 16px;
+  background: var(--text-primary);
+  color: #ffffff;
+  border-radius: var(--radius-full);
+  animation: fadeIn 0.2s ease;
+}
+
+/* Multi-stage Loading Bar */
+.loadingStageBar {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 18px;
+  background: var(--brand-blue-light);
+  border: 1px solid var(--brand-blue-border);
+  border-radius: var(--radius-full);
+  max-width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  animation: fadeIn 0.2s ease;
+}
+
+.stageSpinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(37, 99, 235, 0.25);
+  border-top-color: var(--brand-blue);
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+
+.stageText {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--brand-blue);
+}
+
+/* Detection Status Indicator */
+.statusBar {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+}
+
+.detectedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  animation: badgeIn 0.2s ease-out;
+}
+
+.detectingBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-card);
+}
+
+@keyframes badgeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.loadingSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.detectingSpinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(100, 116, 139, 0.25);
+  border-top-color: var(--brand-blue);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error Alert */
+.errorAlert {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: #fff5f5;
+  border: 1.5px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-md);
+  color: #991b1b;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: fadeIn 0.2s ease;
+}
+
+.errorContent {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.errorText {
+  line-height: 1.45;
+}
+
+.retryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: #fee2e2;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #991b1b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.retryBtn:hover {
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .downloaderCard {
+    border-radius: var(--radius-lg);
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+
+  .downloadBtn {
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .errorContent {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

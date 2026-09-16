@@ -1,0 +1,82 @@
+.stripWrapper {
+  padding: 10px 0 50px 0;
+}
+
+.stripCard {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-xl);
+  padding: 24px 36px;
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+
+.statItem {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.iconCircle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.circleBlue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.circleYellow {
+  background: #fffbeb;
+  color: #f59e0b;
+}
+
+.circleRed {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.statTextGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.statValue {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.statLabel {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
+@media (max-width: 860px) {
+  .stripCard {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 20px 24px;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stripCard {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
