@@ -6,6 +6,7 @@ import SupportedPlatforms from '@/components/SupportedPlatforms';
 import HowItWorks from '@/components/HowItWorks';
 import Features from '@/components/Features';
 import StatsStrip from '@/components/StatsStrip';
+import ReviewsSection from '@/components/ReviewsSection';
 import FAQ from '@/components/FAQ';
 import LegalSection from '@/components/LegalSection';
 import ContactSection from '@/components/ContactSection';
@@ -13,11 +14,15 @@ import FinalCTA from '@/components/FinalCTA';
 import Footer from '@/components/Footer';
 import ScrollToTop from '@/components/ScrollToTop';
 import AIChatbot from '@/components/AIChatbot';
+import AnimationObserver from '@/components/AnimationObserver';
 
 export default function HomePage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-      {/* 1. Navigation Header (Logo click scrolls to top, GitHub link) */}
+      {/* Scroll animation engine */}
+      <AnimationObserver />
+
+      {/* 1. Navigation Header */}
       <Header />
 
       <main style={{ flex: 1 }}>
@@ -39,26 +44,29 @@ export default function HomePage() {
         {/* 7. Statistics Strip (Global users, downloads, uptime) */}
         <StatsStrip />
 
-        {/* 8. Frequently Asked Questions */}
+        {/* 8. Creator Reviews & Testimonials */}
+        <ReviewsSection />
+
+        {/* 9. Frequently Asked Questions */}
         <FAQ />
 
-        {/* 9. Legal Transparency: Disclaimer & Privacy Policy */}
+        {/* 10. Legal Transparency: Disclaimer & Privacy Policy */}
         <LegalSection />
 
-        {/* 10. Contact Us (WhatsApp Direct Chat + Message Form) */}
+        {/* 11. Contact Us (WhatsApp Direct Chat + Message Form) */}
         <ContactSection />
 
-        {/* 11. Final CTA Card */}
+        {/* 12. Final CTA Card */}
         <FinalCTA />
       </main>
 
-      {/* 12. Footer with navigation, GitHub, WhatsApp, and social links */}
+      {/* 13. Footer with navigation, GitHub, WhatsApp, and social links */}
       <Footer />
 
-      {/* 13. Floating Back to Top Button */}
+      {/* 14. Floating Back to Top Button */}
       <ScrollToTop />
 
-      {/* 14. Interactive AI Chatbot Assistant */}
+      {/* 15. Interactive AI Chatbot Assistant */}
       <AIChatbot />
     </div>
   );

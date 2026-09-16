@@ -107,7 +107,11 @@ export default function Downloader() {
 
   // Background stream pre-warming for instantaneous download response
   useEffect(() => {
-    if (mediaInfo && mediaInfo.platform === 'youtube' && mediaInfo.sourceUrl) {
+    if (
+      mediaInfo &&
+      (mediaInfo.platform === 'youtube' || mediaInfo.platform === 'instagram') &&
+      mediaInfo.sourceUrl
+    ) {
       fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -138,7 +142,10 @@ export default function Downloader() {
       setState('url_entered');
 
       // Pre-warm conversion immediately in background so it is ready when user clicks download
-      if (result.platform === 'youtube' && result.normalizedUrl) {
+      if (
+        (result.platform === 'youtube' || result.platform === 'instagram') &&
+        result.normalizedUrl
+      ) {
         fetch('/api/download', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

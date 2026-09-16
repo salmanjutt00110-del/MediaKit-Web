@@ -1,6 +1,7 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
+import { cleanAndDecodeTitle } from '../string-utils';
 
 // In-memory cache for Instagram media information and streams
 interface IgCacheEntry {
@@ -89,7 +90,7 @@ export class InstagramAdapter extends MediaProvider {
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
           'Accept-Language': 'en-US,en;q=0.9',
         },
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(4000),
       });
 
       if (res.ok) {
@@ -97,7 +98,8 @@ export class InstagramAdapter extends MediaProvider {
 
         // Extract author
         let author: string | undefined;
-        const authorMatch = html.match(/class="UsernameText"[^>]*>([^<]+)<\/span>/i) ||
+        const authorMatch =
+          html.match(/class="UsernameText"[^>]*>([^<]+)<\/span>/i) ||
           html.match(/href="\/([^/?#"]+)\/"[^>]*class="[^"]*Username/i);
         if (authorMatch) {
           author = `@${authorMatch[1].trim()}`;
@@ -105,18 +107,30 @@ export class InstagramAdapter extends MediaProvider {
 
         // Extract title or caption
         let title: string | undefined;
-        const captionMatch = html.match(/class="Caption"[^>]*>([^<]+)/i) ||
+        const captionMatch =
+          html.match(/class="Caption"[^>]*>([^<]+)/i) ||
           html.match(/<title>([^<]+)<\/title>/i);
         if (captionMatch) {
-          title = captionMatch[1].replace(/&amp;/g, '&').replace(/&#039;/g, "'").trim();
+          title = cleanAndDecodeTitle(captionMatch[1]);
         }
 
-        // Extract thumbnail image
+        // Extract thumbnail image from multiple possible selectors
         let thumbnailUrl: string | undefined;
-        const imgMatch = html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) ||
-          html.match(/<img[^>]+src="([^"]+)"[^>]+class="EmbeddedMediaImage"/i);
+        const imgMatch =
+          html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) ||
+          html.match(/<img[^>]+src="([^"]+)"[^>]+class="EmbeddedMediaImage"/i) ||
+          html.match(/property="og:image"\s+content="([^"]+)"/i) ||
+          html.match(/content="([^"]+)"\s+property="og:image"/i) ||
+          html.match(/"display_url":"([^"]+)"/i) ||
+          html.match(/"thumbnail_src":"([^"]+)"/i);
+
         if (imgMatch) {
-          thumbnailUrl = imgMatch[1].replace(/&amp;/g, '&');
+          thumbnailUrl = imgMatch[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
+        }
+
+        // Reliable direct thumbnail fallback
+        if (!thumbnailUrl && shortcode && shortcode !== 'ig-media') {
+          thumbnailUrl = `https://www.instagram.com/p/${shortcode}/media/?size=l`;
         }
 
         return { title, author, thumbnailUrl };
@@ -124,7 +138,13 @@ export class InstagramAdapter extends MediaProvider {
     } catch (err) {
       logger.warn('Instagram embed scrape error', { shortcode, err });
     }
-    return {};
+
+    // Direct fallback thumbnail if embed scrape fails
+    const fallbackThumb = shortcode && shortcode !== 'ig-media'
+      ? `https://www.instagram.com/p/${shortcode}/media/?size=l`
+      : undefined;
+
+    return { thumbnailUrl: fallbackThumb };
   }
 
   async getMediaInfo(rawUrl: string): Promise<MediaMetadata> {
@@ -141,7 +161,7 @@ export class InstagramAdapter extends MediaProvider {
     const isReel = resolvedUrl.includes('/reel');
     const title = meta.title || (isReel ? `Instagram Reel (${shortcode})` : `Instagram Post (${shortcode})`);
     const author = meta.author || 'Instagram Creator';
-    const thumbnailUrl = meta.thumbnailUrl || undefined;
+    const thumbnailUrl = meta.thumbnailUrl || (shortcode !== 'ig-media' ? `https://www.instagram.com/p/${shortcode}/media/?size=l` : undefined);
 
     const formats: MediaFormat[] = [
       {
@@ -236,7 +256,7 @@ export class InstagramAdapter extends MediaProvider {
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             Referer: 'https://loader.to/',
           },
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.timeout(8000),
         }
       );
 
@@ -258,10 +278,10 @@ export class InstagramAdapter extends MediaProvider {
           init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
         for (let attempt = 0; attempt < 25; attempt++) {
-          await new Promise((r) => setTimeout(r, 600));
+          await new Promise((r) => setTimeout(r, 300));
           const pRes = await fetch(progressUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
-            signal: AbortSignal.timeout(5000),
+            signal: AbortSignal.timeout(4000),
           });
           const pData = await pRes.json();
           if (pData.text === 'Failed' || pData.success === -1) {

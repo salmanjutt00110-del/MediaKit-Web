@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Moon, Sun, Globe, ChevronDown, Zap, Menu, X } from 'lucide-react';
-import { GitHubIcon } from './PlatformIcons';
+import { Moon, Sun, Zap, Menu, X } from 'lucide-react';
 import styles from './Header.module.css';
 
 export default function Header() {
@@ -129,19 +128,8 @@ export default function Header() {
           </ul>
         </nav>
 
-        {/* RIGHT: Theme, Language, GitHub, Fast & Free Button */}
+        {/* RIGHT: Theme and Fast & Free Button */}
         <div className={styles.actionsRight}>
-          <a
-            href="https://github.com/salmanjutt00110-del/MediaKit-Web"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.actionIconBtn}
-            aria-label="GitHub Repository"
-            title="MediaKit on GitHub"
-          >
-            <GitHubIcon size={18} />
-          </a>
-
           <button
             type="button"
             className={styles.actionIconBtn}
@@ -150,12 +138,6 @@ export default function Header() {
           >
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
-
-          <div className={styles.langSelector} title="Language Selector">
-            <Globe size={16} />
-            <span>EN</span>
-            <ChevronDown size={14} />
-          </div>
 
           <a href="#downloader" className={styles.fastFreeBtn}>
             <Zap size={15} fill="#ffffff" />
@@ -237,17 +219,6 @@ export default function Header() {
             }}
           >
             Contact
-          </a>
-          <a
-            href="https://github.com/salmanjutt00110-del/MediaKit-Web"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.mobileNavLink}
-            onClick={() => setIsMobileMenuOpen(false)}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-          >
-            <GitHubIcon size={18} />
-            <span>GitHub Repository</span>
           </a>
         </div>
       )}

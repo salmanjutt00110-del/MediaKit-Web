@@ -79,12 +79,12 @@ export default function Footer() {
               <GitHubIcon size={18} color="currentColor" />
             </a>
             <a
-              href="https://wa.me/?text=Hello%20MediaKit%20Support"
+              href="https://wa.me/923100128702?text=Hello%20MediaKit%20Support"
               target="_blank"
               rel="noopener noreferrer"
               className={styles.socialLink}
               aria-label="WhatsApp Support"
-              title="WhatsApp Direct"
+              title="WhatsApp Direct (+92 310 0128702)"
             >
               <WhatsAppIcon size={18} color="currentColor" />
             </a>

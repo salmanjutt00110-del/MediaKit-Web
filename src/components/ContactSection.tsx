@@ -53,16 +53,16 @@ export default function ContactSection() {
                 <span className={styles.channelBadge}>Instant Chat</span>
                 <h3 className={styles.channelTitle}>WhatsApp Support</h3>
                 <p className={styles.channelDesc}>
-                  Chat directly with our support team on WhatsApp for fast query resolution.
+                  Chat directly with our support team on WhatsApp at <strong>+92 310 0128702</strong> for instant query resolution.
                 </p>
                 <a
-                  href="https://wa.me/?text=Hello%20MediaKit%20Support!%20I%20have%20a%20question."
+                  href="https://wa.me/923100128702?text=Hello%20MediaKit%20Support!%20I%20have%20a%20question."
                   target="_blank"
                   rel="noopener noreferrer"
                   className={styles.whatsappBtn}
                 >
                   <WhatsAppIcon size={18} color="#ffffff" />
-                  <span>Chat on WhatsApp</span>
+                  <span>Chat (+92 310 0128702)</span>
                 </a>
               </div>
             </div>
