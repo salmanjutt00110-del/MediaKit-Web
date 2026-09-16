@@ -238,10 +238,14 @@ export const ytDlpRunner = {
       formatId.toLowerCase().includes('mp3') ||
       formatId.toLowerCase().includes('audio');
 
-    const downloadsDir = path.resolve(process.cwd(), 'public', 'downloads');
-    if (!fs.existsSync(downloadsDir)) {
-      fs.mkdirSync(downloadsDir, { recursive: true });
-    }
+    const downloadsDir = isWin
+      ? path.resolve(process.cwd(), 'public', 'downloads')
+      : path.join(os.tmpdir(), 'mediakit_downloads');
+    try {
+      if (!fs.existsSync(downloadsDir)) {
+        fs.mkdirSync(downloadsDir, { recursive: true });
+      }
+    } catch {}
 
     // Specific cached files for the user test link
     if (videoId === 'j18MRhEfmPk' || media.sourceUrl.includes('j18MRhEfmPk')) {

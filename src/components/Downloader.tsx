@@ -36,6 +36,7 @@ export default function Downloader() {
   const [clipboardToast, setClipboardToast] = useState<string | null>(null);
   const [downloadingFormatId, setDownloadingFormatId] = useState<string | null>(null);
   const isProcessingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-dismiss clipboard toast
   useEffect(() => {
@@ -97,6 +98,8 @@ export default function Downloader() {
     if (!trimmed) return;
 
     setUrl(trimmed);
+    setMediaInfo(null); // Clear stale previous media card immediately
+    setError(null);
     setIsDetecting(true);
     const result = detectPlatform(trimmed);
     setDetection(result);
@@ -105,6 +108,8 @@ export default function Downloader() {
     if (result.valid) {
       setError(null);
       setState('url_entered');
+      // Automatically start fetching newly pasted media
+      handleSubmit(undefined, trimmed);
     } else if (result.errorCode === 'UNSUPPORTED_PLATFORM') {
       setError({
         type: 'UNSUPPORTED_PLATFORM',
@@ -132,15 +137,15 @@ export default function Downloader() {
         if (text && text.trim()) {
           handlePasteEvent(text);
           setClipboardToast('Pasted link from clipboard');
-        } else {
-          setClipboardToast('Clipboard is empty. Paste the link manually');
+          return;
         }
-      } else {
-        setClipboardToast('Paste the link manually');
       }
-    } catch {
-      setClipboardToast('Paste the link manually');
-    }
+    } catch {}
+
+    // If clipboard read is blocked by browser permissions, focus and select input for quick pasting
+    inputRef.current?.focus();
+    inputRef.current?.select();
+    setClipboardToast('Press Ctrl+V to paste your link');
   };
 
   // Clear / Reset
@@ -157,10 +162,10 @@ export default function Downloader() {
   };
 
   // Submit flow with multi-stage loading
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent, urlOverride?: string) => {
     if (e) e.preventDefault();
 
-    const targetUrl = url.trim();
+    const targetUrl = (urlOverride !== undefined ? urlOverride : url).trim();
     if (!targetUrl) {
       setError({
         type: 'INVALID_URL',
@@ -411,6 +416,7 @@ export default function Downloader() {
               </div>
 
               <input
+                ref={inputRef}
                 type="url"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
