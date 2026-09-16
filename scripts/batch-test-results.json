@@ -9,7 +9,7 @@
     "vidPath": "/downloads/0e3GPea1Tyg_136.mp4",
     "vidSize": "216.90 MB",
     "vidQuality": "720p",
-    "elapsed": "112.7s",
+    "elapsed": "4.8s",
     "status": "SUCCESS"
   },
   {
@@ -22,7 +22,7 @@
     "vidPath": "/downloads/GLoeAJUcz38_136.mp4",
     "vidSize": "97.53 MB",
     "vidQuality": "720p",
-    "elapsed": "53.3s",
+    "elapsed": "5.0s",
     "status": "SUCCESS"
   },
   {
@@ -35,32 +35,37 @@
     "vidPath": "/downloads/9bqk6ZUsKyA_136.mp4",
     "vidSize": "103.18 MB",
     "vidQuality": "720p",
-    "elapsed": "81.7s",
+    "elapsed": "5.9s",
     "status": "SUCCESS"
   },
   {
     "index": 4,
     "category": "IShowSpeed",
-    "label": "IShowSpeed - World Cup Official Song",
-    "error": "No downloadable formats available",
-    "elapsed": "2.9s",
+    "label": "IShowSpeed - Revealing New iPhone",
+    "error": "MP3 processing failed: Download failed: Command failed: C:\\Users\\salma\\OneDrive\\Desktop\\MediaKit\\bin\\yt-dlp.exe --js-runtimes node --no-playlist --no-part --windows-filenames --ffmpeg-location C:\\Users\\salma\\OneDrive\\Desktop\\MediaKit\\bin\\ffmpeg.exe -x --audio-format mp3 --audio-quality 0 -o C:\\Users\\salma\\AppData\\Local\\Temp\\mediakit_dl\\5CPAtEmHAio_mp3-140-drc.mp3 https://youtube.com/watch?v=5CPAtEmHAio\n",
+    "elapsed": "124.3s",
     "status": "FAILED"
   },
   {
     "index": 5,
     "category": "IShowSpeed",
-    "label": "IShowSpeed - Meets Cristiano Ronaldo",
-    "error": "No downloadable formats available",
-    "elapsed": "2.4s",
+    "label": "IShowSpeed - Tests Apple Products",
+    "error": "Video processing failed: Download failed: Command failed: C:\\Users\\salma\\OneDrive\\Desktop\\MediaKit\\bin\\yt-dlp.exe --js-runtimes node --no-playlist --no-part --windows-filenames --ffmpeg-location C:\\Users\\salma\\OneDrive\\Desktop\\MediaKit\\bin\\ffmpeg.exe -f 298+ba[ext=m4a]/bestaudio/298+ba/best --merge-output-format mp4 -o C:\\Users\\salma\\AppData\\Local\\Temp\\mediakit_dl\\XYu20kFOioY_298.mp4 https://youtube.com/watch?v=XYu20kFOioY\n",
+    "elapsed": "154.7s",
     "status": "FAILED"
   },
   {
     "index": 6,
     "category": "IShowSpeed",
-    "label": "IShowSpeed - Shake Pt 2 Music Video",
-    "error": "No downloadable formats available",
-    "elapsed": "2.5s",
-    "status": "FAILED"
+    "title": "iShowSpeed in Squid Game",
+    "duration": "1:16",
+    "mp3Path": "/downloads/9Fr-ihuFE_U_mp3-140-7.mp3",
+    "mp3Size": "1.93 MB",
+    "vidPath": "/downloads/9Fr-ihuFE_U_136.mp4",
+    "vidSize": "5.88 MB",
+    "vidQuality": "720p",
+    "elapsed": "17.8s",
+    "status": "SUCCESS"
   },
   {
     "index": 7,
@@ -72,7 +77,7 @@
     "vidPath": "/downloads/Ishqa_Ve_HD.mp4",
     "vidSize": "42.17 MB",
     "vidQuality": "720p",
-    "elapsed": "4.4s",
+    "elapsed": "5.9s",
     "status": "SUCCESS"
   },
   {
@@ -85,7 +90,7 @@
     "vidPath": "/downloads/kJQP7kiw5Fk_136.mp4",
     "vidSize": "44.40 MB",
     "vidQuality": "720p",
-    "elapsed": "49.2s",
+    "elapsed": "5.8s",
     "status": "SUCCESS"
   },
   {
@@ -98,7 +103,7 @@
     "vidPath": "/downloads/JGwWNGJdvx8_136.mp4",
     "vidSize": "26.78 MB",
     "vidQuality": "720p",
-    "elapsed": "39.9s",
+    "elapsed": "3.8s",
     "status": "SUCCESS"
   },
   {
@@ -111,7 +116,7 @@
     "vidPath": "/downloads/zNNYy1QYKrI_298.mp4",
     "vidSize": "28.17 MB",
     "vidQuality": "720p",
-    "elapsed": "6.2s",
+    "elapsed": "6.1s",
     "status": "SUCCESS"
   },
   {
@@ -124,7 +129,7 @@
     "vidPath": "/downloads/dQw4w9WgXcQ_136.mp4",
     "vidSize": "28.58 MB",
     "vidQuality": "720p",
-    "elapsed": "41.4s",
+    "elapsed": "5.8s",
     "status": "SUCCESS"
   },
   {
@@ -137,7 +142,7 @@
     "vidPath": "/downloads/9bZkp7q19f0_136.mp4",
     "vidSize": "36.28 MB",
     "vidQuality": "720p",
-    "elapsed": "34.9s",
+    "elapsed": "4.5s",
     "status": "SUCCESS"
   }
 ]
