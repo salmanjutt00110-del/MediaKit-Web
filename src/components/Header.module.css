@@ -224,3 +224,48 @@
     border-bottom: 1px solid var(--border-card);
   }
 }
+
+@media (max-width: 768px) {
+  .headerContainer {
+    height: 60px;
+    gap: 12px;
+  }
+
+  .brandLogo {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .brandName {
+    font-size: 1.15rem;
+  }
+
+  .brandTagline {
+    font-size: 0.65rem;
+  }
+
+  .brandWrapper {
+    gap: 8px;
+  }
+
+  .fastFreeBtn {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    gap: 6px;
+  }
+
+  .actionIconBtn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .mobileMenuBtn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .actionsRight {
+    gap: 8px;
+  }
+}

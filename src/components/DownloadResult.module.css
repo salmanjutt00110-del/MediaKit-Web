@@ -237,12 +237,80 @@
 }
 
 @media (max-width: 768px) {
+  .resultCard {
+    padding: 18px;
+    margin-top: 18px;
+    border-radius: var(--radius-lg);
+  }
+
   .resultGrid {
     flex-direction: column;
+    gap: 16px;
   }
 
   .thumbnailWrapper {
     width: 100%;
-    max-width: 320px;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius-md);
+  }
+
+  .mediaTitle {
+    font-size: 1.05rem;
+  }
+
+  .metaRow {
+    gap: 10px;
+    font-size: 0.8rem;
+  }
+
+  .downloadsSection {
+    margin-top: 4px;
+    padding-top: 12px;
+  }
+
+  .downloadsHeading {
+    font-size: 0.9rem;
+  }
+
+  .formatRow {
+    padding: 10px 12px;
+  }
+
+  .qualityLabel {
+    font-size: 0.88rem;
+  }
+
+  .rowDownloadBtn {
+    padding: 8px 16px;
+    font-size: 0.82rem;
+  }
+
+  .groupLabel {
+    font-size: 0.775rem;
+  }
+
+  .providerNotice {
+    padding: 10px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .resultCard {
+    padding: 14px;
+  }
+
+  .mediaTitle {
+    font-size: 0.95rem;
+  }
+
+  .formatRow {
+    padding: 8px 10px;
+  }
+
+  .rowDownloadBtn {
+    padding: 7px 14px;
+    font-size: 0.78rem;
   }
 }

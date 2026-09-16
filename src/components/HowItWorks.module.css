@@ -113,3 +113,46 @@
     display: none;
   }
 }
+
+@media (max-width: 768px) {
+  .sectionWrapper {
+    padding: 40px 0;
+  }
+
+  .sectionHeader {
+    margin-bottom: 28px;
+  }
+
+  .sectionTitle {
+    font-size: 1.4rem;
+  }
+
+  .sectionSubtitle {
+    font-size: 0.88rem;
+  }
+
+  .stepsGrid {
+    gap: 12px;
+  }
+
+  .stepCard {
+    padding: 22px 18px;
+    border-radius: var(--radius-md);
+  }
+
+  .stepNumber {
+    font-size: 1.4rem;
+  }
+
+  .stepTitle {
+    font-size: 1rem;
+  }
+
+  .stepDesc {
+    font-size: 0.82rem;
+  }
+
+  .stepHeader {
+    margin-bottom: 14px;
+  }
+}

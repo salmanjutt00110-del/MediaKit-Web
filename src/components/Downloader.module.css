@@ -292,19 +292,75 @@
 }
 
 @media (max-width: 768px) {
+  .downloaderSection {
+    padding: 8px 0 24px 0;
+  }
+
   .downloaderCard {
     border-radius: var(--radius-lg);
     flex-wrap: wrap;
-    padding: 12px 14px;
+    padding: 14px 16px;
+    gap: 8px;
+    box-shadow: 0 8px 24px -4px rgba(37, 99, 235, 0.12),
+                0 0 30px rgba(236, 72, 153, 0.06);
+  }
+
+  .linkIcon {
+    display: none;
+  }
+
+  .urlInput {
+    font-size: 0.95rem;
+    padding: 10px 0;
+    width: 100%;
   }
 
   .downloadBtn {
     width: 100%;
     margin-top: 4px;
+    padding: 12px 24px;
+    font-size: 1rem;
+    border-radius: var(--radius-md);
+  }
+
+  .clearBtn,
+  .pasteBtn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .errorAlert {
+    margin-top: 12px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
   }
 
   .errorContent {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .loadingStageBar {
+    margin-top: 10px;
+    padding: 6px 14px;
+  }
+
+  .stageText {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .downloaderCard {
+    padding: 12px 12px;
+  }
+
+  .downloadBtn {
+    padding: 11px 20px;
+    font-size: 0.95rem;
+  }
+
+  .urlInput {
+    font-size: 0.88rem;
   }
 }

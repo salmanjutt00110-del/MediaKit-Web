@@ -167,8 +167,79 @@
   }
 }
 
+@media (max-width: 768px) {
+  .sectionWrapper {
+    padding: 40px 0 36px 0;
+  }
+
+  .sectionHeader {
+    margin-bottom: 28px;
+  }
+
+  .sectionTitle {
+    font-size: 1.6rem;
+  }
+
+  .sectionSubtitle {
+    font-size: 0.9rem;
+  }
+
+  .platformGrid {
+    gap: 12px;
+  }
+
+  .platformCard {
+    padding: 22px 18px;
+    min-height: 180px;
+    border-radius: var(--radius-lg);
+  }
+
+  .iconSquircle {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+  }
+
+  .platformName {
+    font-size: 1.1rem;
+  }
+
+  .platformDesc {
+    font-size: 0.78rem;
+  }
+}
+
 @media (max-width: 520px) {
   .platformGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .platformCard {
+    padding: 18px 14px;
+    min-height: 160px;
+  }
+
+  .cardTop {
+    margin-bottom: 16px;
+  }
+
+  .iconSquircle {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .platformName {
+    font-size: 0.95rem;
+  }
+
+  .platformDesc {
+    font-size: 0.72rem;
+  }
+
+  .arrowCircleBtn {
+    width: 28px;
+    height: 28px;
   }
 }

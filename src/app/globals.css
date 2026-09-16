@@ -190,3 +190,16 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+@media (max-width: 768px) {
+  :root {
+    --container-pad: 16px;
+    --header-height: 60px;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --container-pad: 14px;
+  }
+}

@@ -96,3 +96,31 @@
     justify-content: center;
   }
 }
+
+@media (max-width: 768px) {
+  .sectionWrapper {
+    padding: 28px 0 50px 0;
+  }
+
+  .ctaCard {
+    padding: 28px 20px;
+    border-radius: var(--radius-lg);
+  }
+
+  .ctaTitle {
+    font-size: 1.5rem;
+  }
+
+  .ctaDesc {
+    font-size: 0.9rem;
+  }
+
+  .ctaBtn {
+    padding: 12px 24px;
+    font-size: 0.95rem;
+  }
+
+  .ctaSubnote {
+    font-size: 0.72rem;
+  }
+}
