@@ -319,18 +319,9 @@ export class InstagramAdapter extends MediaProvider {
       }
     } catch {}
 
-    // 4. Return instant clean stream proxy
-    const cleanTitle = (media.title || 'instagram-media')
-      .replace(/[/\\?%*:|"<>]/g, '_')
-      .trim();
-    const proxyPath = `/api/download/file?url=${encodeURIComponent(
-      media.sourceUrl
-    )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
-
     return {
-      success: true,
-      downloadUrl: proxyPath,
-      message: 'Direct media stream prepared.',
+      success: false,
+      message: 'Unable to extract direct Instagram video stream right now. Please verify the link is a public post and try again.',
     };
   }
 }

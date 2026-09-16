@@ -14,12 +14,14 @@ export default function Header() {
   useEffect(() => {
     const timer = setTimeout(() => {
       const savedTheme = localStorage.getItem('mediakit-theme') as 'light' | 'dark' | null;
-      if (savedTheme === 'dark') {
-        setTheme('dark');
-        document.documentElement.setAttribute('data-theme', 'dark');
+      if (savedTheme === 'dark' || savedTheme === 'light') {
+        setTheme(savedTheme);
+        document.documentElement.setAttribute('data-theme', savedTheme);
       } else {
-        setTheme('light');
-        document.documentElement.setAttribute('data-theme', 'light');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const autoTheme = prefersDark ? 'dark' : 'light';
+        setTheme(autoTheme);
+        document.documentElement.setAttribute('data-theme', autoTheme);
       }
     }, 0);
     return () => clearTimeout(timer);

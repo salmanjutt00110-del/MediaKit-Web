@@ -278,23 +278,23 @@ export class TikTokAdapter extends MediaProvider {
       universalData?.duration ||
       (tikwmData?.duration ? `${tikwmData.duration}s` : undefined);
 
-    // Pick best available stream URLs
+    // Pick best available stream URLs (Prioritize TikWM CDN urls which never return 403)
     const hdDownloadUrl =
-      universalData?.hdUrl ||
-      universalData?.playUrl ||
       tikwmData?.hdplay ||
       tikwmData?.play ||
+      universalData?.hdUrl ||
+      universalData?.playUrl ||
       undefined;
 
     const sdDownloadUrl =
-      universalData?.playUrl ||
       tikwmData?.play ||
       tikwmData?.hdplay ||
+      universalData?.playUrl ||
       undefined;
 
     const mp3DownloadUrl =
-      universalData?.musicUrl ||
       tikwmData?.music ||
+      universalData?.musicUrl ||
       undefined;
 
     const formats: MediaFormat[] = [

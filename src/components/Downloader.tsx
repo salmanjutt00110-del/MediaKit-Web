@@ -396,60 +396,13 @@ export default function Downloader() {
         .trim();
       const filename = `${safeTitle}.${ext}`;
 
-      // 2. Stream download with active byte-level progress reporting
-      let streamSucceeded = false;
-      try {
-        const streamRes = await fetch(rawDlUrl);
-        if (streamRes.ok && streamRes.body) {
-          const reader = streamRes.body.getReader();
-          const contentLength = +(streamRes.headers.get('content-length') || 0);
-          const totalMBStr = contentLength > 0 ? `${(contentLength / (1024 * 1024)).toFixed(1)} MB` : '';
-          let receivedBytes = 0;
-          const chunks: Uint8Array[] = [];
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (value) {
-              chunks.push(value);
-              receivedBytes += value.length;
-              const receivedMBStr = `${(receivedBytes / (1024 * 1024)).toFixed(1)} MB`;
-              const percent = contentLength > 0 ? Math.min(100, Math.round((receivedBytes / contentLength) * 100)) : 0;
-              setDownloadProgress({
-                percent,
-                receivedMB: receivedMBStr,
-                totalMB: totalMBStr,
-                active: true,
-                formatTitle: formatQuality,
-              });
-            }
-          }
-
-          // Complete: save file directly to disk
-          const blob = new Blob(chunks as BlobPart[], { type: isAudio ? 'audio/mpeg' : 'video/mp4' });
-          const blobUrl = URL.createObjectURL(blob);
-          const dlAnchor = document.createElement('a');
-          dlAnchor.href = blobUrl;
-          dlAnchor.setAttribute('download', filename);
-          document.body.appendChild(dlAnchor);
-          dlAnchor.click();
-          document.body.removeChild(dlAnchor);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
-          streamSucceeded = true;
-        }
-      } catch (streamErr: any) {
-        // If stream reading fails (e.g. cross-origin restrictions), gracefully fall back to native anchor download
-      }
-
-      if (!streamSucceeded) {
-        // Fallback: Trigger native browser download directly
-        const dlAnchor = document.createElement('a');
-        dlAnchor.href = rawDlUrl;
-        dlAnchor.setAttribute('download', filename);
-        document.body.appendChild(dlAnchor);
-        dlAnchor.click();
-        document.body.removeChild(dlAnchor);
-      }
+      // 2. High-speed native browser download (avoids mobile RAM lockup and stuck 0MB bar)
+      const dlAnchor = document.createElement('a');
+      dlAnchor.href = rawDlUrl;
+      dlAnchor.setAttribute('download', filename);
+      document.body.appendChild(dlAnchor);
+      dlAnchor.click();
+      document.body.removeChild(dlAnchor);
 
       setState('completed');
       setCompletedInfo({
@@ -652,10 +605,10 @@ export default function Downloader() {
             <div className={styles.downloadCompleteCard} role="status" aria-live="polite">
               <div className={styles.completeHeader}>
                 <CheckCircle2 size={20} color="#059669" />
-                <span>Download Complete!</span>
+                <span>Download Started!</span>
               </div>
               <p className={styles.completeSubtext}>
-                <strong>{completedInfo.title}.{completedInfo.ext}</strong> is ready in your browser Downloads.
+                <strong>{completedInfo.title}.{completedInfo.ext}</strong> is downloading in your browser background. Check your notification bar or Downloads folder.
               </p>
               <div className={styles.completeActions}>
                 <button

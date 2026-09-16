@@ -89,8 +89,6 @@ export async function GET(request: NextRequest) {
     // Pass appropriate referer when needed by known hosts
     if (targetUrl.includes('savenow') || targetUrl.includes('loader.to')) {
       upstreamHeaders['Referer'] = 'https://loader.to/';
-    } else if (targetUrl.includes('tiktok.com') || targetUrl.includes('tiktokcdn.com')) {
-      upstreamHeaders['Referer'] = 'https://www.tiktok.com/';
     }
 
     const upstreamRes = await fetch(targetUrl, {
@@ -111,14 +109,19 @@ export async function GET(request: NextRequest) {
       upstreamRes.headers.get('content-type') ||
       (ext === 'mp3' ? 'audio/mpeg' : 'video/mp4');
 
-    const filename = buildSafeFilename(title, ext);
+    const asciiTitle = (title || 'media')
+      .replace(/[^a-zA-Z0-9_\-\s]/g, '')
+      .replace(/\s+/g, '_')
+      .trim() || 'media';
+    const asciiFilename = `${asciiTitle}.${ext}`;
+    const utf8Filename = buildSafeFilename(title, ext);
 
     const headers = new Headers();
     headers.set('Content-Type', contentType);
     headers.set('Accept-Ranges', 'bytes');
     headers.set(
       'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+      `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(utf8Filename)}`
     );
 
     // Forward caching and range parameters
@@ -184,10 +187,16 @@ export async function HEAD(request: NextRequest) {
     if (contentLength) {
       headers.set('Content-Length', contentLength);
     }
-    const filename = buildSafeFilename(title, ext);
+    const asciiTitle = (title || 'media')
+      .replace(/[^a-zA-Z0-9_\-\s]/g, '')
+      .replace(/\s+/g, '_')
+      .trim() || 'media';
+    const asciiFilename = `${asciiTitle}.${ext}`;
+    const utf8Filename = buildSafeFilename(title, ext);
+
     headers.set(
       'Content-Disposition',
-      `attachment; filename="${encodeURIComponent(filename)}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+      `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(utf8Filename)}`
     );
     headers.set('Access-Control-Allow-Origin', '*');
 
