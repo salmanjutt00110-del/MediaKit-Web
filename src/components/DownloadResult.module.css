@@ -325,23 +325,50 @@
 }
 
 /* ==========================================================================
-   INTERACTIVE MULTI-ASSET TABS (Video, Thumbnail, Script, Hashtags)
+   CHOICE SCREEN & OPTION SELECTION SYSTEM
    ========================================================================== */
-.assetTabs {
+.optionPillNav {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: 10px;
+  margin-top: 8px;
   flex-wrap: wrap;
 }
 
-.assetTab {
+.backToChoiceBtn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
+  gap: 5px;
+  padding: 6px 13px;
   border-radius: var(--radius-full);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--brand-blue);
+  background: var(--brand-blue-light);
+  border: 1px solid var(--brand-blue-border);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.backToChoiceBtn:hover {
+  background: #dbeafe;
+  transform: translateX(-1px);
+}
+
+.optionPillGroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.navPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
   background: var(--bg-subtle);
@@ -350,41 +377,312 @@
   transition: all 0.18s ease;
 }
 
-.assetTab:hover {
+.navPill:hover {
   color: var(--text-primary);
   border-color: var(--brand-blue-border);
   background: var(--bg-subtle-hover);
 }
 
-.assetTabActive {
+.navPillActive {
   background: var(--brand-blue);
   color: #ffffff !important;
   border-color: var(--brand-blue);
-  box-shadow: 0 3px 12px rgba(37, 99, 235, 0.28);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
 }
 
-.tabCountPill {
-  font-size: 0.68rem;
-  font-weight: 800;
-  padding: 2px 6px;
+/* Prompt Screen (What would you like to extract?) */
+.promptSection {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-light);
+  animation: fadeIn 0.25s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.promptHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.promptBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
   border-radius: var(--radius-full);
-  background: rgba(15, 23, 42, 0.08);
-  color: inherit;
-}
-
-.assetTabActive .tabCountPill {
-  background: rgba(255, 255, 255, 0.25);
-  color: #ffffff;
-}
-
-.tabBadgeNew {
-  font-size: 0.64rem;
+  font-size: 0.75rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
-  padding: 1px 6px;
-  border-radius: 4px;
+  color: var(--brand-blue);
+  background: var(--brand-blue-light);
+  border: 1px solid var(--brand-blue-border);
+  letter-spacing: 0.02em;
+}
+
+.promptHeading {
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.promptSubtext {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.choiceCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.choiceCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-light);
+  border-radius: 18px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.choiceCard:hover {
+  transform: translateY(-2px);
+  background: var(--bg-surface);
+  border-color: var(--brand-blue);
+  box-shadow: 0 10px 24px -4px rgba(37, 99, 235, 0.14);
+}
+
+.choiceIconCircle {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.choiceCard:hover .choiceIconCircle {
+  transform: scale(1.08);
+}
+
+.choiceIconCircleVideo {
+  background: linear-gradient(135deg, #2563eb, #0284c7);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+}
+
+.choiceIconCircleThumb {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+}
+
+.choiceIconCircleTitle {
   background: linear-gradient(135deg, #10b981, #059669);
   color: #ffffff;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+}
+
+.choiceIconCircleScript {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+}
+
+.choiceCardBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.choiceCardTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.choiceCardTitle {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.choiceBadgePopular {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: #eff6ff;
+  color: var(--brand-blue);
+  border: 1px solid #bfdbfe;
+}
+
+.choiceBadgeHighRes {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fde68a;
+}
+
+.choiceBadgeText {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.choiceBadgeScript {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+}
+
+.choiceCardDesc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.choiceCardArrow {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.choiceCard:hover .choiceCardArrow {
+  transform: translateX(3px);
+  color: var(--brand-blue);
+}
+
+.viewSectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.viewSectionSub {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 2px 0 0 0;
+}
+
+.formatsCountBadge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand-blue);
+  background: var(--brand-blue-light);
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+/* ==========================================================================
+   TITLE, CREATOR, HASHTAGS & DESCRIPTION (TEXT VIEW)
+   ========================================================================== */
+.infoTextCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-light);
+  border-radius: 18px;
+  padding: 18px 20px;
+}
+
+.textDataBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.textDataHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.textDataLabel {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.textDataActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.textDataContent {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.textDataContentLong {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.textDataContentLong::-webkit-scrollbar {
+  width: 5px;
+}
+
+.textDataContentLong::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 4px;
 }
 
 .assetTabContent {

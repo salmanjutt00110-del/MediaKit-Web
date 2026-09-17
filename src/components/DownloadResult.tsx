@@ -17,6 +17,9 @@ import {
   Sparkles,
   RefreshCw,
   ArrowDownToLine,
+  ChevronRight,
+  ArrowLeft,
+  AlignLeft,
 } from 'lucide-react';
 import { MediaFormat, MediaMetadata, PlatformType } from '@/lib/types';
 import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon } from './PlatformIcons';
@@ -30,7 +33,7 @@ interface DownloadResultProps {
   downloadingFormatId?: string | null;
 }
 
-type ResultTab = 'media' | 'thumbnail' | 'script' | 'hashtags';
+export type ResultOption = 'select' | 'video' | 'thumbnail' | 'title' | 'script';
 
 interface ScriptData {
   loading: boolean;
@@ -49,7 +52,8 @@ export default function DownloadResult({
   isDownloading,
   downloadingFormatId,
 }: DownloadResultProps) {
-  const [activeTab, setActiveTab] = useState<ResultTab>('media');
+  // Start on 'select' choice view by default so the user is explicitly asked what they want!
+  const [selectedOption, setSelectedOption] = useState<ResultOption>('select');
   const [scriptData, setScriptData] = useState<ScriptData | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -113,7 +117,7 @@ export default function DownloadResult({
     setImgError(!media.thumbnailUrl);
     setIsImgLoading(!!media.thumbnailUrl);
     setHasTriedProxy(false);
-    setActiveTab('media');
+    setSelectedOption('select');
     setScriptData(null);
   }, [media.id, media.sourceUrl, media.thumbnailUrl]);
 
@@ -129,7 +133,7 @@ export default function DownloadResult({
 
   // Fetch Voiceover Script on tab activation
   const fetchScript = async () => {
-    if (scriptData && !scriptData.loading && !scriptData.error) return;
+    if (scriptData && !scriptData.loading && !scriptData.error && scriptData.scriptText) return;
 
     setScriptData({
       loading: true,
@@ -158,7 +162,7 @@ export default function DownloadResult({
       } else {
         setScriptData({
           loading: false,
-          scriptText: media.description || '',
+          scriptText: media.description || media.title || '',
           hashtags: media.hashtags || [],
           error: json.error?.message || 'Voiceover script not available for this video.',
         });
@@ -166,16 +170,16 @@ export default function DownloadResult({
     } catch {
       setScriptData({
         loading: false,
-        scriptText: media.description || '',
+        scriptText: media.description || media.title || '',
         hashtags: media.hashtags || [],
         error: 'Unable to connect to script server. Please try again.',
       });
     }
   };
 
-  const handleTabClick = (tab: ResultTab) => {
-    setActiveTab(tab);
-    if (tab === 'script') {
+  const handleSelectOption = (opt: ResultOption) => {
+    setSelectedOption(opt);
+    if (opt === 'script') {
       fetchScript();
     }
   };
@@ -213,7 +217,7 @@ export default function DownloadResult({
 
   return (
     <div className={styles.resultCard} role="region" aria-label="Media Download Information">
-      {/* Top Details Banner */}
+      {/* Top Preview Banner */}
       <div className={styles.resultGrid}>
         {/* Guaranteed Thumbnail Preview */}
         <div className={styles.thumbnailWrapper}>
@@ -265,67 +269,198 @@ export default function DownloadResult({
             )}
             <span className={styles.metaItem}>
               <Check size={13} color="#10B981" />
-              <span>Link Verified</span>
+              <span>Link Ready</span>
             </span>
           </div>
 
-          {/* Interactive Option Picker Tabs */}
-          <div className={styles.assetTabs}>
-            <button
-              type="button"
-              onClick={() => handleTabClick('media')}
-              className={`${styles.assetTab} ${activeTab === 'media' ? styles.assetTabActive : ''}`}
-            >
-              <Film size={15} />
-              <span>Video & Audio</span>
-              <span className={styles.tabCountPill}>{availableFormats.length}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTabClick('thumbnail')}
-              className={`${styles.assetTab} ${activeTab === 'thumbnail' ? styles.assetTabActive : ''}`}
-            >
-              <ImageIcon size={15} />
-              <span>HD Thumbnail</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTabClick('script')}
-              className={`${styles.assetTab} ${activeTab === 'script' ? styles.assetTabActive : ''}`}
-            >
-              <FileText size={15} />
-              <span>Voiceover Script</span>
-              <span className={styles.tabBadgeNew}>NEW</span>
-            </button>
-
-            {allHashtags.length > 0 && (
+          {/* Quick-Switch Header Pills (Visible when an option is selected) */}
+          {selectedOption !== 'select' && (
+            <div className={styles.optionPillNav}>
               <button
                 type="button"
-                onClick={() => handleTabClick('hashtags')}
-                className={`${styles.assetTab} ${activeTab === 'hashtags' ? styles.assetTabActive : ''}`}
+                onClick={() => setSelectedOption('select')}
+                className={styles.backToChoiceBtn}
+                title="Back to all extraction options"
               >
-                <Hash size={15} />
-                <span>Hashtags</span>
-                <span className={styles.tabCountPill}>{allHashtags.length}</span>
+                <ArrowLeft size={13} />
+                <span>All Options</span>
               </button>
-            )}
-          </div>
+
+              <div className={styles.optionPillGroup}>
+                <button
+                  type="button"
+                  onClick={() => handleSelectOption('video')}
+                  className={`${styles.navPill} ${selectedOption === 'video' ? styles.navPillActive : ''}`}
+                >
+                  <Film size={13} />
+                  <span>Video & Audio</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelectOption('thumbnail')}
+                  className={`${styles.navPill} ${selectedOption === 'thumbnail' ? styles.navPillActive : ''}`}
+                >
+                  <ImageIcon size={13} />
+                  <span>Thumbnail</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelectOption('title')}
+                  className={`${styles.navPill} ${selectedOption === 'title' ? styles.navPillActive : ''}`}
+                >
+                  <AlignLeft size={13} />
+                  <span>Title & Info</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSelectOption('script')}
+                  className={`${styles.navPill} ${selectedOption === 'script' ? styles.navPillActive : ''}`}
+                >
+                  <FileText size={13} />
+                  <span>Voiceover Script</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* ====================================================================
-          TAB 1: VIDEO & AUDIO DOWNLOADS
+          STEP 1: USER CHOICE SCREEN ("What would you like to extract?")
          ==================================================================== */}
-      {activeTab === 'media' && (
+      {selectedOption === 'select' && (
+        <div className={styles.promptSection}>
+          <div className={styles.promptHeader}>
+            <div className={styles.promptBadge}>
+              <Sparkles size={14} />
+              <span>Choose What to Extract</span>
+            </div>
+            <h4 className={styles.promptHeading}>What would you like to get from this video?</h4>
+            <p className={styles.promptSubtext}>
+              Select any option below to view and download it instantly in professional quality:
+            </p>
+          </div>
+
+          <div className={styles.choiceCardsGrid}>
+            {/* Card 1: Video & Audio */}
+            <button
+              type="button"
+              onClick={() => handleSelectOption('video')}
+              className={`${styles.choiceCard} ${styles.choiceCardVideo}`}
+            >
+              <div className={`${styles.choiceIconCircle} ${styles.choiceIconCircleVideo}`}>
+                <Film size={26} />
+              </div>
+              <div className={styles.choiceCardBody}>
+                <div className={styles.choiceCardTop}>
+                  <h5 className={styles.choiceCardTitle}>Video & Audio</h5>
+                  <span className={styles.choiceBadgePopular}>MP4 / MP3</span>
+                </div>
+                <p className={styles.choiceCardDesc}>
+                  Download video in 1080p, 720p, 480p, 360p, or high-definition MP3 audio.
+                </p>
+              </div>
+              <div className={styles.choiceCardArrow}>
+                <ChevronRight size={18} />
+              </div>
+            </button>
+
+            {/* Card 2: HD Thumbnail */}
+            <button
+              type="button"
+              onClick={() => handleSelectOption('thumbnail')}
+              className={`${styles.choiceCard} ${styles.choiceCardThumb}`}
+            >
+              <div className={`${styles.choiceIconCircle} ${styles.choiceIconCircleThumb}`}>
+                <ImageIcon size={26} />
+              </div>
+              <div className={styles.choiceCardBody}>
+                <div className={styles.choiceCardTop}>
+                  <h5 className={styles.choiceCardTitle}>HD Thumbnail</h5>
+                  <span className={styles.choiceBadgeHighRes}>High-Res</span>
+                </div>
+                <p className={styles.choiceCardDesc}>
+                  Download the original high-resolution cover image or copy image URL.
+                </p>
+              </div>
+              <div className={styles.choiceCardArrow}>
+                <ChevronRight size={18} />
+              </div>
+            </button>
+
+            {/* Card 3: Title & Info (Text) */}
+            <button
+              type="button"
+              onClick={() => handleSelectOption('title')}
+              className={`${styles.choiceCard} ${styles.choiceCardTitleStyle}`}
+            >
+              <div className={`${styles.choiceIconCircle} ${styles.choiceIconCircleTitle}`}>
+                <AlignLeft size={26} />
+              </div>
+              <div className={styles.choiceCardBody}>
+                <div className={styles.choiceCardTop}>
+                  <h5 className={styles.choiceCardTitle}>Title, Tags & Info</h5>
+                  <span className={styles.choiceBadgeText}>Clean Text</span>
+                </div>
+                <p className={styles.choiceCardDesc}>
+                  Extract clean video title, creator info, description, and hashtags as text.
+                </p>
+              </div>
+              <div className={styles.choiceCardArrow}>
+                <ChevronRight size={18} />
+              </div>
+            </button>
+
+            {/* Card 4: Voiceover Script & Transcript (Text) */}
+            <button
+              type="button"
+              onClick={() => handleSelectOption('script')}
+              className={`${styles.choiceCard} ${styles.choiceCardScript}`}
+            >
+              <div className={`${styles.choiceIconCircle} ${styles.choiceIconCircleScript}`}>
+                <FileText size={26} />
+              </div>
+              <div className={styles.choiceCardBody}>
+                <div className={styles.choiceCardTop}>
+                  <h5 className={styles.choiceCardTitle}>Voiceover Script</h5>
+                  <span className={styles.choiceBadgeScript}>Script & Subtitles</span>
+                </div>
+                <p className={styles.choiceCardDesc}>
+                  Extract speech-to-text transcript, spoken voiceover, and subtitle text.
+                </p>
+              </div>
+              <div className={styles.choiceCardArrow}>
+                <ChevronRight size={18} />
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          VIEW 1: VIDEO & AUDIO DOWNLOADS
+         ==================================================================== */}
+      {selectedOption === 'video' && (
         <div className={styles.downloadsSection}>
+          <div className={styles.viewSectionHeader}>
+            <div>
+              <h4 className={styles.downloadsHeading}>Full Video & Audio Downloads</h4>
+              <p className={styles.viewSectionSub}>
+                Select your preferred resolution or audio format for instant download:
+              </p>
+            </div>
+            <span className={styles.formatsCountBadge}>{availableFormats.length} Formats Available</span>
+          </div>
+
           {availableFormats.length > 0 ? (
             <div className={styles.formatsList}>
               {/* MP4 Section */}
               {mp4Formats.length > 0 && (
                 <div className={styles.formatGroup}>
-                  <span className={styles.groupLabel}>Video (MP4)</span>
+                  <span className={styles.groupLabel}>Video Formats (MP4)</span>
                   <div className={styles.groupItems}>
                     {mp4Formats.map((fmt: MediaFormat) => (
                       <div key={fmt.id} className={styles.formatRow}>
@@ -358,7 +493,7 @@ export default function DownloadResult({
               {/* MP3 Section */}
               {mp3Formats.length > 0 && (
                 <div className={styles.formatGroup}>
-                  <span className={styles.groupLabel}>Audio (MP3)</span>
+                  <span className={styles.groupLabel}>Audio Only (MP3)</span>
                   <div className={styles.groupItems}>
                     {mp3Formats.map((fmt: MediaFormat) => (
                       <div key={fmt.id} className={styles.formatRow}>
@@ -421,10 +556,10 @@ export default function DownloadResult({
             <div className={styles.providerNotice}>
               <Info size={16} color="#2563EB" style={{ flexShrink: 0, marginTop: '2px' }} />
               <div>
-                <strong>Platform detected.</strong>
+                <strong>Platform stream ready.</strong>
                 <p style={{ marginTop: '2px' }}>
                   {media.providerStatusMessage ||
-                    'Stream extraction credentials will be configured. Only authentic formats are displayed.'}
+                    'Extracting stream details. Click download to trigger direct media file.'}
                 </p>
               </div>
             </div>
@@ -433,11 +568,20 @@ export default function DownloadResult({
       )}
 
       {/* ====================================================================
-          TAB 2: HD THUMBNAIL DOWNLOAD
+          VIEW 2: HD THUMBNAIL DOWNLOAD
          ==================================================================== */}
-      {activeTab === 'thumbnail' && (
+      {selectedOption === 'thumbnail' && (
         <div className={styles.assetTabContent}>
           <div className={styles.thumbnailCardBig}>
+            <div className={styles.viewSectionHeader}>
+              <div>
+                <h4 className={styles.downloadsHeading}>High-Resolution Video Cover</h4>
+                <p className={styles.viewSectionSub}>
+                  Original HD thumbnail preview ready for saving:
+                </p>
+              </div>
+            </div>
+
             {imgSrc ? (
               <div className={styles.thumbnailLargeWrapper}>
                 <img
@@ -488,9 +632,130 @@ export default function DownloadResult({
       )}
 
       {/* ====================================================================
-          TAB 3: VOICEOVER SCRIPT & TRANSCRIPT
+          VIEW 3: TITLE, CREATOR, DESCRIPTION & HASHTAGS (TEXT)
          ==================================================================== */}
-      {activeTab === 'script' && (
+      {selectedOption === 'title' && (
+        <div className={styles.assetTabContent}>
+          <div className={styles.infoTextCard}>
+            <div className={styles.viewSectionHeader}>
+              <div>
+                <h4 className={styles.downloadsHeading}>Title, Creator & Text Info</h4>
+                <p className={styles.viewSectionSub}>
+                  Clean text extracted from video metadata with 1-click copy:
+                </p>
+              </div>
+            </div>
+
+            {/* Title Block */}
+            <div className={styles.textDataBlock}>
+              <div className={styles.textDataHeader}>
+                <span className={styles.textDataLabel}>Video Title</span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(displayTitle, 'title-copy')}
+                  className={styles.assetBtnSecondary}
+                >
+                  {copiedKey === 'title-copy' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
+                  <span>{copiedKey === 'title-copy' ? 'Copied Title!' : 'Copy Title'}</span>
+                </button>
+              </div>
+              <div className={styles.textDataContent}>{displayTitle}</div>
+            </div>
+
+            {/* Creator / Channel Block */}
+            {media.author && (
+              <div className={styles.textDataBlock}>
+                <div className={styles.textDataHeader}>
+                  <span className={styles.textDataLabel}>Creator / Channel</span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(media.author || '', 'author-copy')}
+                    className={styles.assetBtnSecondary}
+                  >
+                    {copiedKey === 'author-copy' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
+                    <span>{copiedKey === 'author-copy' ? 'Copied!' : 'Copy Creator'}</span>
+                  </button>
+                </div>
+                <div className={styles.textDataContent}>{media.author}</div>
+              </div>
+            )}
+
+            {/* Hashtags Block */}
+            {allHashtags.length > 0 && (
+              <div className={styles.textDataBlock}>
+                <div className={styles.textDataHeader}>
+                  <span className={styles.textDataLabel}>
+                    Hashtags ({allHashtags.length} detected)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(allHashtags.join(' '), 'tags-copy')}
+                    className={styles.assetBtnPrimary}
+                  >
+                    {copiedKey === 'tags-copy' ? <Check size={13} color="#ffffff" /> : <Copy size={13} />}
+                    <span>{copiedKey === 'tags-copy' ? 'Copied All!' : 'Copy All Hashtags'}</span>
+                  </button>
+                </div>
+                <div className={styles.hashtagsGrid}>
+                  {allHashtags.map((tag, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => copyToClipboard(tag, `tag-${idx}`)}
+                      className={styles.hashtagPill}
+                      title="Click to copy hashtag"
+                    >
+                      <Hash size={12} className={styles.hashtagIcon} />
+                      <span>{tag.replace(/^#/, '')}</span>
+                      {copiedKey === `tag-${idx}` && (
+                        <Check size={12} color="#10B981" style={{ marginLeft: '4px' }} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Description / Caption Block */}
+            {media.description && (
+              <div className={styles.textDataBlock}>
+                <div className={styles.textDataHeader}>
+                  <span className={styles.textDataLabel}>Description / Caption</span>
+                  <div className={styles.textDataActions}>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(media.description || '', 'desc-copy')}
+                      className={styles.assetBtnSecondary}
+                    >
+                      {copiedKey === 'desc-copy' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
+                      <span>{copiedKey === 'desc-copy' ? 'Copied Text!' : 'Copy Description'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadTextFile(
+                          media.description || '',
+                          `${safeFilePrefix}_description.txt`
+                        )
+                      }
+                      className={styles.assetBtnSecondary}
+                    >
+                      <FileText size={13} />
+                      <span>Download .TXT</span>
+                    </button>
+                  </div>
+                </div>
+                <div className={styles.textDataContentLong}>{media.description}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          VIEW 4: VOICEOVER SCRIPT & TRANSCRIPT (TEXT)
+         ==================================================================== */}
+      {selectedOption === 'script' && (
         <div className={styles.assetTabContent}>
           <div className={styles.scriptCard}>
             {scriptData?.loading ? (
@@ -511,7 +776,7 @@ export default function DownloadResult({
                           ? 'Official Captions / Transcript'
                           : scriptData.source === 'captions'
                           ? 'Video Spoken Captions'
-                          : 'Video Spoken Text'}
+                          : 'Voiceover Text'}
                       </span>
                     </span>
                     {scriptData.language && (
@@ -529,7 +794,7 @@ export default function DownloadResult({
                       title="Copy full script"
                     >
                       {copiedKey === 'script-text' ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
-                      <span>{copiedKey === 'script-text' ? 'Copied Script!' : 'Copy Script'}</span>
+                      <span>{copiedKey === 'script-text' ? 'Copied Script!' : 'Copy Script Text'}</span>
                     </button>
 
                     <button
@@ -563,7 +828,7 @@ export default function DownloadResult({
                   </div>
                 </div>
 
-                {/* Script Reader Body */}
+                {/* Script Reader Body (Professional Text) */}
                 <div className={styles.scriptBodyWrapper}>
                   {scriptData.timedLines && scriptData.timedLines.length > 0 ? (
                     <div className={styles.timedLinesList}>
@@ -597,51 +862,6 @@ export default function DownloadResult({
                 </button>
               </div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* ====================================================================
-          TAB 4: HASHTAGS EXTRACTOR
-         ==================================================================== */}
-      {activeTab === 'hashtags' && (
-        <div className={styles.assetTabContent}>
-          <div className={styles.hashtagsCard}>
-            <div className={styles.hashtagsHeader}>
-              <div className={styles.hashtagsHeaderLeft}>
-                <h4 className={styles.hashtagsTitle}>Extracted Video Hashtags</h4>
-                <span className={styles.hashtagsSubtitle}>
-                  {allHashtags.length} hashtags detected from title and creator description.
-                </span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => copyToClipboard(allHashtags.join(' '), 'all-hashtags')}
-                className={styles.assetBtnPrimary}
-              >
-                {copiedKey === 'all-hashtags' ? <Check size={14} color="#ffffff" /> : <Copy size={14} />}
-                <span>{copiedKey === 'all-hashtags' ? 'Copied All!' : 'Copy All Hashtags'}</span>
-              </button>
-            </div>
-
-            <div className={styles.hashtagsGrid}>
-              {allHashtags.map((tag, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => copyToClipboard(tag, `tag-${idx}`)}
-                  className={styles.hashtagPill}
-                  title="Click to copy hashtag"
-                >
-                  <Hash size={12} className={styles.hashtagIcon} />
-                  <span>{tag.replace(/^#/, '')}</span>
-                  {copiedKey === `tag-${idx}` && (
-                    <Check size={12} color="#10B981" style={{ marginLeft: '4px' }} />
-                  )}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       )}
