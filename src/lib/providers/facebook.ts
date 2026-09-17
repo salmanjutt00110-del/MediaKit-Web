@@ -3,6 +3,7 @@ import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
 import { cleanAndDecodeTitle } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
+import { extractSnapSave } from '../snapsave-native';
 
 interface FbCacheEntry {
   data: MediaMetadata;
@@ -172,11 +173,28 @@ export class FacebookAdapter extends MediaProvider {
     // Scrape metadata
     const scraped = await this.scrapeFacebookPage(resolvedUrl);
 
+    // If scraping didn't get direct video stream, fallback to native SnapSave
+    let fbThumb = scraped.thumbnailUrl;
+    let fbHd = scraped.hdUrl;
+    let fbSd = scraped.sdUrl;
+
+    if (!fbHd && !fbSd) {
+      try {
+        const snapItems = await extractSnapSave(resolvedUrl);
+        if (snapItems && snapItems.length > 0) {
+          fbHd = snapItems[0].url;
+          fbSd = snapItems[1]?.url || snapItems[0].url;
+          if (!fbThumb && snapItems[0].thumbnail) {
+            fbThumb = snapItems[0].thumbnail;
+          }
+        }
+      } catch {}
+    }
+
     const title = scraped.title || `Facebook Video (${videoId})`;
     // Wrap with thumbnail proxy to avoid cross-origin and CDN referrer blocks
-    const rawThumb = scraped.thumbnailUrl;
-    const thumbnailUrl = rawThumb
-      ? `/api/thumbnail?url=${encodeURIComponent(rawThumb)}`
+    const thumbnailUrl = fbThumb
+      ? `/api/thumbnail?url=${encodeURIComponent(fbThumb)}`
       : undefined;
 
     const formats: MediaFormat[] = [
@@ -187,7 +205,7 @@ export class FacebookAdapter extends MediaProvider {
         resolution: '1920x1080',
         hasAudio: true,
         hasVideo: true,
-        downloadUrl: scraped.hdUrl || scraped.sdUrl || undefined,
+        downloadUrl: fbHd || fbSd || undefined,
       },
       {
         id: '720p',
@@ -196,7 +214,7 @@ export class FacebookAdapter extends MediaProvider {
         resolution: '1280x720',
         hasAudio: true,
         hasVideo: true,
-        downloadUrl: scraped.hdUrl || scraped.sdUrl || undefined,
+        downloadUrl: fbHd || fbSd || undefined,
       },
       {
         id: 'sd',
@@ -205,7 +223,7 @@ export class FacebookAdapter extends MediaProvider {
         resolution: '640x360',
         hasAudio: true,
         hasVideo: true,
-        downloadUrl: scraped.sdUrl || scraped.hdUrl || undefined,
+        downloadUrl: fbSd || fbHd || undefined,
       },
       {
         id: 'mp3',
@@ -213,7 +231,7 @@ export class FacebookAdapter extends MediaProvider {
         quality: 'Original Audio (MP3)',
         hasAudio: true,
         hasVideo: false,
-        downloadUrl: scraped.hdUrl || scraped.sdUrl || undefined,
+        downloadUrl: fbHd || fbSd || undefined,
       },
     ];
 

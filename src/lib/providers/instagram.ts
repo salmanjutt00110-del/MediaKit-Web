@@ -3,7 +3,7 @@ import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
 import { cleanAndDecodeTitle } from '../string-utils';
 import { ytDlpRunner, getCookiesPath } from '../ytdlp';
-import { snapsave } from 'snapsave-media-downloader';
+import { extractSnapSave } from '../snapsave-native';
 
 interface IgCacheEntry {
   data: MediaMetadata;
@@ -213,15 +213,15 @@ export class InstagramAdapter extends MediaProvider {
 
     // 1. High-Performance Serverless Extractor: snapsave (extracts real HD video & thumbnail in <2s)
     try {
-      const snapRes: any = await snapsave(resolvedUrl).catch(() => null);
-      if (snapRes && snapRes.status && Array.isArray(snapRes.data) && snapRes.data.length > 0) {
-        const bestItem = snapRes.data[0];
+      const snapItems = await extractSnapSave(resolvedUrl);
+      if (snapItems && snapItems.length > 0) {
+        const bestItem = snapItems[0];
         const rawThumbnail = bestItem.thumbnail;
         const thumbnailUrl = rawThumbnail
           ? `/api/thumbnail?url=${encodeURIComponent(rawThumbnail)}`
           : undefined;
 
-        const formats: MediaFormat[] = snapRes.data.map((item: any, idx: number) => {
+        const formats: MediaFormat[] = snapItems.map((item, idx) => {
           const resLabel = item.resolution || (idx === 0 ? '720p HD (High Definition)' : 'SD Quality (Fast Download)');
           const isHd = resLabel.toLowerCase().includes('hd') || resLabel.includes('720') || resLabel.includes('1080');
           return {
