@@ -1,4 +1,4 @@
-export type PlatformType = 'youtube' | 'tiktok' | 'facebook' | 'instagram' | 'unknown';
+export type PlatformType = 'youtube' | 'tiktok' | 'facebook' | 'instagram' | 'pinterest' | 'unknown';
 
 export interface DetectionResult {
   platform: PlatformType;

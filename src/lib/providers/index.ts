@@ -2,12 +2,14 @@ import { PlatformType } from '../types';
 import { MediaProvider } from './base';
 import { FacebookAdapter } from './facebook';
 import { InstagramAdapter } from './instagram';
+import { PinterestAdapter } from './pinterest';
 import { TikTokAdapter } from './tiktok';
 import { YouTubeAdapter } from './youtube';
 
 export * from './base';
 export * from './facebook';
 export * from './instagram';
+export * from './pinterest';
 export * from './tiktok';
 export * from './youtube';
 
@@ -17,6 +19,7 @@ export class ProviderRegistry {
     new TikTokAdapter(),
     new FacebookAdapter(),
     new InstagramAdapter(),
+    new PinterestAdapter(),
   ];
 
   static getProviderForUrl(url: string): MediaProvider | null {

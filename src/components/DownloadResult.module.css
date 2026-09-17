@@ -179,6 +179,16 @@
   border: 1px solid var(--border-instagram);
 }
 
+.pillPinterest {
+  background: rgba(230, 0, 35, 0.1);
+  color: #e60023;
+  border: 1px solid rgba(230, 0, 35, 0.25);
+}
+
+.fallback_pinterest {
+  background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 50%, #b91c1c 100%);
+}
+
 .mediaTitle {
   font-size: 1.2rem;
   font-weight: 800;
@@ -288,6 +298,19 @@
   color: #10b981;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.formatBadgeText {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--brand-blue);
+  background: var(--brand-blue-light);
+  border: 1px solid var(--brand-blue-border);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
 }
 
 .fileSizeLabel {

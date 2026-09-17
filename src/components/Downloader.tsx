@@ -29,7 +29,7 @@ import {
   MediaMetadata,
   PlatformType,
 } from '@/lib/types';
-import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon } from './PlatformIcons';
+import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon, PinterestIcon } from './PlatformIcons';
 import DownloadResult from './DownloadResult';
 import styles from './Downloader.module.css';
 
@@ -148,7 +148,7 @@ export default function Downloader() {
             type: 'UNSUPPORTED_PLATFORM',
             code: 'UNSUPPORTED_PLATFORM',
             title: "Platform Isn't Supported",
-            message: "Sorry, this platform isn't supported yet. Try a YouTube, TikTok, Facebook, or Instagram link.",
+            message: "Sorry, this platform isn't supported yet. Try a YouTube, TikTok, Facebook, Instagram, or Pinterest link.",
             retryable: false,
           });
         } else {
@@ -199,7 +199,7 @@ export default function Downloader() {
         type: 'UNSUPPORTED_PLATFORM',
         code: 'UNSUPPORTED_PLATFORM',
         title: "Platform Isn't Supported",
-        message: "Sorry, this platform isn't supported yet. Try a YouTube, TikTok, Facebook, or Instagram link.",
+        message: "Sorry, this platform isn't supported yet. Try a YouTube, TikTok, Facebook, Instagram, or Pinterest link.",
         retryable: false,
       });
     } else {
@@ -297,7 +297,7 @@ export default function Downloader() {
             type: 'UNSUPPORTED_PLATFORM',
             code: 'UNSUPPORTED_PLATFORM',
             title: "Platform Isn't Supported",
-            message: "Sorry, this platform isn't supported yet. Try a YouTube, TikTok, Facebook, or Instagram link.",
+            message: "Sorry, this platform isn't supported yet. Try a YouTube, TikTok, Facebook, Instagram, or Pinterest link.",
             retryable: false,
           });
         } else if (errCode === 'RATE_LIMITED') {
@@ -727,6 +727,8 @@ export default function Downloader() {
         return <FacebookIcon size={14} />;
       case 'instagram':
         return <InstagramIcon size={14} />;
+      case 'pinterest':
+        return <PinterestIcon size={14} />;
       default:
         return null;
     }
@@ -828,7 +830,7 @@ export default function Downloader() {
                     }}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
-                    placeholder="Paste YouTube, TikTok, Facebook, or Instagram link..."
+                    placeholder="Paste YouTube, TikTok, Facebook, Instagram, or Pinterest link..."
                     className={styles.urlInput}
                     aria-label="Paste media link"
                     autoComplete="off"
@@ -1035,7 +1037,7 @@ export default function Downloader() {
                   <div className={styles.batchHeaderLeft}>
                     <h2 className={styles.batchHeading}>Multi-Link Batch Downloader</h2>
                     <p className={styles.batchSubtitle}>
-                      Paste up to 25 video links (one per line) from YouTube, TikTok, Facebook, or Instagram.
+                      Paste up to 25 video links (one per line) from YouTube, TikTok, Facebook, Instagram, or Pinterest.
                     </p>
                   </div>
                   <div className={styles.batchCounterBadge}>
@@ -1047,7 +1049,7 @@ export default function Downloader() {
                   <textarea
                     value={batchInput}
                     onChange={(e) => setBatchInput(e.target.value)}
-                    placeholder="Paste up to 25 video links here (one URL per line)...&#10;https://www.youtube.com/watch?v=GLoeAJUcz38&#10;https://www.tiktok.com/@creator/video/1234567&#10;https://www.facebook.com/share/r/...&#10;https://www.instagram.com/reel/..."
+                    placeholder="Paste up to 25 video links here (one URL per line)...&#10;https://www.youtube.com/watch?v=GLoeAJUcz38&#10;https://www.tiktok.com/@creator/video/1234567&#10;https://www.facebook.com/share/r/...&#10;https://www.instagram.com/reel/...&#10;https://www.pinterest.com/pin/..."
                     className={styles.batchTextarea}
                     rows={5}
                     disabled={isBatchProcessing || isBatchDownloading}
@@ -1235,7 +1237,6 @@ export default function Downloader() {
                                 {item.mediaInfo.formats.map((fmt) => (
                                   <option key={fmt.id} value={fmt.id}>
                                     {fmt.quality} ({fmt.format.toUpperCase()})
-                                    {fmt.fileSize ? ` - ${fmt.fileSize}` : ''}
                                   </option>
                                 ))}
                               </select>

@@ -9,10 +9,9 @@ import {
   Check,
   Film,
   Music,
-  HardDrive,
 } from 'lucide-react';
 import { MediaFormat, MediaMetadata, PlatformType } from '@/lib/types';
-import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon } from './PlatformIcons';
+import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon, PinterestIcon } from './PlatformIcons';
 import { cleanAndDecodeTitle } from '@/lib/string-utils';
 import styles from './DownloadResult.module.css';
 
@@ -21,51 +20,6 @@ interface DownloadResultProps {
   onDownloadFormat?: (formatId: string) => void;
   isDownloading?: boolean;
   downloadingFormatId?: string | null;
-}
-
-/**
- * Calculates a realistic, exact file size in MB for any video or audio format
- * based on resolution bitrate and duration.
- */
-function getCalculatedSize(fmt: MediaFormat, durationStr?: string): string {
-  if (fmt.fileSize && fmt.fileSize !== 'N/A' && fmt.fileSize.toLowerCase().includes('b')) {
-    return fmt.fileSize;
-  }
-
-  // Parse duration if present (e.g. "3:45" or "0:45")
-  let durationSec = 0;
-  if (durationStr) {
-    const parts = durationStr.split(':').map(Number);
-    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-      durationSec = parts[0] * 60 + parts[1];
-    } else if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-      durationSec = parts[0] * 3600 + parts[1] * 60 + parts[2];
-    }
-  }
-
-  const q = (fmt.quality || '').toLowerCase();
-  const id = (fmt.id || '').toLowerCase();
-  const isMp3 = fmt.format === 'mp3' || q.includes('mp3') || q.includes('audio');
-
-  if (durationSec > 0) {
-    let mbps = 2.0;
-    if (q.includes('1080') || id.includes('1080')) mbps = 3.6;
-    else if (q.includes('720') || id.includes('720')) mbps = 2.1;
-    else if (q.includes('480') || id.includes('480')) mbps = 1.0;
-    else if (q.includes('360') || id.includes('360')) mbps = 0.55;
-    else if (isMp3) mbps = 0.25;
-
-    const mb = (durationSec * mbps * 1000 * 1000) / (8 * 1024 * 1024);
-    return `${mb.toFixed(1)} MB`;
-  }
-
-  // Realistic baseline sizes per quality
-  if (q.includes('1080') || id.includes('1080')) return '38.4 MB';
-  if (q.includes('720') || id.includes('720')) return '19.2 MB';
-  if (q.includes('480') || id.includes('480')) return '9.8 MB';
-  if (q.includes('360') || id.includes('360')) return '5.4 MB';
-  if (isMp3) return '4.2 MB';
-  return '14.5 MB';
 }
 
 export default function DownloadResult({
@@ -102,6 +56,13 @@ export default function DownloadResult({
           <span className={`${styles.platformPill} ${styles.pillInstagram}`}>
             <InstagramIcon size={13} />
             <span>Instagram</span>
+          </span>
+        );
+      case 'pinterest':
+        return (
+          <span className={`${styles.platformPill} ${styles.pillPinterest}`}>
+            <PinterestIcon size={13} />
+            <span>Pinterest</span>
           </span>
         );
       default:
@@ -171,6 +132,7 @@ export default function DownloadResult({
                 {media.platform === 'youtube' && <YouTubeIcon size={34} color="#ffffff" />}
                 {media.platform === 'facebook' && <FacebookIcon size={34} color="#ffffff" />}
                 {media.platform === 'instagram' && <InstagramIcon size={34} color="#ffffff" />}
+                {media.platform === 'pinterest' && <PinterestIcon size={34} color="#ffffff" />}
               </div>
               <span className={styles.fallbackText}>{media.platform} video</span>
             </div>
@@ -229,34 +191,28 @@ export default function DownloadResult({
                   <span className={styles.groupLabel}>Video Formats (MP4)</span>
                 </div>
                 <div className={styles.groupItems}>
-                  {mp4Formats.map((fmt: MediaFormat) => {
-                    const fileSize = getCalculatedSize(fmt, media.duration);
-                    return (
-                      <div key={fmt.id} className={styles.formatRow}>
-                        <div className={styles.formatInfo}>
-                          <span className={styles.qualityLabel}>{fmt.quality}</span>
-                          <span className={styles.fileSizeLabel} title="File size">
-                            <HardDrive size={11} className={styles.sizeIcon} />
-                            {fileSize}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.rowDownloadBtn}
-                          onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
-                          disabled={isDownloading}
-                          aria-label={`Download MP4 ${fmt.quality}`}
-                        >
-                          <Download size={14} />
-                          <span>
-                            {isDownloading && downloadingFormatId === fmt.id
-                              ? 'Starting...'
-                              : 'Instant Download'}
-                          </span>
-                        </button>
+                  {mp4Formats.map((fmt: MediaFormat) => (
+                    <div key={fmt.id} className={styles.formatRow}>
+                      <div className={styles.formatInfo}>
+                        <span className={styles.qualityLabel}>{fmt.quality}</span>
+                        <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
                       </div>
-                    );
-                  })}
+                      <button
+                        type="button"
+                        className={styles.rowDownloadBtn}
+                        onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                        disabled={isDownloading}
+                        aria-label={`Download MP4 ${fmt.quality}`}
+                      >
+                        <Download size={14} />
+                        <span>
+                          {isDownloading && downloadingFormatId === fmt.id
+                            ? 'Starting...'
+                            : 'Instant Download'}
+                        </span>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -269,34 +225,28 @@ export default function DownloadResult({
                   <span className={styles.groupLabelAudio}>Audio Only (MP3)</span>
                 </div>
                 <div className={styles.groupItems}>
-                  {mp3Formats.map((fmt: MediaFormat) => {
-                    const fileSize = getCalculatedSize(fmt, media.duration);
-                    return (
-                      <div key={fmt.id} className={styles.formatRow}>
-                        <div className={styles.formatInfo}>
-                          <span className={styles.qualityLabel}>{fmt.quality}</span>
-                          <span className={styles.fileSizeLabel} title="File size">
-                            <HardDrive size={11} className={styles.sizeIcon} />
-                            {fileSize}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.rowDownloadBtnAudio}
-                          onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
-                          disabled={isDownloading}
-                          aria-label="Download MP3 Audio"
-                        >
-                          <Download size={14} />
-                          <span>
-                            {isDownloading && downloadingFormatId === fmt.id
-                              ? 'Starting...'
-                              : 'Instant Download'}
-                          </span>
-                        </button>
+                  {mp3Formats.map((fmt: MediaFormat) => (
+                    <div key={fmt.id} className={styles.formatRow}>
+                      <div className={styles.formatInfo}>
+                        <span className={styles.qualityLabel}>{fmt.quality}</span>
+                        <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
                       </div>
-                    );
-                  })}
+                      <button
+                        type="button"
+                        className={styles.rowDownloadBtnAudio}
+                        onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                        disabled={isDownloading}
+                        aria-label="Download MP3 Audio"
+                      >
+                        <Download size={14} />
+                        <span>
+                          {isDownloading && downloadingFormatId === fmt.id
+                            ? 'Starting...'
+                            : 'Instant Download'}
+                        </span>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -306,32 +256,26 @@ export default function DownloadResult({
               <div className={styles.formatGroup}>
                 <span className={styles.groupLabel}>Other Formats</span>
                 <div className={styles.groupItems}>
-                  {otherFormats.map((fmt: MediaFormat) => {
-                    const fileSize = getCalculatedSize(fmt, media.duration);
-                    return (
-                      <div key={fmt.id} className={styles.formatRow}>
-                        <div className={styles.formatInfo}>
-                          <span className={styles.qualityLabel}>
-                            {fmt.quality} ({fmt.format.toUpperCase()})
-                          </span>
-                          <span className={styles.fileSizeLabel}>
-                            <HardDrive size={11} className={styles.sizeIcon} />
-                            {fileSize}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.rowDownloadBtn}
-                          onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
-                          disabled={isDownloading}
-                          aria-label={`Download ${fmt.format}`}
-                        >
-                          <Download size={14} />
-                          <span>Download</span>
-                        </button>
+                  {otherFormats.map((fmt: MediaFormat) => (
+                    <div key={fmt.id} className={styles.formatRow}>
+                      <div className={styles.formatInfo}>
+                        <span className={styles.qualityLabel}>
+                          {fmt.quality} ({fmt.format.toUpperCase()})
+                        </span>
+                        <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
                       </div>
-                    );
-                  })}
+                      <button
+                        type="button"
+                        className={styles.rowDownloadBtn}
+                        onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                        disabled={isDownloading}
+                        aria-label={`Download ${fmt.format}`}
+                      >
+                        <Download size={14} />
+                        <span>Download</span>
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

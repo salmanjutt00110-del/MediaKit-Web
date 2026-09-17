@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ChevronRight } from 'lucide-react';
-import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon } from './PlatformIcons';
+import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon, PinterestIcon } from './PlatformIcons';
 import styles from './SupportedPlatforms.module.css';
 
 const platforms = [
@@ -36,11 +36,20 @@ const platforms = [
   {
     id: 'instagram',
     name: 'Instagram',
-    description: 'Videos, Reels, Photos',
+    description: 'Videos, Reels, Stories',
     icon: <InstagramIcon size={28} color="#ffffff" />,
     squircleClass: styles.squircleInstagram,
     cardClass: styles.cardInstagram,
     btnClass: styles.btnPurple,
+  },
+  {
+    id: 'pinterest',
+    name: 'Pinterest',
+    description: 'Videos, Pins, Ideas',
+    icon: <PinterestIcon size={28} color="#ffffff" />,
+    squircleClass: styles.squirclePinterest,
+    cardClass: styles.cardPinterest,
+    btnClass: styles.btnRed,
   },
 ];
 

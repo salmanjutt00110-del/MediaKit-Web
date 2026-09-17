@@ -150,8 +150,37 @@ export class YouTubeAdapter extends MediaProvider {
       };
     }
 
-    // 1. Primary Engine: yt-dlp local downloader (Super Fast & Direct)
+    // 1. Primary Engine: Direct Stream URL via yt-dlp -g (Instant 1-2s response, zero lag!)
     if (ytDlpRunner.isAvailable()) {
+      try {
+        const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
+        if (streamUrl && streamUrl.startsWith('http')) {
+          const isMp3 =
+            formatId.toLowerCase().includes('mp3') ||
+            formatId.toLowerCase().includes('audio');
+          const cleanTitle = (media.title || 'YouTube_Video')
+            .replace(/[/\\?%*:|"<>]/g, '_')
+            .trim();
+          const safeUrl = `/api/download/file?url=${encodeURIComponent(
+            streamUrl
+          )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+
+          youtubeStreamCache.set(cacheKey, {
+            url: safeUrl,
+            expiry: Date.now() + 2 * 60 * 60 * 1000,
+          });
+
+          return {
+            success: true,
+            downloadUrl: safeUrl,
+            message: 'Direct media stream prepared successfully.',
+          };
+        }
+      } catch (streamErr: any) {
+        console.warn('yt-dlp getStreamUrl fallback to local media:', streamErr.message);
+      }
+
+      // Fallback 1b: Local file downloader
       try {
         const localPath = await ytDlpRunner.downloadMedia(media, formatId);
         if (localPath) {

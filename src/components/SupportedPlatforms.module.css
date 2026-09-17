@@ -27,7 +27,7 @@
 
 .platformGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 20px;
 }
 
@@ -73,6 +73,11 @@
   border-color: rgba(225, 48, 108, 0.08);
 }
 
+.cardPinterest {
+  background: linear-gradient(180deg, #ffffff 60%, #fff5f5 100%);
+  border-color: rgba(230, 0, 35, 0.08);
+}
+
 [data-theme='dark'] .cardYouTube {
   background: linear-gradient(180deg, #141c2e 60%, rgba(239, 68, 68, 0.1) 100%);
   border-color: rgba(239, 68, 68, 0.22);
@@ -91,6 +96,11 @@
 [data-theme='dark'] .cardInstagram {
   background: linear-gradient(180deg, #141c2e 60%, rgba(217, 70, 239, 0.1) 100%);
   border-color: rgba(217, 70, 239, 0.22);
+}
+
+[data-theme='dark'] .cardPinterest {
+  background: linear-gradient(180deg, #141c2e 60%, rgba(230, 0, 35, 0.1) 100%);
+  border-color: rgba(230, 0, 35, 0.22);
 }
 
 .cardTop {
@@ -123,6 +133,10 @@
 
 .squircleInstagram {
   background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+}
+
+.squirclePinterest {
+  background: #e60023;
 }
 
 .cardBottom {

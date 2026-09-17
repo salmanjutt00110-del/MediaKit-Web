@@ -7,6 +7,7 @@ import {
   TikTokIcon,
   InstagramIcon,
   FacebookIcon,
+  PinterestIcon,
   XTwitterIcon,
   GitHubIcon,
   WhatsAppIcon,
@@ -99,6 +100,9 @@ export default function Footer() {
             </a>
             <a href="#facebook" className={styles.socialLink} aria-label="Facebook">
               <FacebookIcon size={18} color="currentColor" />
+            </a>
+            <a href="#pinterest" className={styles.socialLink} aria-label="Pinterest">
+              <PinterestIcon size={18} color="currentColor" />
             </a>
             <a href="#x" className={styles.socialLink} aria-label="X (Twitter)">
               <XTwitterIcon size={16} color="currentColor" />

@@ -210,6 +210,22 @@ export function detectPlatform(rawUrl: string): DetectionResult {
     };
   }
 
+  // 5. Pinterest Detection
+  const isPinterestHost =
+    hostname === 'pinterest.com' ||
+    hostname.endsWith('.pinterest.com') ||
+    hostname === 'pin.it' ||
+    hostname.endsWith('.pin.it');
+
+  if (isPinterestHost) {
+    return {
+      platform: 'pinterest',
+      valid: true,
+      normalizedUrl: norm.normalizedUrl,
+      originalUrl: rawUrl,
+    };
+  }
+
   // Valid URL structure but unsupported platform
   return {
     platform: 'unknown',
@@ -231,6 +247,8 @@ export function getPlatformDisplayName(platform: PlatformType): string {
       return 'Facebook';
     case 'instagram':
       return 'Instagram';
+    case 'pinterest':
+      return 'Pinterest';
     default:
       return 'Unknown';
   }
