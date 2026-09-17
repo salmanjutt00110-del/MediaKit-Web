@@ -6,6 +6,18 @@ import { MediaFormat, MediaMetadata } from './types';
 
 const isWin = process.platform === 'win32';
 
+function getCookiesPath(): string | null {
+  const candidates = [
+    path.resolve(process.cwd(), 'bin', 'cookies.txt'),
+    path.resolve(process.cwd(), 'bin', 'instagram_cookies.txt'),
+    path.resolve(process.cwd(), 'cookies.txt'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(/*turbopackIgnore: true*/ c)) return c;
+  }
+  return null;
+}
+
 function getExecutablePath(): string | null {
   if (isWin) {
     const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
@@ -25,12 +37,10 @@ function getExecutablePath(): string | null {
   const bundledPath = path.resolve(process.cwd(), 'bin', 'yt-dlp');
   if (fs.existsSync(bundledPath)) {
     try {
-      // Copy to writable /tmp directory to guarantee execution permissions
       fs.copyFileSync(bundledPath, tmpBinary);
       fs.chmodSync(tmpBinary, 0o755);
       return tmpBinary;
     } catch {
-      // If copy fails, fallback to bundled path
       try {
         fs.chmodSync(bundledPath, 0o755);
       } catch {}
@@ -40,6 +50,7 @@ function getExecutablePath(): string | null {
 
   return null;
 }
+
 
 interface YtDlpFormatRaw {
   format_id: string;
@@ -95,8 +106,14 @@ export const ytDlpRunner = {
         '-j',
         '--skip-download',
         '--no-playlist',
-        targetUrl,
       ];
+
+      const cookies = getCookiesPath();
+      if (cookies) {
+        args.push('--cookies', cookies);
+      }
+
+      args.push(targetUrl);
 
       execFile(
         /*turbopackIgnore: true*/ executable,
@@ -288,6 +305,11 @@ export const ytDlpRunner = {
         args.push('--ffmpeg-location', ffmpegPath);
       }
 
+      const cookies = getCookiesPath();
+      if (cookies) {
+        args.push('--cookies', cookies);
+      }
+
       if (isMp3) {
         args.push(
           '-x',
@@ -379,14 +401,23 @@ export const ytDlpRunner = {
       const args = [
         '--js-runtimes',
         'node',
-        '--extractor-args',
-        'youtube:player_client=android,web',
         '-g',
         '-f',
         formatArg,
         '--no-playlist',
-        targetUrl,
       ];
+
+      const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
+      if (isYouTube) {
+        args.push('--extractor-args', 'youtube:player_client=android,web');
+      }
+
+      const cookies = getCookiesPath();
+      if (cookies) {
+        args.push('--cookies', cookies);
+      }
+
+      args.push(targetUrl);
 
       const executable = getExecutablePath();
       if (!executable) {

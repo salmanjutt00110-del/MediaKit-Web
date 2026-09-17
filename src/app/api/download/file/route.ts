@@ -109,6 +109,13 @@ export async function GET(request: NextRequest) {
       upstreamRes.headers.get('content-type') ||
       (ext === 'mp3' ? 'audio/mpeg' : 'video/mp4');
 
+    if (contentType.includes('text/html') || contentType.includes('text/plain')) {
+      logger.warn('Upstream media response is HTML instead of media', { targetUrl: targetUrl.slice(0, 80) });
+      return new Response('Unable to extract direct media stream from this link. Content may be restricted or require authentication.', {
+        status: 422,
+      });
+    }
+
     const asciiTitle = (title || 'media')
       .replace(/[^a-zA-Z0-9_\-\s]/g, '')
       .replace(/\s+/g, '_')

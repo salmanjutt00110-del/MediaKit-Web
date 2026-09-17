@@ -83,6 +83,7 @@ export class InstagramAdapter extends MediaProvider {
     title?: string;
     author?: string;
     thumbnailUrl?: string;
+    directVideoUrl?: string;
   }> {
     // 1. Try public oEmbed endpoint
     try {
@@ -150,7 +151,17 @@ export class InstagramAdapter extends MediaProvider {
           thumbnailUrl = imgMatch[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
         }
 
-        return { title, author, thumbnailUrl };
+        let directVideoUrl: string | undefined;
+        const videoMatch =
+          html.match(/<video[^>]+src="([^"]+)"/i) ||
+          html.match(/"video_url":"([^"]+)"/i) ||
+          html.match(/"playable_url":"([^"]+)"/i) ||
+          html.match(/"playable_url_quality_hd":"([^"]+)"/i);
+        if (videoMatch) {
+          directVideoUrl = videoMatch[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
+        }
+
+        return { title, author, thumbnailUrl, directVideoUrl };
       }
     } catch (err: any) {
       logger.warn('Instagram embed scrape warning', { shortcode, msg: err.message });
@@ -187,6 +198,7 @@ export class InstagramAdapter extends MediaProvider {
         resolution: '1080x1920',
         hasAudio: true,
         hasVideo: true,
+        downloadUrl: meta.directVideoUrl,
       },
       {
         id: '720p',
@@ -195,6 +207,7 @@ export class InstagramAdapter extends MediaProvider {
         resolution: '720x1280',
         hasAudio: true,
         hasVideo: true,
+        downloadUrl: meta.directVideoUrl,
       },
       {
         id: 'sd',
@@ -203,6 +216,7 @@ export class InstagramAdapter extends MediaProvider {
         resolution: '480x854',
         hasAudio: true,
         hasVideo: true,
+        downloadUrl: meta.directVideoUrl,
       },
       {
         id: 'mp3',
@@ -210,6 +224,7 @@ export class InstagramAdapter extends MediaProvider {
         quality: 'Original Audio (MP3)',
         hasAudio: true,
         hasVideo: false,
+        downloadUrl: meta.directVideoUrl,
       },
     ];
 
@@ -259,7 +274,27 @@ export class InstagramAdapter extends MediaProvider {
       };
     }
 
-    // 3. Fast conversion probe via loader.to (single quick poll with max 3s timeout)
+    // 3. Try yt-dlp stream extraction
+    if (ytDlpRunner.isAvailable()) {
+      try {
+        const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
+        if (streamUrl && streamUrl.startsWith('http')) {
+          igStreamCache.set(cacheKey, {
+            url: streamUrl,
+            expiry: Date.now() + 2 * 60 * 60 * 1000,
+          });
+          return {
+            success: true,
+            downloadUrl: streamUrl,
+            message: 'Direct media stream prepared successfully.',
+          };
+        }
+      } catch (err: any) {
+        logger.warn('Instagram yt-dlp stream extraction attempt', { msg: err.message });
+      }
+    }
+
+    // 4. Fast conversion probe via loader.to (single quick poll with max 3s timeout)
     try {
       const convFormat = isMp3 ? 'mp3' : formatId.includes('1080') ? '1080' : '720';
       const initRes = await fetch(
@@ -293,8 +328,7 @@ export class InstagramAdapter extends MediaProvider {
         const progressUrl =
           init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-        // Only do up to 4 quick checks (max 2 seconds) so user NEVER waits 1-2 minutes!
-        for (let attempt = 0; attempt < 4; attempt++) {
+        for (let attempt = 0; attempt < 3; attempt++) {
           await new Promise((r) => setTimeout(r, 450));
           const pRes = await fetch(progressUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -319,9 +353,18 @@ export class InstagramAdapter extends MediaProvider {
       }
     } catch {}
 
+    // 5. Clean streaming proxy fallback
+    const cleanTitle = (media.title || 'instagram-media')
+      .replace(/[/\\?%*:|"<>]/g, '_')
+      .trim();
+    const proxyPath = `/api/download/file?url=${encodeURIComponent(
+      media.sourceUrl
+    )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+
     return {
-      success: false,
-      message: 'Unable to extract direct Instagram video stream right now. Please verify the link is a public post and try again.',
+      success: true,
+      downloadUrl: proxyPath,
+      message: 'Direct media stream prepared.',
     };
   }
 }

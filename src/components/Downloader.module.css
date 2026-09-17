@@ -562,105 +562,941 @@
   border-color: var(--brand-blue-border);
 }
 
-/* Floating Download Notification Toast (Top Screen) */
+/* ==========================================================================
+   MODE SWITCHER TABS (Single vs Batch)
+   ========================================================================== */
+.modeTabsWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.modeTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: var(--radius-full);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.modeTab:hover {
+  color: var(--text-primary);
+  border-color: var(--brand-blue-border);
+  transform: translateY(-1px);
+}
+
+.modeTabActive {
+  background: var(--brand-blue);
+  color: #ffffff !important;
+  border-color: var(--brand-blue);
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+}
+
+.modeTabActive:hover {
+  background: var(--brand-blue-hover);
+  border-color: var(--brand-blue-hover);
+}
+
+.modeBadge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(238, 242, 255, 0.95);
+  color: var(--brand-blue);
+  border: 1px solid rgba(199, 210, 254, 0.8);
+}
+
+.modeTabActive .modeBadge {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* ==========================================================================
+   ULTRA-PREMIUM FLOATING DOWNLOAD NOTIFICATION TOAST
+   ========================================================================== */
 .downloadToast {
   position: fixed;
   top: 24px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 18px;
-  border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(37, 99, 235, 0.25);
-  box-shadow: 0 12px 36px -4px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(37, 99, 235, 0.1);
-  max-width: 90vw;
-  animation: toastSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-:global([data-theme='dark']) .downloadToast {
-  background: rgba(20, 28, 46, 0.95);
-  border: 1px solid rgba(96, 165, 250, 0.3);
-  box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(96, 165, 250, 0.15);
-}
-
-.toastIconWrapper {
+  z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-full);
-  background: var(--brand-blue);
+  pointer-events: auto;
+  max-width: 92vw;
+  animation: toastEntrance 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toastGlowBackdrop {
+  position: absolute;
+  inset: -12px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, rgba(14, 165, 233, 0.15) 50%, transparent 75%);
+  filter: blur(14px);
+  border-radius: 28px;
+  z-index: -1;
+  pointer-events: none;
+  animation: toastGlowPulse 2.4s ease-in-out infinite alternate;
+}
+
+.toastCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px 12px 14px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 18px;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.55),
+              0 0 20px rgba(59, 130, 246, 0.22),
+              inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  min-width: 320px;
+  max-width: 480px;
+}
+
+:global([data-theme='light']) .toastCard {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.2),
+              0 0 24px rgba(37, 99, 235, 0.18),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  color: #0f172a;
+}
+
+.toastIconWrapper {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: #ffffff;
   flex-shrink: 0;
-  animation: pulseToastIcon 1.5s infinite ease-in-out;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+}
+
+.toastIconPulse {
+  position: absolute;
+  inset: -3px;
+  border-radius: 14px;
+  border: 2px solid rgba(6, 182, 212, 0.6);
+  animation: pulseIconBorder 1.8s ease-out infinite;
+  pointer-events: none;
+}
+
+.toastDownloadIcon {
+  animation: iconBounce 1.5s ease-in-out infinite;
 }
 
 .toastContent {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  gap: 3px;
+}
+
+.toastHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toastBadge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.25);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  line-height: 1.2;
+}
+
+:global([data-theme='light']) .toastBadge {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
 }
 
 .toastTitle {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  line-height: 1.2;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: -0.01em;
+}
+
+:global([data-theme='light']) .toastTitle {
+  color: #0f172a;
+}
+
+.toastActiveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  margin-left: auto;
+  animation: activeDotPulse 1.2s ease-in-out infinite alternate;
 }
 
 .toastMessage {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 260px;
-  line-height: 1.2;
+  max-width: 280px;
+  line-height: 1.3;
+}
+
+:global([data-theme='light']) .toastMessage {
+  color: #475569;
+}
+
+.toastProgressMiniTrack {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full);
+  margin-top: 5px;
+  overflow: hidden;
+  position: relative;
+}
+
+:global([data-theme='light']) .toastProgressMiniTrack {
+  background: rgba(15, 23, 42, 0.1);
+}
+
+.toastProgressMiniFill {
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, #2563eb, #06b6d4, #10b981);
+  animation: toastMiniProgress 1.4s ease-in-out infinite alternate;
 }
 
 .toastCloseBtn {
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: #94a3b8;
   cursor: pointer;
-  padding: 4px;
+  padding: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-full);
-  transition: color 0.15s ease;
-  margin-left: 4px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
 .toastCloseBtn:hover {
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 
-@keyframes toastSlideDown {
+:global([data-theme='light']) .toastCloseBtn:hover {
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+}
+
+@keyframes toastEntrance {
   0% {
     opacity: 0;
-    transform: translate(-50%, -20px);
+    transform: translate(-50%, -24px) scale(0.96);
   }
   100% {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translate(-50%, 0) scale(1);
   }
 }
 
-@keyframes pulseToastIcon {
-  0%, 100% {
-    transform: scale(1);
+@keyframes toastGlowPulse {
+  0% {
+    opacity: 0.55;
+    transform: scale(0.98);
   }
-  50% {
-    transform: scale(1.1);
+  100% {
+    opacity: 0.85;
+    transform: scale(1.02);
   }
 }
+
+@keyframes pulseIconBorder {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+@keyframes iconBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+}
+
+@keyframes activeDotPulse {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes toastMiniProgress {
+  0% {
+    left: 0%;
+  }
+  100% {
+    left: 55%;
+  }
+}
+
+/* ==========================================================================
+   BATCH DOWNLOADER STYLES (10-12 Links)
+   ========================================================================== */
+.batchContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.batchCard {
+  background: #ffffff;
+  border: 1.5px solid rgba(226, 232, 240, 0.95);
+  border-radius: 24px;
+  padding: 24px 28px;
+  box-shadow: 0 16px 40px -8px rgba(37, 99, 235, 0.12),
+              0 0 35px rgba(236, 72, 153, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: all 0.25s ease;
+}
+
+:global([data-theme='dark']) .batchCard {
+  background: var(--bg-surface);
+  border-color: #2c3b52;
+  box-shadow: 0 16px 40px -8px rgba(37, 99, 235, 0.22),
+              0 0 40px rgba(0, 198, 255, 0.12);
+}
+
+.batchHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.batchHeaderLeft {
+  flex: 1;
+  min-width: 260px;
+}
+
+.batchHeading {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 0 0 4px 0;
+}
+
+.batchSubtitle {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.batchCounterBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: var(--brand-blue-light);
+  border: 1px solid var(--brand-blue-border);
+  border-radius: var(--radius-full);
+  color: var(--brand-blue);
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.batchTextareaWrapper {
+  width: 100%;
+}
+
+.batchTextarea {
+  width: 100%;
+  padding: 14px 18px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-light);
+  border-radius: 16px;
+  outline: none;
+  resize: vertical;
+  min-height: 130px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.batchTextarea:focus {
+  border-color: var(--brand-blue);
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.batchTextarea::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.batchToolBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.batchToolBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.batchSecondaryBtn,
+.batchDemoBtn,
+.batchClearBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border: 1.5px solid var(--border-light);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.batchSecondaryBtn:hover,
+.batchClearBtn:hover {
+  color: var(--text-primary);
+  border-color: var(--brand-blue-border);
+  background: var(--bg-subtle-hover);
+}
+
+.batchDemoBtn {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.08), rgba(99, 102, 241, 0.08));
+  border-color: rgba(236, 72, 153, 0.25);
+  color: #ec4899;
+}
+
+.batchDemoBtn:hover {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.16), rgba(99, 102, 241, 0.16));
+  border-color: rgba(236, 72, 153, 0.45);
+  color: #db2777;
+  transform: translateY(-1px);
+}
+
+.batchProcessBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 26px;
+  background: var(--brand-blue);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.32);
+  transition: all 0.2s ease;
+}
+
+.batchProcessBtn:hover:not(:disabled) {
+  background: var(--brand-blue-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
+}
+
+.batchProcessBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Progress indicator during batch metadata fetch */
+.batchProgressContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px;
+  background: var(--brand-blue-light);
+  border: 1px solid var(--brand-blue-border);
+  border-radius: 14px;
+}
+
+.batchProgressBarTrack {
+  width: 100%;
+  height: 8px;
+  background: rgba(37, 99, 235, 0.18);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.batchProgressBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--brand-blue), #06b6d4);
+  border-radius: var(--radius-full);
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.batchProgressText {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--brand-blue);
+}
+
+/* ==========================================================================
+   BATCH RESULTS SECTION & ACTION BAR
+   ========================================================================== */
+.batchResultsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.batchActionBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 22px;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-light);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+}
+
+.batchActionBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.batchReadyCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.batchDownloadingStatus {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--brand-blue);
+  background: var(--brand-blue-light);
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+}
+
+.batchActionBarRight {
+  margin-left: auto;
+}
+
+.batchDownloadAllBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 26px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.32);
+  transition: all 0.2s ease;
+}
+
+.batchDownloadAllBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.42);
+}
+
+.batchDownloadAllBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ==========================================================================
+   BATCH CARDS GRID (10-12 Videos Responsive Layout)
+   ========================================================================== */
+.batchCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 18px;
+}
+
+.batchCardItem {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-light);
+  border-radius: 18px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.batchCardItem:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.08);
+  border-color: var(--brand-blue-border);
+}
+
+.batchCardItemCompleted {
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.15);
+}
+
+.batchCardItemError {
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 8px 24px -4px rgba(239, 68, 68, 0.15);
+}
+
+.batchCardThumbWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #0f172a;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.batchCardThumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.batchCardItem:hover .batchCardThumb {
+  transform: scale(1.03);
+}
+
+.batchCardThumbPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #64748b;
+}
+
+.batchPlatformPill {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.batchDurationBadge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.batchCardBody {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 10px;
+}
+
+.batchItemIndex {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.batchItemTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 2.7em;
+}
+
+.batchItemAuthor {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.batchItemError {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #ef4444;
+  background: #fef2f2;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #fee2e2;
+}
+
+:global([data-theme='dark']) .batchItemError {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.batchFormatSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.batchFormatLabel {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.batchSelect {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.batchSelect:focus {
+  border-color: var(--brand-blue);
+}
+
+.batchCardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-light);
+  margin-top: 4px;
+}
+
+.batchStatusPill {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.statusResolving,
+.statusDownloading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-blue);
+}
+
+.statusDotPulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-blue);
+  animation: pulseDot 1s ease-in-out infinite alternate;
+}
+
+@keyframes pulseDot {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.statusReady {
+  color: var(--text-secondary);
+}
+
+.statusCompleted {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #10b981;
+}
+
+.statusError {
+  color: #ef4444;
+}
+
+.batchItemDownloadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--brand-blue);
+  color: #ffffff;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.batchItemDownloadBtn:hover {
+  background: var(--brand-blue-hover);
+  transform: translateY(-1px);
+}
+
+.batchItemDownloadBtnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-light);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.batchItemDownloadBtnSecondary:hover {
+  background: var(--bg-subtle-hover);
+  color: var(--text-primary);
+}
+
+/* ==========================================================================
+   MOBILE & RESPONSIVE ADJUSTMENTS
+   ========================================================================== */
+@media (max-width: 640px) {
+  .batchCard {
+    padding: 16px 18px;
+    border-radius: 18px;
+  }
+
+  .batchToolBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .batchToolBarLeft {
+    justify-content: flex-start;
+  }
+
+  .batchProcessBtn {
+    width: 100%;
+  }
+
+  .batchActionBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .batchActionBarRight {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .batchDownloadAllBtn {
+    width: 100%;
+  }
+
+  .toastCard {
+    min-width: 290px;
+    padding: 10px 14px;
+  }
+}
+
 
 

@@ -6,9 +6,9 @@ import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Rate Limiting: 25 requests per minute per IP
+    // 1. Rate Limiting: 60 requests per minute per IP (allows batch lookups)
     const clientId = getClientIdentifier(request.headers);
-    const rateCheck = checkRateLimit(`media-info:${clientId}`, { limit: 25, windowMs: 60 * 1000 });
+    const rateCheck = checkRateLimit(`media-info:${clientId}`, { limit: 60, windowMs: 60 * 1000 });
     if (!rateCheck.allowed) {
       logger.warn('Rate limit exceeded on /api/media-info', { clientId });
       return NextResponse.json(
