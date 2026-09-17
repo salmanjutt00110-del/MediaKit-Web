@@ -195,8 +195,8 @@ export class InstagramAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(shortcode);
     if (cached) return cached;
 
-    // 0. If cookies are present in bin/cookies.txt, yt-dlp is fully authorized for Instagram
-    if (ytDlpRunner.isAvailable() && getCookiesPath()) {
+    // 0. Primary Engine: yt-dlp extractor (extracts Reels, Posts, Stories directly in 2 seconds)
+    if (ytDlpRunner.isAvailable()) {
       try {
         const info = await ytDlpRunner.getMediaInfo(resolvedUrl);
         if (info && info.formats && info.formats.length > 0) {
@@ -206,7 +206,7 @@ export class InstagramAdapter extends MediaProvider {
           return info;
         }
       } catch (err: any) {
-        logger.warn('Instagram yt-dlp with cookies info attempt failed', { msg: err.message });
+        logger.warn('Instagram yt-dlp info attempt failed', { msg: err.message });
       }
     }
 
@@ -328,8 +328,28 @@ export class InstagramAdapter extends MediaProvider {
       };
     }
 
-    // 3. Try yt-dlp if cookies or engine is available
+    // 3. Try yt-dlp direct stream extraction (FAST: 1-2 seconds, zero ffmpeg overhead)
     if (ytDlpRunner.isAvailable()) {
+      try {
+        const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
+        if (streamUrl && streamUrl.startsWith('http')) {
+          const safeUrl = `/api/download/file?url=${encodeURIComponent(
+            streamUrl
+          )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+          igStreamCache.set(cacheKey, {
+            url: safeUrl,
+            expiry: Date.now() + 2 * 60 * 60 * 1000,
+          });
+          return {
+            success: true,
+            downloadUrl: safeUrl,
+            message: 'Direct media download prepared successfully.',
+          };
+        }
+      } catch (err: any) {
+        logger.warn('Instagram yt-dlp getStreamUrl failed, trying downloadMedia', { msg: err.message });
+      }
+
       try {
         const localPath = await ytDlpRunner.downloadMedia(media, formatId);
         if (localPath) {

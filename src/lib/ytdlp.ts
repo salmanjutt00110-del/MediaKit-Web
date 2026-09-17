@@ -2,7 +2,7 @@ import { execFile } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { MediaFormat, MediaMetadata } from './types';
+import { MediaFormat, MediaMetadata, PlatformType } from './types';
 
 const isWin = process.platform === 'win32';
 
@@ -150,8 +150,31 @@ export const ytDlpRunner = {
             const formats: MediaFormat[] = [];
             const seenQualities = new Set<string>();
 
-            // 1. MP4 Formats (Prioritize standard non-m3u8 resolutions: 1080p, 720p, 480p, 360p)
-            // Exclude m3u8 (HLS) formats so we never select adaptive playlist manifests
+            // 1. MP4 Formats
+            const isInstagram = targetUrl.includes('instagram.com') || targetUrl.includes('instagr.am');
+            if (isInstagram) {
+              const igProgressive = rawFormats.filter(
+                (f) => f.ext === 'mp4' && f.url && (f.format_id === '3' || f.format_id === '2' || f.format_id === '1' || f.format_note?.includes('progressive'))
+              );
+              // Order by quality descending (3 -> 2 -> 1)
+              igProgressive.sort((a, b) => (parseInt(b.format_id) || 0) - (parseInt(a.format_id) || 0));
+              for (const f of igProgressive) {
+                const label = f.format_id === '3' ? '720p HD (High Definition)' : f.format_id === '2' ? '480p SD (Standard)' : '360p Fast Download';
+                if (!seenQualities.has(label)) {
+                  seenQualities.add(label);
+                  formats.push({
+                    id: f.format_id,
+                    format: 'mp4',
+                    quality: label,
+                    hasAudio: true,
+                    hasVideo: true,
+                    downloadUrl: f.url,
+                    fileSize: formatBytes(f.filesize || f.filesize_approx),
+                  });
+                }
+              }
+            }
+
             const directVideoFormats = rawFormats.filter(
               (f) =>
                 f.ext === 'mp4' &&
@@ -170,8 +193,13 @@ export const ytDlpRunner = {
                       (!f.protocol || !f.protocol.includes('m3u8'))
                   );
 
-            // Sort by height descending
-            videoFormats.sort((a, b) => (b.height || 0) - (a.height || 0));
+            // Sort: prioritize formats that have both audio and video, then by height descending
+            videoFormats.sort((a, b) => {
+              const aAudio = a.acodec && a.acodec !== 'none' ? 1 : 0;
+              const bAudio = b.acodec && b.acodec !== 'none' ? 1 : 0;
+              if (bAudio !== aAudio) return bAudio - aAudio;
+              return (b.height || 0) - (a.height || 0);
+            });
 
             for (const f of videoFormats) {
               const height = f.height;
@@ -237,10 +265,20 @@ export const ytDlpRunner = {
             const textMatches = combinedText.match(/#([a-zA-Z0-9_\u0600-\u06FF]+)/g) || [];
             const hashtags = Array.from(new Set([...textMatches, ...rawTags]));
 
+            const resolvedPlatform: PlatformType = isInstagram
+              ? 'instagram'
+              : targetUrl.includes('tiktok.com')
+              ? 'tiktok'
+              : targetUrl.includes('facebook.com') || targetUrl.includes('fb.watch')
+              ? 'facebook'
+              : targetUrl.includes('pinterest.com') || targetUrl.includes('pin.it')
+              ? 'pinterest'
+              : 'youtube';
+
             const media: MediaMetadata = {
               id: data.id || 'media',
-              platform: 'youtube',
-              title: data.title || 'YouTube Video',
+              platform: resolvedPlatform,
+              title: data.title || (isInstagram ? 'Instagram Video' : 'Video Media'),
               author: data.uploader || data.channel,
               duration: data.duration_string || (data.duration ? `${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')}` : undefined),
               thumbnailUrl: data.thumbnail,
