@@ -140,6 +140,32 @@ export class YouTubeAdapter extends MediaProvider {
     const videoId = this.extractVideoId(media.sourceUrl) || media.id;
     const cacheKey = `${videoId}_${formatId}`;
 
+    // 0. If format already has a direct downloadUrl from getMediaInfo, return it immediately!
+    const matchingFormat = media.formats?.find((f) => 
+      f.id === formatId || 
+      f.quality === formatId || 
+      (formatId.includes('360') && (f.id === '18' || f.quality?.includes('360'))) ||
+      (formatId.includes('720') && (f.id === '22' || f.quality?.includes('720'))) ||
+      (formatId.toLowerCase().includes('mp3') && (f.format === 'mp3' || f.id.includes('mp3')))
+    );
+    if (matchingFormat?.downloadUrl && (matchingFormat.downloadUrl.startsWith('http://') || matchingFormat.downloadUrl.startsWith('https://') || matchingFormat.downloadUrl.startsWith('/api/'))) {
+      const isMp3 =
+        formatId.toLowerCase().includes('mp3') ||
+        formatId.toLowerCase().includes('audio') ||
+        matchingFormat.format === 'mp3';
+      const cleanTitle = (media.title || 'YouTube_Video')
+        .replace(/[/\\?%*:|"<>]/g, '_')
+        .trim();
+      const safeUrl = `/api/download/file?url=${encodeURIComponent(
+        matchingFormat.downloadUrl
+      )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+      return {
+        success: true,
+        downloadUrl: safeUrl,
+        message: 'Instant stream retrieved from media info.',
+      };
+    }
+
     // Instant return if stream was pre-warmed or previously fetched
     const cached = youtubeStreamCache.get(cacheKey);
     if (cached && cached.expiry > Date.now()) {
@@ -180,7 +206,7 @@ export class YouTubeAdapter extends MediaProvider {
         console.warn('yt-dlp getStreamUrl fallback to local media:', streamErr.message);
       }
 
-      // Fallback 1b: Local file downloader
+      // Fallback 1b: Local file downloader with concurrent fragments
       try {
         const localPath = await ytDlpRunner.downloadMedia(media, formatId);
         if (localPath) {
@@ -225,7 +251,7 @@ export class YouTubeAdapter extends MediaProvider {
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
               Referer: 'https://loader.to/',
             },
-            signal: AbortSignal.timeout(12000),
+            signal: AbortSignal.timeout(8000),
           }
         );
 
@@ -250,15 +276,15 @@ export class YouTubeAdapter extends MediaProvider {
         const progressUrl =
           init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-        // Fast high-frequency polling every 350ms
-        for (let attempt = 0; attempt < 45; attempt++) {
+        // Fast polling with max 20 attempts
+        for (let attempt = 0; attempt < 20; attempt++) {
           if (attempt > 0) {
-            await new Promise((r) => setTimeout(r, 350));
+            await new Promise((r) => setTimeout(r, 400));
           }
 
           const pRes = await fetch(progressUrl, {
             headers: { 'User-Agent': 'Mozilla/5.0' },
-            signal: AbortSignal.timeout(4000),
+            signal: AbortSignal.timeout(3000),
           });
           const pData = await pRes.json();
 

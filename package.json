@@ -11,10 +11,12 @@
   },
   "dependencies": {
     "@distube/ytdl-core": "^4.16.12",
+    "btch-downloader": "^6.4.0",
     "lucide-react": "^1.46.0",
     "next": "16.3.5",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "snapsave-media-downloader": "^2.5.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

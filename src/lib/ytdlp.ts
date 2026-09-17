@@ -110,6 +110,11 @@ export const ytDlpRunner = {
         '--no-playlist',
       ];
 
+      const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
+      if (isYouTube) {
+        args.push('--extractor-args', 'youtube:player_client=android,web');
+      }
+
       const cookies = getCookiesPath();
       if (cookies) {
         args.push('--cookies', cookies);
@@ -183,6 +188,7 @@ export const ytDlpRunner = {
                   fileSize: formatBytes(f.filesize || f.filesize_approx),
                   hasAudio: f.acodec !== 'none',
                   hasVideo: true,
+                  downloadUrl: f.url && f.url.startsWith('http') ? f.url : undefined,
                 });
               }
 
@@ -199,6 +205,7 @@ export const ytDlpRunner = {
                 fileSize: formatBytes(first.filesize || first.filesize_approx),
                 hasAudio: first.acodec !== 'none',
                 hasVideo: true,
+                downloadUrl: first.url && first.url.startsWith('http') ? first.url : undefined,
               });
             }
 
@@ -221,6 +228,7 @@ export const ytDlpRunner = {
                 fileSize: formatBytes(bestAudio.filesize || bestAudio.filesize_approx),
                 hasAudio: true,
                 hasVideo: false,
+                downloadUrl: bestAudio.url && bestAudio.url.startsWith('http') ? bestAudio.url : undefined,
               });
             }
 
@@ -326,6 +334,8 @@ export const ytDlpRunner = {
           'mp3',
           '--audio-quality',
           '0',
+          '--concurrent-fragments',
+          '5',
           '-o',
           tempOutputFile,
           media.sourceUrl
@@ -341,10 +351,17 @@ export const ytDlpRunner = {
           formatArg,
           '--merge-output-format',
           'mp4',
+          '--concurrent-fragments',
+          '5',
           '-o',
           tempOutputFile,
           media.sourceUrl
         );
+      }
+
+      const isYouTube = media.sourceUrl.includes('youtube.com') || media.sourceUrl.includes('youtu.be');
+      if (isYouTube) {
+        args.push('--extractor-args', 'youtube:player_client=android,web');
       }
 
       const executable = getExecutablePath();
@@ -352,7 +369,7 @@ export const ytDlpRunner = {
         return reject(new Error('yt-dlp executable not available.'));
       }
 
-      execFile(/*turbopackIgnore: true*/ executable, args, { timeout: 120000 }, (error, stdout, stderr) => {
+      execFile(/*turbopackIgnore: true*/ executable, args, { timeout: 45000 }, (error, stdout, stderr) => {
         if (error) {
           // If the file was produced despite error code
           if (fs.existsSync(tempOutputFile)) {
@@ -396,16 +413,16 @@ export const ytDlpRunner = {
         formatId.toLowerCase().includes('mp3') ||
         formatId.toLowerCase().includes('audio');
 
-      // Prefer progressive mp4 formats (18 for 360p, 22 for 720p) or audio stream
+      // Prefer progressive mp4 formats (18 for 360p, b, best) or direct audio stream (140, ba)
       const formatArg = isMp3
-        ? 'ba/140/b'
+        ? '140/ba/bestaudio/b'
         : formatId &&
           formatId !== '720p' &&
           formatId !== '360p' &&
           formatId !== '1080p' &&
           formatId !== '480p'
-        ? `${formatId}/22/18/b`
-        : '22/18/b';
+        ? `${formatId}/18/b/best[height<=720]/best`
+        : '18/b/best[height<=720]/best';
 
       const args = [
         '--js-runtimes',
@@ -436,7 +453,7 @@ export const ytDlpRunner = {
       execFile(
         /*turbopackIgnore: true*/ executable,
         args,
-        { timeout: 25000 },
+        { timeout: 18000 },
         (error, stdout, stderr) => {
           if (error) {
             return reject(new Error(stderr || error.message));

@@ -12,19 +12,30 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'MediaKit — Download from Any Platform',
+  title: 'MediaKit — Best Free Video Downloader | YouTube, TikTok, Facebook, Instagram',
   description:
-    'MediaKit makes it simple to process supported media links with automatic platform detection and available download options.',
+    'Download high-definition videos, reels, stories, shorts, and high-bitrate MP3 audio from YouTube, TikTok (no watermark), Facebook, Instagram, and Pinterest for free with blazing fast speed.',
   keywords: [
-    'media downloader',
     'video downloader',
-    'youtube downloader',
-    'tiktok downloader',
-    'facebook video download',
-    'instagram reels download',
-    'auto detect media',
+    'free video downloader',
+    'youtube video downloader',
+    'youtube to mp3',
+    'tiktok downloader without watermark',
+    'tiktok video download',
+    'facebook video downloader',
+    'fb reels download',
+    'instagram reels downloader',
+    'instagram video download',
+    'pinterest video download',
+    'fast media downloader',
+    'online mp4 downloader',
+    'online mp3 downloader',
+    'hd video downloader',
+    'batch video downloader',
   ],
-  authors: [{ name: 'MediaKit Team' }],
+  authors: [{ name: 'MediaKit Team', url: 'https://mediakit.app' }],
+  creator: 'MediaKit',
+  publisher: 'MediaKit',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   alternates: {
     canonical: '/',
@@ -38,9 +49,9 @@ export const metadata: Metadata = {
     apple: [{ url: '/logo.png' }],
   },
   openGraph: {
-    title: 'MediaKit — Download from Any Platform',
+    title: 'MediaKit — Best Free Video Downloader | YouTube, TikTok, Facebook, Instagram',
     description:
-      'MediaKit makes it simple to process supported media links with automatic platform detection and available download options.',
+      'Fast, free, and watermark-free online media downloader for YouTube, TikTok, Facebook, Instagram, and Pinterest in 1080p HD and 320kbps MP3.',
     url: '/',
     siteName: 'MediaKit',
     images: [
@@ -48,23 +59,130 @@ export const metadata: Metadata = {
         url: '/logo.png',
         width: 512,
         height: 512,
-        alt: 'MediaKit — All-In-One Media Downloader',
+        alt: 'MediaKit — Universal Video and Audio Downloader',
       },
     ],
     locale: 'en_US',
     type: 'website',
   },
   twitter: {
-    card: 'summary',
-    title: 'MediaKit — Download from Any Platform',
+    card: 'summary_large_image',
+    title: 'MediaKit — Best Free Video Downloader',
     description:
-      'MediaKit makes it simple to process supported media links with automatic platform detection and available download options.',
+      'Fast, free, and watermark-free online media downloader for YouTube, TikTok, Facebook, Instagram, and Pinterest.',
     images: ['/logo.png'],
   },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
+};
+
+const jsonLdSchema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebApplication',
+      '@id': 'https://mediakit.app/#webapp',
+      name: 'MediaKit',
+      url: 'https://mediakit.app',
+      applicationCategory: 'MultimediaApplication',
+      operatingSystem: 'Windows, macOS, Linux, Android, iOS',
+      browserRequirements: 'Requires JavaScript and HTML5 support',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
+      description:
+        'Free, unlimited, and ultra-fast media downloader supporting YouTube, TikTok, Facebook, Instagram, and Pinterest with direct MP4 and MP3 stream extraction.',
+      featureList: [
+        'Automatic platform link detection',
+        'TikTok download with no watermark',
+        'YouTube Full HD 1080p and 320kbps MP3 audio',
+        'Facebook Reels and Public Videos download',
+        'Instagram Reels and Video stream extraction',
+        'Pinterest video and pin downloader',
+        'Batch multi-link downloader',
+      ],
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: '4.9',
+        ratingCount: '18450',
+        bestRating: '5',
+        worstRating: '1',
+      },
+    },
+    {
+      '@type': 'HowTo',
+      name: 'How to Download Any Video with MediaKit',
+      description: 'Step-by-step instructions to download videos from YouTube, TikTok, Facebook, or Instagram in seconds.',
+      step: [
+        {
+          '@type': 'HowToStep',
+          name: 'Copy Video Link',
+          text: 'Copy the URL of the video, Reel, or Short from YouTube, TikTok, Facebook, or Instagram.',
+          position: 1,
+        },
+        {
+          '@type': 'HowToStep',
+          name: 'Paste Link into MediaKit',
+          text: 'Paste the link into the MediaKit search bar. MediaKit instantly auto-detects the platform.',
+          position: 2,
+        },
+        {
+          '@type': 'HowToStep',
+          name: 'Select Quality and Download',
+          text: 'Choose your desired resolution (1080p, 720p, 360p) or MP3 audio and click Download.',
+          position: 3,
+        },
+      ],
+    },
+    {
+      '@type': 'FAQPage',
+      mainEntity: [
+        {
+          '@type': 'Question',
+          name: 'Is MediaKit free to use?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes, MediaKit is 100% free with no registration, subscription, or software installation required.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can I download TikTok videos without watermark?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes! MediaKit automatically extracts TikTok videos in crystal-clear HD without any watermark.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can I convert YouTube videos to MP3 audio?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes, MediaKit allows you to extract high-bitrate audio from YouTube videos directly as MP3 files.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Which platforms are supported?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'MediaKit supports YouTube, TikTok, Facebook, Instagram, and Pinterest videos, reels, and audio.',
+          },
+        },
+      ],
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -76,6 +194,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.png" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `

@@ -2,7 +2,7 @@ import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
 import { cleanAndDecodeTitle } from '../string-utils';
-import { ytDlpRunner } from '../ytdlp';
+import { ytDlpRunner, getCookiesPath } from '../ytdlp';
 
 interface IgCacheEntry {
   data: MediaMetadata;
@@ -195,6 +195,21 @@ export class InstagramAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(shortcode);
     if (cached) return cached;
 
+    // 0. If cookies are present in bin/cookies.txt, yt-dlp is fully authorized for Instagram
+    if (ytDlpRunner.isAvailable() && getCookiesPath()) {
+      try {
+        const info = await ytDlpRunner.getMediaInfo(resolvedUrl);
+        if (info && info.formats && info.formats.length > 0) {
+          setCachedMedia(resolvedUrl, info);
+          setCachedMedia(rawUrl, info);
+          setCachedMedia(shortcode, info);
+          return info;
+        }
+      } catch (err: any) {
+        logger.warn('Instagram yt-dlp with cookies info attempt failed', { msg: err.message });
+      }
+    }
+
     // Scrape metadata
     const meta = await this.scrapeInstagramMetadata(shortcode, resolvedUrl);
 
@@ -313,7 +328,7 @@ export class InstagramAdapter extends MediaProvider {
       };
     }
 
-    // 3. Try yt-dlp local downloader
+    // 3. Try yt-dlp if cookies or engine is available
     if (ytDlpRunner.isAvailable()) {
       try {
         const localPath = await ytDlpRunner.downloadMedia(media, formatId);
@@ -333,7 +348,7 @@ export class InstagramAdapter extends MediaProvider {
       }
     }
 
-    // 4. Conversion probe via loader.to with robust polling (up to 12 attempts)
+    // 4. Fast conversion probe via loader.to (max 4 fast checks)
     try {
       const convFormat = isMp3 ? 'mp3' : formatId.includes('1080') ? '1080' : '720';
       const initRes = await fetch(
@@ -346,7 +361,7 @@ export class InstagramAdapter extends MediaProvider {
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             Referer: 'https://loader.to/',
           },
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(4000),
         }
       );
 
@@ -370,12 +385,12 @@ export class InstagramAdapter extends MediaProvider {
         const progressUrl =
           init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-        for (let attempt = 0; attempt < 20; attempt++) {
-          await new Promise((r) => setTimeout(r, 750));
+        for (let attempt = 0; attempt < 5; attempt++) {
+          await new Promise((r) => setTimeout(r, 400));
           try {
             const pRes = await fetch(progressUrl, {
               headers: { 'User-Agent': 'Mozilla/5.0' },
-              signal: AbortSignal.timeout(4000),
+              signal: AbortSignal.timeout(2000),
             });
             const pData = await pRes.json();
             if (pData.text === 'Failed' || pData.success === -1) {
@@ -400,6 +415,6 @@ export class InstagramAdapter extends MediaProvider {
       }
     } catch {}
 
-    throw new Error('Unable to extract Instagram video stream. Please check that the Instagram account or post is public and try again.');
+    throw new Error('Unable to extract Instagram video stream. Meta requires public posts or active browser cookies (place cookies.txt into the bin folder for unrestricted downloads).');
   }
 }
