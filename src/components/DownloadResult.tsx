@@ -33,7 +33,7 @@ interface DownloadResultProps {
   downloadingFormatId?: string | null;
 }
 
-export type ResultOption = 'select' | 'video' | 'thumbnail' | 'title' | 'script';
+export type ResultOption = 'select' | 'video' | 'thumbnail' | 'script';
 
 interface ScriptData {
   loading: boolean;
@@ -55,6 +55,7 @@ export default function DownloadResult({
   // Start on 'select' choice view by default so the user is explicitly asked what they want!
   const [selectedOption, setSelectedOption] = useState<ResultOption>('select');
   const [scriptData, setScriptData] = useState<ScriptData | null>(null);
+  const [scriptViewMode, setScriptViewMode] = useState<'timed' | 'clean'>('timed');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const getPlatformBadge = (platform: PlatformType) => {
@@ -149,7 +150,7 @@ export default function DownloadResult({
       });
       const json = await res.json();
 
-      if (json.success && json.data) {
+      if (json.success && json.data && json.data.scriptText) {
         setScriptData({
           loading: false,
           scriptText: json.data.scriptText || '',
@@ -162,15 +163,15 @@ export default function DownloadResult({
       } else {
         setScriptData({
           loading: false,
-          scriptText: media.description || media.title || '',
+          scriptText: '',
           hashtags: media.hashtags || [],
-          error: json.error?.message || 'Voiceover script not available for this video.',
+          error: json.error?.message || 'No spoken dialogue or voiceover script detected for this video.',
         });
       }
     } catch {
       setScriptData({
         loading: false,
-        scriptText: media.description || media.title || '',
+        scriptText: '',
         hashtags: media.hashtags || [],
         error: 'Unable to connect to script server. Please try again.',
       });
@@ -302,16 +303,7 @@ export default function DownloadResult({
                   className={`${styles.navPill} ${selectedOption === 'thumbnail' ? styles.navPillActive : ''}`}
                 >
                   <ImageIcon size={13} />
-                  <span>Thumbnail</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleSelectOption('title')}
-                  className={`${styles.navPill} ${selectedOption === 'title' ? styles.navPillActive : ''}`}
-                >
-                  <AlignLeft size={13} />
-                  <span>Title & Info</span>
+                  <span>HD Thumbnail</span>
                 </button>
 
                 <button
@@ -380,10 +372,10 @@ export default function DownloadResult({
               <div className={styles.choiceCardBody}>
                 <div className={styles.choiceCardTop}>
                   <h5 className={styles.choiceCardTitle}>HD Thumbnail</h5>
-                  <span className={styles.choiceBadgeHighRes}>High-Res</span>
+                  <span className={styles.choiceBadgeHighRes}>1080p MaxRes</span>
                 </div>
                 <p className={styles.choiceCardDesc}>
-                  Download the original high-resolution cover image or copy image URL.
+                  Original 16:9 full HD cover image preview without black bars & instant download.
                 </p>
               </div>
               <div className={styles.choiceCardArrow}>
@@ -391,30 +383,7 @@ export default function DownloadResult({
               </div>
             </button>
 
-            {/* Card 3: Title & Info (Text) */}
-            <button
-              type="button"
-              onClick={() => handleSelectOption('title')}
-              className={`${styles.choiceCard} ${styles.choiceCardTitleStyle}`}
-            >
-              <div className={`${styles.choiceIconCircle} ${styles.choiceIconCircleTitle}`}>
-                <AlignLeft size={26} />
-              </div>
-              <div className={styles.choiceCardBody}>
-                <div className={styles.choiceCardTop}>
-                  <h5 className={styles.choiceCardTitle}>Title, Tags & Info</h5>
-                  <span className={styles.choiceBadgeText}>Clean Text</span>
-                </div>
-                <p className={styles.choiceCardDesc}>
-                  Extract clean video title, creator info, description, and hashtags as text.
-                </p>
-              </div>
-              <div className={styles.choiceCardArrow}>
-                <ChevronRight size={18} />
-              </div>
-            </button>
-
-            {/* Card 4: Voiceover Script & Transcript (Text) */}
+            {/* Card 3: Voiceover Script & Dialogues */}
             <button
               type="button"
               onClick={() => handleSelectOption('script')}
@@ -425,11 +394,11 @@ export default function DownloadResult({
               </div>
               <div className={styles.choiceCardBody}>
                 <div className={styles.choiceCardTop}>
-                  <h5 className={styles.choiceCardTitle}>Voiceover Script</h5>
-                  <span className={styles.choiceBadgeScript}>Script & Subtitles</span>
+                  <h5 className={styles.choiceCardTitle}>Voiceover Script & Dialogues</h5>
+                  <span className={styles.choiceBadgeScript}>Full Text & SRT</span>
                 </div>
                 <p className={styles.choiceCardDesc}>
-                  Extract speech-to-text transcript, spoken voiceover, and subtitle text.
+                  Every dialogue spoken in the video extracted into clean text & timed subtitles.
                 </p>
               </div>
               <div className={styles.choiceCardArrow}>
@@ -614,7 +583,7 @@ export default function DownloadResult({
                     </button>
 
                     <a
-                      href={`/api/thumbnail?url=${encodeURIComponent(imgSrc)}`}
+                      href={`/api/thumbnail?url=${encodeURIComponent(imgSrc)}&download=1&filename=${encodeURIComponent(`${safeFilePrefix}_thumbnail.jpg`)}`}
                       download={`${safeFilePrefix}_thumbnail.jpg`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -632,128 +601,7 @@ export default function DownloadResult({
       )}
 
       {/* ====================================================================
-          VIEW 3: TITLE, CREATOR, DESCRIPTION & HASHTAGS (TEXT)
-         ==================================================================== */}
-      {selectedOption === 'title' && (
-        <div className={styles.assetTabContent}>
-          <div className={styles.infoTextCard}>
-            <div className={styles.viewSectionHeader}>
-              <div>
-                <h4 className={styles.downloadsHeading}>Title, Creator & Text Info</h4>
-                <p className={styles.viewSectionSub}>
-                  Clean text extracted from video metadata with 1-click copy:
-                </p>
-              </div>
-            </div>
-
-            {/* Title Block */}
-            <div className={styles.textDataBlock}>
-              <div className={styles.textDataHeader}>
-                <span className={styles.textDataLabel}>Video Title</span>
-                <button
-                  type="button"
-                  onClick={() => copyToClipboard(displayTitle, 'title-copy')}
-                  className={styles.assetBtnSecondary}
-                >
-                  {copiedKey === 'title-copy' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
-                  <span>{copiedKey === 'title-copy' ? 'Copied Title!' : 'Copy Title'}</span>
-                </button>
-              </div>
-              <div className={styles.textDataContent}>{displayTitle}</div>
-            </div>
-
-            {/* Creator / Channel Block */}
-            {media.author && (
-              <div className={styles.textDataBlock}>
-                <div className={styles.textDataHeader}>
-                  <span className={styles.textDataLabel}>Creator / Channel</span>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(media.author || '', 'author-copy')}
-                    className={styles.assetBtnSecondary}
-                  >
-                    {copiedKey === 'author-copy' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
-                    <span>{copiedKey === 'author-copy' ? 'Copied!' : 'Copy Creator'}</span>
-                  </button>
-                </div>
-                <div className={styles.textDataContent}>{media.author}</div>
-              </div>
-            )}
-
-            {/* Hashtags Block */}
-            {allHashtags.length > 0 && (
-              <div className={styles.textDataBlock}>
-                <div className={styles.textDataHeader}>
-                  <span className={styles.textDataLabel}>
-                    Hashtags ({allHashtags.length} detected)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(allHashtags.join(' '), 'tags-copy')}
-                    className={styles.assetBtnPrimary}
-                  >
-                    {copiedKey === 'tags-copy' ? <Check size={13} color="#ffffff" /> : <Copy size={13} />}
-                    <span>{copiedKey === 'tags-copy' ? 'Copied All!' : 'Copy All Hashtags'}</span>
-                  </button>
-                </div>
-                <div className={styles.hashtagsGrid}>
-                  {allHashtags.map((tag, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => copyToClipboard(tag, `tag-${idx}`)}
-                      className={styles.hashtagPill}
-                      title="Click to copy hashtag"
-                    >
-                      <Hash size={12} className={styles.hashtagIcon} />
-                      <span>{tag.replace(/^#/, '')}</span>
-                      {copiedKey === `tag-${idx}` && (
-                        <Check size={12} color="#10B981" style={{ marginLeft: '4px' }} />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Description / Caption Block */}
-            {media.description && (
-              <div className={styles.textDataBlock}>
-                <div className={styles.textDataHeader}>
-                  <span className={styles.textDataLabel}>Description / Caption</span>
-                  <div className={styles.textDataActions}>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(media.description || '', 'desc-copy')}
-                      className={styles.assetBtnSecondary}
-                    >
-                      {copiedKey === 'desc-copy' ? <Check size={13} color="#10B981" /> : <Copy size={13} />}
-                      <span>{copiedKey === 'desc-copy' ? 'Copied Text!' : 'Copy Description'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        downloadTextFile(
-                          media.description || '',
-                          `${safeFilePrefix}_description.txt`
-                        )
-                      }
-                      className={styles.assetBtnSecondary}
-                    >
-                      <FileText size={13} />
-                      <span>Download .TXT</span>
-                    </button>
-                  </div>
-                </div>
-                <div className={styles.textDataContentLong}>{media.description}</div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ====================================================================
-          VIEW 4: VOICEOVER SCRIPT & TRANSCRIPT (TEXT)
+          VIEW 3: VOICEOVER SCRIPT & FULL SPOKEN DIALOGUES
          ==================================================================== */}
       {selectedOption === 'script' && (
         <div className={styles.assetTabContent}>
@@ -773,16 +621,35 @@ export default function DownloadResult({
                       <Sparkles size={13} />
                       <span>
                         {scriptData.source === 'subtitles'
-                          ? 'Official Captions / Transcript'
+                          ? 'Official Spoken Dialogues & Voiceover'
                           : scriptData.source === 'captions'
-                          ? 'Video Spoken Captions'
-                          : 'Voiceover Text'}
+                          ? 'Spoken Dialogues & Captions'
+                          : 'Spoken Voiceover Script'}
                       </span>
                     </span>
                     {scriptData.language && (
                       <span className={styles.scriptLangBadge}>
                         Language: {scriptData.language.toUpperCase()}
                       </span>
+                    )}
+
+                    {scriptData.timedLines && scriptData.timedLines.length > 0 && (
+                      <div className={styles.scriptViewToggle}>
+                        <button
+                          type="button"
+                          onClick={() => setScriptViewMode('timed')}
+                          className={`${styles.toggleBtn} ${scriptViewMode === 'timed' ? styles.toggleBtnActive : ''}`}
+                        >
+                          Timed Dialogues
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScriptViewMode('clean')}
+                          className={`${styles.toggleBtn} ${scriptViewMode === 'clean' ? styles.toggleBtnActive : ''}`}
+                        >
+                          Clean Paragraphs
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -794,7 +661,7 @@ export default function DownloadResult({
                       title="Copy full script"
                     >
                       {copiedKey === 'script-text' ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
-                      <span>{copiedKey === 'script-text' ? 'Copied Script!' : 'Copy Script Text'}</span>
+                      <span>{copiedKey === 'script-text' ? 'Copied Script!' : 'Copy Voiceover Script'}</span>
                     </button>
 
                     <button
@@ -830,7 +697,7 @@ export default function DownloadResult({
 
                 {/* Script Reader Body (Professional Text) */}
                 <div className={styles.scriptBodyWrapper}>
-                  {scriptData.timedLines && scriptData.timedLines.length > 0 ? (
+                  {scriptData.timedLines && scriptData.timedLines.length > 0 && scriptViewMode === 'timed' ? (
                     <div className={styles.timedLinesList}>
                       {scriptData.timedLines.map((tl, idx) => (
                         <div key={idx} className={styles.timedLineRow}>

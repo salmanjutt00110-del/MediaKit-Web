@@ -61,7 +61,7 @@ export class YouTubeAdapter extends MediaProvider {
     let realTitle = videoId !== 'unknown' ? `YouTube Video (${videoId})` : 'YouTube Media';
     let realAuthor: string | undefined = undefined;
     let thumbnailUrl =
-      videoId !== 'unknown' ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : undefined;
+      videoId !== 'unknown' ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg` : undefined;
 
     try {
       const oembedRes = await fetch(
@@ -72,7 +72,8 @@ export class YouTubeAdapter extends MediaProvider {
         const oembedData = await oembedRes.json();
         if (oembedData.title) realTitle = oembedData.title;
         if (oembedData.author_name) realAuthor = oembedData.author_name;
-        if (oembedData.thumbnail_url) thumbnailUrl = oembedData.thumbnail_url;
+        // Prefer maxresdefault for 16:9 HD without black letterbox bars
+        thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
       }
     } catch {}
 
@@ -147,6 +148,26 @@ export class YouTubeAdapter extends MediaProvider {
         downloadUrl: cached.url,
         message: 'Instant stream retrieved from cache.',
       };
+    }
+
+    // 1. Primary Engine: yt-dlp local downloader (Super Fast & Direct)
+    if (ytDlpRunner.isAvailable()) {
+      try {
+        const localPath = await ytDlpRunner.downloadMedia(media, formatId);
+        if (localPath) {
+          youtubeStreamCache.set(cacheKey, {
+            url: localPath,
+            expiry: Date.now() + 6 * 60 * 60 * 1000,
+          });
+          return {
+            success: true,
+            downloadUrl: localPath,
+            message: 'Media prepared successfully.',
+          };
+        }
+      } catch (dlpErr: any) {
+        console.warn('yt-dlp download fallback to conversion API:', dlpErr.message);
+      }
     }
 
     // If already in flight, reuse the ongoing conversion promise

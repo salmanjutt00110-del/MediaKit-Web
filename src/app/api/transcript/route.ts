@@ -83,6 +83,16 @@ export async function POST(request: NextRequest) {
       mediaInfo
     );
 
+    if (!scriptResult.scriptText || scriptResult.scriptText.trim().length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: 'NO_TRANSCRIPT',
+          message: 'No spoken dialogue or subtitles were detected for this video.',
+        },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: scriptResult,
@@ -127,6 +137,16 @@ export async function GET(request: NextRequest) {
     detection.platform,
     mediaInfo
   );
+
+  if (!scriptResult.scriptText || scriptResult.scriptText.trim().length === 0) {
+    return NextResponse.json({
+      success: false,
+      error: {
+        code: 'NO_TRANSCRIPT',
+        message: 'No spoken dialogue or subtitles were detected for this video.',
+      },
+    });
+  }
 
   return NextResponse.json({
     success: true,

@@ -6,7 +6,7 @@ import { MediaFormat, MediaMetadata } from './types';
 
 const isWin = process.platform === 'win32';
 
-function getCookiesPath(): string | null {
+export function getCookiesPath(): string | null {
   const candidates = [
     path.resolve(process.cwd(), 'bin', 'cookies.txt'),
     path.resolve(process.cwd(), 'bin', 'instagram_cookies.txt'),

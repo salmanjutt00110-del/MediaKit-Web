@@ -55,6 +55,12 @@ export async function GET(request: NextRequest) {
     headers.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=43200');
     headers.set('Access-Control-Allow-Origin', '*');
 
+    const isDownload = searchParams.get('download') === '1' || searchParams.get('download') === 'true';
+    if (isDownload) {
+      const filename = searchParams.get('filename') || 'thumbnail.jpg';
+      headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    }
+
     const contentLength = res.headers.get('content-length');
     if (contentLength) {
       headers.set('Content-Length', contentLength);

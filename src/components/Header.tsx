@@ -18,10 +18,8 @@ export default function Header() {
         setTheme(savedTheme);
         document.documentElement.setAttribute('data-theme', savedTheme);
       } else {
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const autoTheme = prefersDark ? 'dark' : 'light';
-        setTheme(autoTheme);
-        document.documentElement.setAttribute('data-theme', autoTheme);
+        setTheme('light');
+        document.documentElement.setAttribute('data-theme', 'light');
       }
     }, 0);
     return () => clearTimeout(timer);

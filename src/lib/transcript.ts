@@ -4,6 +4,7 @@ import os from 'os';
 import { execFile } from 'child_process';
 import { PlatformType, MediaMetadata } from './types';
 import { logger } from './logger';
+import { getCookiesPath } from './ytdlp';
 
 export interface TimedLine {
   time: string;
@@ -173,20 +174,26 @@ export async function extractMediaScriptAndHashtags(
       const outPrefix = path.join(os.tmpdir(), tempId);
 
       try {
-        await new Promise<void>((resolve, reject) => {
+        await new Promise<void>((resolve) => {
           const args = [
             '--skip-download',
             '--write-sub',
             '--write-auto-sub',
             '--sub-lang',
-            'en.*,ur.*,hi.*,all',
+            'en,en-US,en-orig,en-GB,ur,hi,pa,es,ar,fr,de',
             '--sub-format',
             'vtt',
             '-o',
             outPrefix,
             '--no-warnings',
-            targetUrl,
           ];
+
+          const cookies = getCookiesPath();
+          if (cookies) {
+            args.push('--cookies', cookies);
+          }
+
+          args.push(targetUrl);
 
           execFile(
             /*turbopackIgnore: true*/ executable,
@@ -194,7 +201,6 @@ export async function extractMediaScriptAndHashtags(
             { timeout: 15000 },
             (error) => {
               if (error) {
-                // If subtitles extraction timed out or failed, resolve anyway to allow fallback
                 logger.warn('Subtitles extraction returned error', { error: error.message });
               }
               resolve();
@@ -252,19 +258,6 @@ export async function extractMediaScriptAndHashtags(
     }
   }
 
-  // 3. Fallback to Description / Caption for any platform
-  const fallbackText = mediaInfo?.description || mediaInfo?.title || '';
-  if (fallbackText.trim().length > 10) {
-    return {
-      success: true,
-      platform,
-      title: rawTitle,
-      scriptText: fallbackText.trim(),
-      hashtags: extractedTags,
-      source: 'description',
-    };
-  }
-
   return {
     success: false,
     platform,
@@ -272,7 +265,6 @@ export async function extractMediaScriptAndHashtags(
     scriptText: '',
     hashtags: extractedTags,
     source: 'summary',
-    error: 'No voiceover script or subtitles were found for this video.',
   };
 }
 
