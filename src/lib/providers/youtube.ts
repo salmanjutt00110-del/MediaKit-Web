@@ -269,8 +269,8 @@ export class YouTubeAdapter extends MediaProvider {
           const progressUrl =
             init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-          // Poll up to 25 attempts (1 second intervals)
-          for (let attempt = 0; attempt < 25; attempt++) {
+          // Poll up to 45 attempts (1 second intervals) for smooth completion of HD & MP3 conversions
+          for (let attempt = 0; attempt < 45; attempt++) {
             await new Promise((r) => setTimeout(r, 1000));
 
             try {
