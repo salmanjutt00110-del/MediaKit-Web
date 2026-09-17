@@ -9,12 +9,12 @@ export async function GET() {
   const memory = process.memoryUsage();
 
   let testDiag: any = null;
-  try {
-    const testRes = await ytDlpRunner.getMediaInfo('https://www.youtube.com/watch?v=GLoeAJUcz38');
-    testDiag = { success: true, title: testRes.title, formatCount: testRes.formats?.length };
-  } catch (err: any) {
-    testDiag = { success: false, error: err.message, stack: err.stack };
-  }
+  const { execFile } = require('child_process');
+  const pythonCheck: any = await new Promise((resolve) => {
+    execFile('python3', ['--version'], (err: any, stdout: any, stderr: any) => {
+      resolve({ err: err?.message, stdout, stderr });
+    });
+  });
 
   return NextResponse.json({
     status: 'healthy',
@@ -26,7 +26,7 @@ export async function GET() {
       platform: process.platform,
       execPath: process.execPath,
       envPath: process.env.PATH,
-      testDiag,
+      pythonCheck,
     },
     system: {
       memoryUsedMB: Math.round(memory.heapUsed / 1024 / 1024),
