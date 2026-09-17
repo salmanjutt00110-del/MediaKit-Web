@@ -89,6 +89,12 @@ export async function GET(request: NextRequest) {
     // Pass appropriate referer when needed by known hosts
     if (targetUrl.includes('savenow') || targetUrl.includes('loader.to')) {
       upstreamHeaders['Referer'] = 'https://loader.to/';
+    } else if (targetUrl.includes('cdninstagram.com') || targetUrl.includes('instagram.com')) {
+      upstreamHeaders['Referer'] = 'https://www.instagram.com/';
+      upstreamHeaders['Origin'] = 'https://www.instagram.com';
+    } else if (targetUrl.includes('fbcdn.net') || targetUrl.includes('facebook.com')) {
+      upstreamHeaders['Referer'] = 'https://www.facebook.com/';
+      upstreamHeaders['Origin'] = 'https://www.facebook.com';
     }
 
     const upstreamRes = await fetch(targetUrl, {

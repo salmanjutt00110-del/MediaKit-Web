@@ -139,36 +139,138 @@
   animation: fadeIn 0.2s ease;
 }
 
-/* Multi-stage Loading Bar */
-.loadingStageBar {
-  margin-top: 14px;
+/* ==========================================================================
+   TERMINAL LOADER (From Uiverse.io by jeremyssocial - Styled for MediaKit)
+   ========================================================================== */
+@keyframes blinkCursor {
+  0%, 100% {
+    border-right-color: transparent;
+  }
+  50% {
+    border-right-color: #22c55e;
+  }
+}
+
+@keyframes typeAndDelete {
+  0%,
+  12% {
+    width: 0;
+  }
+  48%,
+  68% {
+    width: 17em;
+  }
+  92%,
+  100% {
+    width: 0;
+  }
+}
+
+.terminalLoaderWrapper {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.terminalLoader {
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: #0f172a;
+  color: #22c55e;
+  font-family: 'SF Mono', Monaco, 'Courier New', Courier, monospace;
+  font-size: 0.92rem;
+  padding: 2.2em 1.2em 1.1em 1.2em;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 12px 30px -6px rgba(0, 0, 0, 0.45),
+              0 0 25px rgba(37, 99, 235, 0.18);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+:global([data-theme='light']) .terminalLoader {
+  background: #0f172a;
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 14px 34px -8px rgba(37, 99, 235, 0.28),
+              0 0 20px rgba(0, 198, 255, 0.15);
+}
+
+.terminalHeader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2em;
+  background: #1e293b;
+  border-top-left-radius: 11px;
+  border-top-right-radius: 11px;
+  padding: 0 0.8em;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 8px 18px;
-  background: var(--brand-blue-light);
-  border: 1px solid var(--brand-blue-border);
-  border-radius: var(--radius-full);
-  max-width: fit-content;
-  margin-left: auto;
-  margin-right: auto;
-  animation: fadeIn 0.2s ease;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.stageSpinner {
-  width: 15px;
-  height: 15px;
-  border: 2px solid rgba(37, 99, 235, 0.25);
-  border-top-color: var(--brand-blue);
+.terminalControls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.control {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  animation: spin 0.65s linear infinite;
+  background-color: #64748b;
 }
 
-.stageText {
-  font-size: 0.85rem;
+.controlClose {
+  background-color: #ef4444;
+}
+
+.controlMinimize {
+  background-color: #eab308;
+}
+
+.controlMaximize {
+  background-color: #22c55e;
+}
+
+.terminalTitle {
+  font-size: 0.74rem;
+  font-family: inherit;
+  color: #94a3b8;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+
+.terminalBody {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.terminalPrompt {
+  color: #38bdf8;
   font-weight: 700;
-  color: var(--brand-blue);
+  user-select: none;
+}
+
+.terminalText {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  border-right: 0.2em solid #22c55e;
+  animation:
+    typeAndDelete 4.2s steps(22) infinite,
+    blinkCursor 0.6s step-end infinite alternate;
+  color: #4ade80;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 /* Detection Status Indicator */
@@ -446,67 +548,69 @@
   color: var(--text-secondary);
 }
 
-/* Download Started / Complete Card — Perfectly matched with Website Theme */
+/* Sleek Download Started Banner — Compact & Non-Intrusive */
 .downloadCompleteCard {
   background: var(--bg-surface);
-  border: 1px solid var(--border-card);
-  box-shadow: var(--shadow-md);
-  border-radius: var(--radius-lg);
-  padding: 20px 24px;
-  margin-top: 20px;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  box-shadow: 0 6px 20px -4px rgba(16, 185, 129, 0.12);
+  border-radius: 16px;
+  padding: 14px 18px;
+  margin-top: 16px;
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-  position: relative;
-  overflow: hidden;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   animation: fadeIn 0.25s ease-out;
+  flex-wrap: wrap;
 }
 
-.downloadCompleteCard::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--brand-blue), #38bdf8, #818cf8);
+:global([data-theme='dark']) .downloadCompleteCard {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35);
 }
 
 .completeHeader {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--brand-blue);
-  font-size: 1.05rem;
-  font-weight: 800;
+  flex: 1;
+  min-width: 240px;
 }
 
 .completeHeaderIcon {
-  color: var(--brand-blue);
+  color: #10b981;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--radius-full);
-  background: var(--brand-blue-light);
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.14);
   flex-shrink: 0;
 }
 
-:global([data-theme='dark']) .completeHeaderIcon {
-  background: rgba(37, 99, 235, 0.18);
-  color: #60a5fa;
+.completeTextGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-:global([data-theme='dark']) .completeHeader {
-  color: #60a5fa;
+.completeTitle {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .completeSubtext {
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.35;
   margin: 0;
+  max-width: 440px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .completeSubtext strong {
@@ -515,20 +619,20 @@
 
 .completeActions {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-top: 4px;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .actionBtnPrimary {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--brand-blue);
   color: #ffffff;
-  padding: 10px 20px;
+  padding: 8px 16px;
   border-radius: var(--radius-full);
-  font-size: 0.875rem;
+  font-size: 0.82rem;
   font-weight: 700;
   border: none;
   cursor: pointer;
@@ -539,19 +643,18 @@
 .actionBtnPrimary:hover {
   background: var(--brand-blue-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
 }
 
 .actionBtnSecondary {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--bg-subtle);
   color: var(--text-primary);
   border: 1px solid var(--border-light);
-  padding: 10px 20px;
+  padding: 8px 14px;
   border-radius: var(--radius-full);
-  font-size: 0.875rem;
+  font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -626,11 +729,11 @@
 }
 
 /* ==========================================================================
-   ULTRA-PREMIUM FLOATING DOWNLOAD NOTIFICATION TOAST
+   SLEEK DYNAMIC ISLAND FLOATING NOTIFICATION TOAST
    ========================================================================== */
 .downloadToast {
   position: fixed;
-  top: 24px;
+  top: 18px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 99999;
@@ -639,164 +742,88 @@
   justify-content: center;
   pointer-events: auto;
   max-width: 92vw;
-  animation: toastEntrance 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: toastEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.toastGlowBackdrop {
-  position: absolute;
-  inset: -12px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.35) 0%, rgba(14, 165, 233, 0.15) 50%, transparent 75%);
-  filter: blur(14px);
-  border-radius: 28px;
-  z-index: -1;
-  pointer-events: none;
-  animation: toastGlowPulse 2.4s ease-in-out infinite alternate;
-}
-
-.toastCard {
+.toastPill {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 18px 12px 14px;
-  background: rgba(15, 23, 42, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(96, 165, 250, 0.35);
-  border-radius: 18px;
-  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.55),
-              0 0 20px rgba(59, 130, 246, 0.22),
-              inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  gap: 10px;
+  padding: 6px 14px 6px 10px;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: var(--radius-full);
+  box-shadow: 0 12px 32px -6px rgba(0, 0, 0, 0.45),
+              0 0 20px rgba(37, 99, 235, 0.2);
   color: #ffffff;
-  min-width: 320px;
-  max-width: 480px;
+  max-width: min(440px, 92vw);
 }
 
-:global([data-theme='light']) .toastCard {
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(37, 99, 235, 0.25);
-  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.2),
-              0 0 24px rgba(37, 99, 235, 0.18),
-              inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  color: #0f172a;
+:global([data-theme='light']) .toastPill {
+  background: rgba(15, 23, 42, 0.94);
+  color: #ffffff;
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 14px 35px -8px rgba(15, 23, 42, 0.3),
+              0 0 22px rgba(37, 99, 235, 0.22);
 }
 
 .toastIconWrapper {
-  position: relative;
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   background: linear-gradient(135deg, #2563eb, #06b6d4);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   flex-shrink: 0;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
-}
-
-.toastIconPulse {
-  position: absolute;
-  inset: -3px;
-  border-radius: 14px;
-  border: 2px solid rgba(6, 182, 212, 0.6);
-  animation: pulseIconBorder 1.8s ease-out infinite;
-  pointer-events: none;
 }
 
 .toastDownloadIcon {
-  animation: iconBounce 1.5s ease-in-out infinite;
+  animation: iconBounce 1.4s ease-in-out infinite;
 }
 
-.toastContent {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.toastHeaderRow {
+.toastInfo {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
-.toastBadge {
+.toastTag {
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: rgba(37, 99, 235, 0.25);
-  color: #60a5fa;
-  border: 1px solid rgba(96, 165, 250, 0.35);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(37, 99, 235, 0.35);
+  color: #93c5fd;
   line-height: 1.2;
-}
-
-:global([data-theme='light']) .toastBadge {
-  background: #eff6ff;
-  color: #2563eb;
-  border-color: #bfdbfe;
+  flex-shrink: 0;
 }
 
 .toastTitle {
-  font-size: 0.86rem;
-  font-weight: 700;
-  color: #f1f5f9;
-  letter-spacing: -0.01em;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
 }
 
-:global([data-theme='light']) .toastTitle {
-  color: #0f172a;
-}
-
-.toastActiveDot {
+.toastActivePulse {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: #10b981;
   box-shadow: 0 0 8px #10b981;
-  margin-left: auto;
+  flex-shrink: 0;
   animation: activeDotPulse 1.2s ease-in-out infinite alternate;
-}
-
-.toastMessage {
-  font-size: 0.78rem;
-  color: #94a3b8;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 280px;
-  line-height: 1.3;
-}
-
-:global([data-theme='light']) .toastMessage {
-  color: #475569;
-}
-
-.toastProgressMiniTrack {
-  width: 100%;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: var(--radius-full);
-  margin-top: 5px;
-  overflow: hidden;
-  position: relative;
-}
-
-:global([data-theme='light']) .toastProgressMiniTrack {
-  background: rgba(15, 23, 42, 0.1);
-}
-
-.toastProgressMiniFill {
-  position: absolute;
-  inset: 0;
-  width: 45%;
-  border-radius: var(--radius-full);
-  background: linear-gradient(90deg, #2563eb, #06b6d4, #10b981);
-  animation: toastMiniProgress 1.4s ease-in-out infinite alternate;
 }
 
 .toastCloseBtn {
@@ -804,23 +831,18 @@
   border: none;
   color: #94a3b8;
   cursor: pointer;
-  padding: 6px;
+  padding: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 50%;
   transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
 .toastCloseBtn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
-}
-
-:global([data-theme='light']) .toastCloseBtn:hover {
-  background: rgba(15, 23, 42, 0.08);
-  color: #0f172a;
 }
 
 @keyframes toastEntrance {

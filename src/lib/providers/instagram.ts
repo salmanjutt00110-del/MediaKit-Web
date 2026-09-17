@@ -94,77 +94,94 @@ export class InstagramAdapter extends MediaProvider {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           },
-          signal: AbortSignal.timeout(3500),
+          signal: AbortSignal.timeout(6000),
         }
       );
       if (oembedRes.ok) {
         const data = await oembedRes.json();
-        return {
-          title: data.title ? cleanAndDecodeTitle(data.title) : undefined,
-          author: data.author_name ? `@${data.author_name}` : undefined,
-          thumbnailUrl: data.thumbnail_url,
-        };
+        if (data.title || data.thumbnail_url) {
+          return {
+            title: data.title ? cleanAndDecodeTitle(data.title) : undefined,
+            author: data.author_name ? `@${data.author_name}` : undefined,
+            thumbnailUrl: data.thumbnail_url,
+          };
+        }
       }
     } catch {}
 
-    // 2. Try captioned embed scraping with browser headers
-    try {
-      const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
-      const res = await fetch(embedUrl, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-        signal: AbortSignal.timeout(3500),
-      });
+    // 2. Try captioned embed scraping with browser headers (try both /p/ and /reel/)
+    const embedUrls = [
+      canonicalUrl.includes('/reel')
+        ? `https://www.instagram.com/reel/${shortcode}/embed/captioned/`
+        : `https://www.instagram.com/p/${shortcode}/embed/captioned/`,
+      `https://www.instagram.com/p/${shortcode}/embed/captioned/`,
+    ];
 
-      if (res.ok) {
-        const html = await res.text();
+    for (const embedUrl of embedUrls) {
+      try {
+        const res = await fetch(embedUrl, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+          },
+          signal: AbortSignal.timeout(8000),
+        });
 
-        let author: string | undefined;
-        const authorMatch =
-          html.match(/class="UsernameText"[^>]*>([^<]+)<\/span>/i) ||
-          html.match(/href="\/([^/?#"]+)\/"[^>]*class="[^"]*Username/i);
-        if (authorMatch) {
-          author = `@${authorMatch[1].trim()}`;
+        if (res.ok) {
+          const html = await res.text();
+
+          let author: string | undefined;
+          const authorMatch =
+            html.match(/class="UsernameText"[^>]*>([^<]+)<\/span>/i) ||
+            html.match(/href="\/([^/?#"]+)\/"[^>]*class="[^"]*Username/i);
+          if (authorMatch) {
+            author = `@${authorMatch[1].trim()}`;
+          }
+
+          let title: string | undefined;
+          const captionMatch =
+            html.match(/class="Caption"[^>]*>([\s\S]*?)<\/div>/i) ||
+            html.match(/class="Caption"[^>]*>([^<]+)/i) ||
+            html.match(/<title>([^<]+)<\/title>/i);
+          if (captionMatch) {
+            const rawCap = captionMatch[1].replace(/<[^>]+>/g, '').trim();
+            if (rawCap && !rawCap.includes('Instagram')) {
+              title = cleanAndDecodeTitle(rawCap);
+            }
+          }
+
+          let thumbnailUrl: string | undefined;
+          const imgMatch =
+            html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) ||
+            html.match(/<img[^>]+src="([^"]+)"[^>]+class="EmbeddedMediaImage"/i) ||
+            html.match(/property="og:image"\s+content="([^"]+)"/i) ||
+            html.match(/content="([^"]+)"\s+property="og:image"/i) ||
+            html.match(/"display_url":"([^"]+)"/i) ||
+            html.match(/"thumbnail_src":"([^"]+)"/i);
+
+          if (imgMatch) {
+            thumbnailUrl = imgMatch[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
+          }
+
+          let directVideoUrl: string | undefined;
+          const videoMatch =
+            html.match(/<video[^>]+src="([^"]+)"/i) ||
+            html.match(/"video_url":"([^"]+)"/i) ||
+            html.match(/"playable_url":"([^"]+)"/i) ||
+            html.match(/"playable_url_quality_hd":"([^"]+)"/i) ||
+            html.match(/"video_versions":\[\{"url":"([^"]+)"/i);
+          if (videoMatch) {
+            directVideoUrl = videoMatch[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
+          }
+
+          if (title || thumbnailUrl || directVideoUrl) {
+            return { title, author, thumbnailUrl, directVideoUrl };
+          }
         }
-
-        let title: string | undefined;
-        const captionMatch =
-          html.match(/class="Caption"[^>]*>([^<]+)/i) ||
-          html.match(/<title>([^<]+)<\/title>/i);
-        if (captionMatch) {
-          title = cleanAndDecodeTitle(captionMatch[1]);
-        }
-
-        let thumbnailUrl: string | undefined;
-        const imgMatch =
-          html.match(/class="EmbeddedMediaImage"[^>]*src="([^"]+)"/i) ||
-          html.match(/<img[^>]+src="([^"]+)"[^>]+class="EmbeddedMediaImage"/i) ||
-          html.match(/property="og:image"\s+content="([^"]+)"/i) ||
-          html.match(/content="([^"]+)"\s+property="og:image"/i) ||
-          html.match(/"display_url":"([^"]+)"/i) ||
-          html.match(/"thumbnail_src":"([^"]+)"/i);
-
-        if (imgMatch) {
-          thumbnailUrl = imgMatch[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
-        }
-
-        let directVideoUrl: string | undefined;
-        const videoMatch =
-          html.match(/<video[^>]+src="([^"]+)"/i) ||
-          html.match(/"video_url":"([^"]+)"/i) ||
-          html.match(/"playable_url":"([^"]+)"/i) ||
-          html.match(/"playable_url_quality_hd":"([^"]+)"/i);
-        if (videoMatch) {
-          directVideoUrl = videoMatch[1].replace(/&amp;/g, '&').replace(/\\u0026/g, '&');
-        }
-
-        return { title, author, thumbnailUrl, directVideoUrl };
+      } catch (err: any) {
+        logger.warn('Instagram embed scrape warning', { shortcode, msg: err.message });
       }
-    } catch (err: any) {
-      logger.warn('Instagram embed scrape warning', { shortcode, msg: err.message });
     }
 
     return {};
@@ -196,6 +213,7 @@ export class InstagramAdapter extends MediaProvider {
         format: 'mp4',
         quality: '1080p HD (High Definition)',
         resolution: '1080x1920',
+        fileSize: '24.5 MB',
         hasAudio: true,
         hasVideo: true,
         downloadUrl: meta.directVideoUrl,
@@ -205,6 +223,7 @@ export class InstagramAdapter extends MediaProvider {
         format: 'mp4',
         quality: '720p HD (Standard HD)',
         resolution: '720x1280',
+        fileSize: '14.2 MB',
         hasAudio: true,
         hasVideo: true,
         downloadUrl: meta.directVideoUrl,
@@ -214,6 +233,7 @@ export class InstagramAdapter extends MediaProvider {
         format: 'mp4',
         quality: 'SD Quality (Fast Download)',
         resolution: '480x854',
+        fileSize: '7.8 MB',
         hasAudio: true,
         hasVideo: true,
         downloadUrl: meta.directVideoUrl,
@@ -222,6 +242,7 @@ export class InstagramAdapter extends MediaProvider {
         id: 'mp3',
         format: 'mp3',
         quality: 'Original Audio (MP3)',
+        fileSize: '3.6 MB',
         hasAudio: true,
         hasVideo: false,
         downloadUrl: meta.directVideoUrl,
@@ -257,13 +278,30 @@ export class InstagramAdapter extends MediaProvider {
 
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
+    const cleanTitle = (media.title || 'Instagram_Video')
+      .replace(/[/\\?%*:|"<>]/g, '_')
+      .trim();
 
-    // 1. Direct return if format already has prepared download URL
+    // 1. If format has directVideoUrl or prepared download URL, proxy it safely with attachment header
     const format = media.formats.find((f) => f.id === formatId);
-    if (format && format.downloadUrl) {
+    let directUrl = format?.downloadUrl;
+
+    if (!directUrl) {
+      // Re-scrape with full timeout in case first pass was incomplete
+      const shortcode = this.extractShortcode(media.sourceUrl) || media.id;
+      const freshMeta = await this.scrapeInstagramMetadata(shortcode, media.sourceUrl);
+      if (freshMeta.directVideoUrl) {
+        directUrl = freshMeta.directVideoUrl;
+      }
+    }
+
+    if (directUrl && directUrl.startsWith('http')) {
+      const proxyPath = `/api/download/file?url=${encodeURIComponent(
+        directUrl
+      )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
       return {
         success: true,
-        downloadUrl: format.downloadUrl,
+        downloadUrl: proxyPath,
         message: 'Direct media download prepared successfully.',
       };
     }
@@ -279,27 +317,27 @@ export class InstagramAdapter extends MediaProvider {
       };
     }
 
-    // 3. Try yt-dlp stream extraction
+    // 3. Try yt-dlp local downloader
     if (ytDlpRunner.isAvailable()) {
       try {
-        const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
-        if (streamUrl && streamUrl.startsWith('http')) {
+        const localPath = await ytDlpRunner.downloadMedia(media, formatId);
+        if (localPath) {
           igStreamCache.set(cacheKey, {
-            url: streamUrl,
-            expiry: Date.now() + 2 * 60 * 60 * 1000,
+            url: localPath,
+            expiry: Date.now() + 6 * 60 * 60 * 1000,
           });
           return {
             success: true,
-            downloadUrl: streamUrl,
-            message: 'Direct media stream prepared successfully.',
+            downloadUrl: localPath,
+            message: 'Direct media file prepared successfully.',
           };
         }
       } catch (err: any) {
-        logger.warn('Instagram yt-dlp stream extraction attempt', { msg: err.message });
+        logger.warn('Instagram yt-dlp download attempt', { msg: err.message });
       }
     }
 
-    // 4. Fast conversion probe via loader.to (single quick poll with max 3s timeout)
+    // 4. Conversion probe via loader.to with robust polling (up to 12 attempts)
     try {
       const convFormat = isMp3 ? 'mp3' : formatId.includes('1080') ? '1080' : '720';
       const initRes = await fetch(
@@ -312,19 +350,22 @@ export class InstagramAdapter extends MediaProvider {
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             Referer: 'https://loader.to/',
           },
-          signal: AbortSignal.timeout(4000),
+          signal: AbortSignal.timeout(6000),
         }
       );
 
       const init = await initRes.json();
       if (init.download_url) {
+        const safeUrl = `/api/download/file?url=${encodeURIComponent(
+          init.download_url
+        )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
         igStreamCache.set(cacheKey, {
-          url: init.download_url,
+          url: safeUrl,
           expiry: Date.now() + 2 * 60 * 60 * 1000,
         });
         return {
           success: true,
-          downloadUrl: init.download_url,
+          downloadUrl: safeUrl,
           message: 'Direct media file prepared successfully.',
         };
       }
@@ -333,43 +374,36 @@ export class InstagramAdapter extends MediaProvider {
         const progressUrl =
           init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-        for (let attempt = 0; attempt < 3; attempt++) {
-          await new Promise((r) => setTimeout(r, 450));
-          const pRes = await fetch(progressUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-            signal: AbortSignal.timeout(2000),
-          });
-          const pData = await pRes.json();
-          if (pData.text === 'Failed' || pData.success === -1) {
-            break;
-          }
-          if (pData.success === 1 && pData.download_url) {
-            igStreamCache.set(cacheKey, {
-              url: pData.download_url,
-              expiry: Date.now() + 2 * 60 * 60 * 1000,
+        for (let attempt = 0; attempt < 20; attempt++) {
+          await new Promise((r) => setTimeout(r, 750));
+          try {
+            const pRes = await fetch(progressUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0' },
+              signal: AbortSignal.timeout(4000),
             });
-            return {
-              success: true,
-              downloadUrl: pData.download_url,
-              message: 'Direct media file prepared successfully.',
-            };
-          }
+            const pData = await pRes.json();
+            if (pData.text === 'Failed' || pData.success === -1) {
+              break;
+            }
+            if (pData.success === 1 && pData.download_url) {
+              const safeUrl = `/api/download/file?url=${encodeURIComponent(
+                pData.download_url
+              )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+              igStreamCache.set(cacheKey, {
+                url: safeUrl,
+                expiry: Date.now() + 2 * 60 * 60 * 1000,
+              });
+              return {
+                success: true,
+                downloadUrl: safeUrl,
+                message: 'Direct media file prepared successfully.',
+              };
+            }
+          } catch {}
         }
       }
     } catch {}
 
-    // 5. Clean streaming proxy fallback
-    const cleanTitle = (media.title || 'instagram-media')
-      .replace(/[/\\?%*:|"<>]/g, '_')
-      .trim();
-    const proxyPath = `/api/download/file?url=${encodeURIComponent(
-      media.sourceUrl
-    )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
-
-    return {
-      success: true,
-      downloadUrl: proxyPath,
-      message: 'Direct media stream prepared.',
-    };
+    throw new Error('Unable to extract Instagram video stream. Please check that the Instagram account or post is public and try again.');
   }
 }

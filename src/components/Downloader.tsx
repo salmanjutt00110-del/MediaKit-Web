@@ -43,7 +43,7 @@ interface BatchItem {
   error?: string;
 }
 
-const MAX_BATCH_URLS = 5;
+const MAX_BATCH_URLS = 25;
 
 const DEMO_BATCH_LINKS = [
   'https://www.youtube.com/watch?v=GLoeAJUcz38',
@@ -753,39 +753,29 @@ export default function Downloader() {
 
   return (
     <section id="downloader" className={styles.downloaderSection} aria-label="Media Downloader">
-      {/* Ultra-Premium Floating Download Notification Toast */}
+      {/* Sleek Dynamic Island Floating Download Toast */}
       {downloadToast && (
         <div className={styles.downloadToast} role="alert" aria-live="assertive">
-          <div className={styles.toastGlowBackdrop} />
-          <div className={styles.toastCard}>
+          <div className={styles.toastPill}>
             <div className={styles.toastIconWrapper}>
-              <div className={styles.toastIconPulse} />
-              <ArrowDownToLine size={20} className={styles.toastDownloadIcon} />
+              <ArrowDownToLine size={15} className={styles.toastDownloadIcon} />
             </div>
-            <div className={styles.toastContent}>
-              <div className={styles.toastHeaderRow}>
-                <span className={styles.toastBadge}>
-                  {downloadToast.isBatch ? 'BATCH' : downloadToast.ext.toUpperCase()}
-                </span>
-                <span className={styles.toastTitle}>
-                  {downloadToast.isBatch ? 'Batch Download Started' : 'Downloading in Background...'}
-                </span>
-                <div className={styles.toastActiveDot} title="Transfer active" />
-              </div>
-              <p className={styles.toastMessage} title={downloadToast.title}>
+            <div className={styles.toastInfo}>
+              <span className={styles.toastTag}>
+                {downloadToast.isBatch ? 'BATCH' : downloadToast.ext.toUpperCase()}
+              </span>
+              <span className={styles.toastTitle} title={downloadToast.title}>
                 {downloadToast.title}
-              </p>
-              <div className={styles.toastProgressMiniTrack}>
-                <div className={styles.toastProgressMiniFill} />
-              </div>
+              </span>
             </div>
+            <div className={styles.toastActivePulse} title="Downloading in background" />
             <button
               type="button"
               onClick={() => setDownloadToast(null)}
               className={styles.toastCloseBtn}
               aria-label="Close notification"
             >
-              <X size={15} />
+              <X size={14} />
             </button>
           </div>
         </div>
@@ -810,7 +800,7 @@ export default function Downloader() {
             >
               <Layers size={16} />
               <span>Batch Download</span>
-              <span className={styles.modeBadge}>5 Links Max</span>
+              <span className={styles.modeBadge}>25 Max</span>
             </button>
           </div>
 
@@ -889,11 +879,31 @@ export default function Downloader() {
                 </div>
               </form>
 
-              {/* Multi-Stage Loading Indicator */}
+              {/* Terminal Loader (From Uiverse.io by jeremyssocial - styled for MediaKit) */}
               {state === 'processing' && (
-                <div className={styles.loadingStageBar} role="status" aria-live="polite">
-                  <div className={styles.stageSpinner} />
-                  <span className={styles.stageText}>{renderLoadingStageText()}</span>
+                <div className={styles.terminalLoaderWrapper} role="status" aria-live="polite">
+                  <div className={styles.terminalLoader}>
+                    <div className={styles.terminalHeader}>
+                      <div className={styles.terminalControls}>
+                        <span className={`${styles.control} ${styles.controlClose}`} />
+                        <span className={`${styles.control} ${styles.controlMinimize}`} />
+                        <span className={`${styles.control} ${styles.controlMaximize}`} />
+                      </div>
+                      <div className={styles.terminalTitle}>mediakit-cli --fetch</div>
+                    </div>
+                    <div className={styles.terminalBody}>
+                      <span className={styles.terminalPrompt}>&gt;</span>
+                      <span className={styles.terminalText}>
+                        {loadingStage === 'fetching_media'
+                          ? 'Fetching media stream...'
+                          : loadingStage === 'preparing_downloads'
+                          ? 'Resolving quality & sizes...'
+                          : loadingStage === 'detecting_platform'
+                          ? 'Detecting video link...'
+                          : 'Analyzing media URL...'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -947,33 +957,37 @@ export default function Downloader() {
                 </div>
               )}
 
-              {/* Download Complete Card */}
+              {/* Sleek Download Started Banner */}
               {state === 'completed' && completedInfo && (
                 <div className={styles.downloadCompleteCard} role="status" aria-live="polite">
                   <div className={styles.completeHeader}>
                     <div className={styles.completeHeaderIcon}>
-                      <ArrowDownToLine size={18} />
+                      <CheckCircle2 size={18} />
                     </div>
-                    <span>Download Started!</span>
+                    <div className={styles.completeTextGroup}>
+                      <span className={styles.completeTitle}>Download Started!</span>
+                      <p className={styles.completeSubtext} title={`${completedInfo.title}.${completedInfo.ext}`}>
+                        <strong>{completedInfo.title}.{completedInfo.ext}</strong> is downloading in your browser background.
+                      </p>
+                    </div>
                   </div>
-                  <p className={styles.completeSubtext}>
-                    <strong>{completedInfo.title}.{completedInfo.ext}</strong> is downloading in your browser background. Check your notification bar or Downloads folder.
-                  </p>
                   <div className={styles.completeActions}>
                     <button
                       type="button"
                       onClick={() => handleDownloadFormat(completedInfo.formatId)}
                       className={styles.actionBtnPrimary}
+                      title="Download again"
                     >
-                      <RefreshCw size={14} />
+                      <RefreshCw size={13} />
                       <span>Download Again</span>
                     </button>
                     <button
                       type="button"
                       onClick={handleClear}
                       className={styles.actionBtnSecondary}
+                      title="Download another video"
                     >
-                      <span>Download Another Video</span>
+                      <span>New Link</span>
                     </button>
                   </div>
                 </div>
@@ -1019,9 +1033,9 @@ export default function Downloader() {
               <div className={styles.batchCard}>
                 <div className={styles.batchHeader}>
                   <div className={styles.batchHeaderLeft}>
-                    <h2 className={styles.batchHeading}>Batch Video Downloader</h2>
+                    <h2 className={styles.batchHeading}>Multi-Link Batch Downloader</h2>
                     <p className={styles.batchSubtitle}>
-                      Paste up to 5 video links (one per line) from YouTube, TikTok, Facebook, or Instagram.
+                      Paste up to 25 video links (one per line) from YouTube, TikTok, Facebook, or Instagram.
                     </p>
                   </div>
                   <div className={styles.batchCounterBadge}>
@@ -1033,9 +1047,9 @@ export default function Downloader() {
                   <textarea
                     value={batchInput}
                     onChange={(e) => setBatchInput(e.target.value)}
-                    placeholder="Paste up to 5 video links here (one URL per line)...&#10;https://www.youtube.com/watch?v=GLoeAJUcz38&#10;https://www.tiktok.com/@creator/video/1234567&#10;https://www.facebook.com/share/r/...&#10;https://www.instagram.com/reel/..."
+                    placeholder="Paste up to 25 video links here (one URL per line)...&#10;https://www.youtube.com/watch?v=GLoeAJUcz38&#10;https://www.tiktok.com/@creator/video/1234567&#10;https://www.facebook.com/share/r/...&#10;https://www.instagram.com/reel/..."
                     className={styles.batchTextarea}
-                    rows={4}
+                    rows={5}
                     disabled={isBatchProcessing || isBatchDownloading}
                   />
                 </div>

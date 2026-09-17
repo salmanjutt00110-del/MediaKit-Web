@@ -2,6 +2,7 @@ import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
 import { cleanAndDecodeTitle } from '../string-utils';
+import { ytDlpRunner } from '../ytdlp';
 
 interface FbCacheEntry {
   data: MediaMetadata;
@@ -260,6 +261,26 @@ export class FacebookAdapter extends MediaProvider {
         downloadUrl: cachedStream.url,
         message: 'Instant stream retrieved from cache.',
       };
+    }
+
+    // 2. Try yt-dlp local downloader (Fast & Direct)
+    if (ytDlpRunner.isAvailable()) {
+      try {
+        const localPath = await ytDlpRunner.downloadMedia(media, formatId);
+        if (localPath) {
+          fbStreamCache.set(cacheKey, {
+            url: localPath,
+            expiry: Date.now() + 6 * 60 * 60 * 1000,
+          });
+          return {
+            success: true,
+            downloadUrl: localPath,
+            message: 'Direct media file prepared successfully.',
+          };
+        }
+      } catch (err: any) {
+        logger.warn('Facebook yt-dlp download attempt', { msg: err.message });
+      }
     }
 
     // 3. Fast check via loader.to with maximum 2s wait
