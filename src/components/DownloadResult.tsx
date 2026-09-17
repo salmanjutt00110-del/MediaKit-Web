@@ -237,7 +237,7 @@ export default function DownloadResult({
                         <Download size={14} />
                         <span>
                           {isDownloading && downloadingFormatId === fmt.id
-                            ? 'Starting...'
+                            ? 'Preparing File...'
                             : 'Instant Download'}
                         </span>
                       </button>
@@ -271,7 +271,7 @@ export default function DownloadResult({
                         <Download size={14} />
                         <span>
                           {isDownloading && downloadingFormatId === fmt.id
-                            ? 'Starting...'
+                            ? 'Preparing File...'
                             : 'Instant Download'}
                         </span>
                       </button>

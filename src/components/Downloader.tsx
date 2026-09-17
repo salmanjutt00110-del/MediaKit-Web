@@ -83,6 +83,7 @@ export default function Downloader() {
     title: string;
     ext: string;
     formatId: string;
+    downloadUrl?: string;
   } | null>(null);
 
   // Batch Downloader State
@@ -396,14 +397,9 @@ export default function Downloader() {
     const currentMedia = customMedia || mediaInfo;
     if (!currentMedia) return;
 
-    try {
-      if (!customMedia) {
-        setDownloadingFormatId(formatId);
-        setState('downloading');
-        setError(null);
-        setCompletedInfo(null);
-      }
+    let progressTimer: NodeJS.Timeout | null = null;
 
+    try {
       const targetFormat = currentMedia.formats?.find((f) => f.id === formatId);
       const isAudio =
         formatId.toLowerCase().includes('mp3') ||
@@ -416,10 +412,42 @@ export default function Downloader() {
         .trim();
       const filename = `${safeTitle}.${ext}`;
 
+      if (!customMedia) {
+        setDownloadingFormatId(formatId);
+        setState('downloading');
+        setError(null);
+        setCompletedInfo(null);
+        setDownloadProgress({
+          percent: 15,
+          receivedMB: 'Connecting to media server...',
+          totalMB: '',
+          active: true,
+          formatTitle: targetFormat?.quality || formatId,
+        });
+
+        // Smoothly advance progress bar while server processes conversion/stream
+        progressTimer = setInterval(() => {
+          setDownloadProgress((prev) => {
+            if (!prev.active || prev.percent >= 92) return prev;
+            const nextPercent = prev.percent + Math.floor(Math.random() * 8) + 4;
+            let statusText = 'Connecting to media stream...';
+            if (nextPercent > 35) statusText = 'Fetching high quality media chunks...';
+            if (nextPercent > 60) statusText = 'Merging video & audio tracks...';
+            if (nextPercent > 80) statusText = 'Finalizing file stream...';
+            return {
+              ...prev,
+              percent: Math.min(nextPercent, 94),
+              receivedMB: statusText,
+            };
+          });
+        }, 800);
+      }
+
       // INSTANT SPEED FLOW:
       // If direct download URL is already provided by provider (e.g. TikTok, Instagram, Facebook),
       // launch the browser download immediately with zero lag!
       if (targetFormat?.downloadUrl && (targetFormat.downloadUrl.startsWith('http://') || targetFormat.downloadUrl.startsWith('https://') || targetFormat.downloadUrl.startsWith('/api/'))) {
+        if (progressTimer) clearInterval(progressTimer);
         let finalDlUrl = targetFormat.downloadUrl;
         if (finalDlUrl.startsWith('http://') || finalDlUrl.startsWith('https://')) {
           finalDlUrl = `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
@@ -436,12 +464,12 @@ export default function Downloader() {
 
         if (!customMedia) {
           setState('completed');
-          setCompletedInfo({ title: safeTitle, ext, formatId });
+          setCompletedInfo({ title: safeTitle, ext, formatId, downloadUrl: finalDlUrl });
         }
         return true;
       }
 
-      // Fast-path API stream: trigger immediate background streaming download
+      // Fast-path API stream: trigger background streaming download
       const response = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -450,6 +478,8 @@ export default function Downloader() {
           formatId,
         }),
       });
+
+      if (progressTimer) clearInterval(progressTimer);
 
       const data = await response.json();
 
@@ -474,13 +504,39 @@ export default function Downloader() {
 
       const rawDlUrl = data.data.downloadUrl;
 
-      // Native browser background download
-      const dlAnchor = document.createElement('a');
-      dlAnchor.href = rawDlUrl;
-      dlAnchor.setAttribute('download', filename);
-      document.body.appendChild(dlAnchor);
-      dlAnchor.click();
-      document.body.removeChild(dlAnchor);
+      // Update progress to 100% complete
+      setDownloadProgress((prev) => ({
+        ...prev,
+        percent: 100,
+        receivedMB: 'Download ready! Starting download...',
+      }));
+
+      // Native browser background download - Channel 1: Hidden iframe (bypasses async popup blockers)
+      try {
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = rawDlUrl;
+        document.body.appendChild(iframe);
+        setTimeout(() => {
+          try {
+            document.body.removeChild(iframe);
+          } catch {}
+        }, 30000);
+      } catch {}
+
+      // Channel 2: Anchor click
+      try {
+        const dlAnchor = document.createElement('a');
+        dlAnchor.href = rawDlUrl;
+        dlAnchor.setAttribute('download', filename);
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        setTimeout(() => {
+          try {
+            document.body.removeChild(dlAnchor);
+          } catch {}
+        }, 1000);
+      } catch {}
 
       // Trigger floating top premium toast notification immediately
       setDownloadToast({
@@ -494,10 +550,12 @@ export default function Downloader() {
           title: safeTitle,
           ext,
           formatId,
+          downloadUrl: rawDlUrl,
         });
       }
       return true;
     } catch {
+      if (progressTimer) clearInterval(progressTimer);
       if (!customMedia) {
         setError({
           type: 'NETWORK_ERROR',
@@ -510,6 +568,7 @@ export default function Downloader() {
       }
       return false;
     } finally {
+      if (progressTimer) clearInterval(progressTimer);
       if (!customMedia) {
         setDownloadingFormatId(null);
         setDownloadProgress((prev) => ({ ...prev, active: false }));
@@ -974,10 +1033,24 @@ export default function Downloader() {
                     </div>
                   </div>
                   <div className={styles.completeActions}>
+                    {completedInfo.downloadUrl && (
+                      <a
+                        href={completedInfo.downloadUrl}
+                        download={`${completedInfo.title}.${completedInfo.ext}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles.actionBtnPrimary}
+                        style={{ textDecoration: 'none' }}
+                        title="Save file directly to device"
+                      >
+                        <Download size={13} />
+                        <span>Save File</span>
+                      </a>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleDownloadFormat(completedInfo.formatId)}
-                      className={styles.actionBtnPrimary}
+                      className={styles.actionBtnSecondary}
                       title="Download again"
                     >
                       <RefreshCw size={13} />
