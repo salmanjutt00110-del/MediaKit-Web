@@ -115,21 +115,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let finalDownloadUrl = downloadResult.downloadUrl;
-    if (finalDownloadUrl && (finalDownloadUrl.startsWith('http://') || finalDownloadUrl.startsWith('https://'))) {
-      const isAudio =
-        formatId.toLowerCase().includes('mp3') ||
-        formatId.toLowerCase().includes('audio');
-      const ext = isAudio ? 'mp3' : 'mp4';
-      const cleanTitle = (mediaInfo.title || 'media')
-        .replace(/[/\\?%*:|"<>]/g, '_')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      finalDownloadUrl = `/api/download/file?url=${encodeURIComponent(
-        finalDownloadUrl
-      )}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
-    }
+    const finalDownloadUrl = downloadResult.downloadUrl;
 
     return NextResponse.json({
       success: true,

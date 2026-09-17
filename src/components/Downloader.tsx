@@ -448,17 +448,18 @@ export default function Downloader() {
       // launch the browser download immediately with zero lag!
       if (targetFormat?.downloadUrl && (targetFormat.downloadUrl.startsWith('http://') || targetFormat.downloadUrl.startsWith('https://') || targetFormat.downloadUrl.startsWith('/api/'))) {
         if (progressTimer) clearInterval(progressTimer);
-        let finalDlUrl = targetFormat.downloadUrl;
-        if (finalDlUrl.startsWith('http://') || finalDlUrl.startsWith('https://')) {
-          finalDlUrl = `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
-        }
+        const finalDlUrl = targetFormat.downloadUrl;
 
         const dlAnchor = document.createElement('a');
         dlAnchor.href = finalDlUrl;
         dlAnchor.setAttribute('download', filename);
         document.body.appendChild(dlAnchor);
         dlAnchor.click();
-        document.body.removeChild(dlAnchor);
+        setTimeout(() => {
+          try {
+            document.body.removeChild(dlAnchor);
+          } catch {}
+        }, 1000);
 
         setDownloadToast({ title: safeTitle, ext });
 
@@ -1037,8 +1038,6 @@ export default function Downloader() {
                       <a
                         href={completedInfo.downloadUrl}
                         download={`${completedInfo.title}.${completedInfo.ext}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className={styles.actionBtnPrimary}
                         style={{ textDecoration: 'none' }}
                         title="Save file directly to device"
