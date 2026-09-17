@@ -112,7 +112,7 @@ export const ytDlpRunner = {
 
       const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
       if (isYouTube) {
-        args.push('--extractor-args', 'youtube:player_client=android');
+        args.push('--js-runtimes', 'node');
       }
 
       const cookies = getCookiesPath();
@@ -150,7 +150,91 @@ export const ytDlpRunner = {
             const formats: MediaFormat[] = [];
             const seenQualities = new Set<string>();
 
-            // 1. MP4 Formats
+            // 1. YouTube Multi-Format Extraction
+            const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
+            if (isYouTube) {
+              const fmt1080 =
+                rawFormats.find((f) => f.format_id === '137' && f.url) ||
+                rawFormats.find((f) => f.height && f.height >= 1080 && f.url);
+              const fmt720 =
+                rawFormats.find((f) => f.format_id === '22' && f.url) ||
+                rawFormats.find((f) => (f.format_id === '136' || f.format_id === '398') && f.url) ||
+                rawFormats.find((f) => f.height && f.height >= 720 && f.url);
+              const fmt480 =
+                rawFormats.find((f) => (f.format_id === '135' || f.format_id === '397') && f.url) ||
+                rawFormats.find((f) => f.height && f.height >= 480 && f.url);
+              const fmt360 =
+                rawFormats.find((f) => f.format_id === '18' && f.url) ||
+                rawFormats.find((f) => (f.format_id === '134' || f.format_id === '396') && f.url) ||
+                rawFormats.find((f) => f.height && f.height >= 360 && f.url);
+              const bestAudio =
+                rawFormats.find((f) => f.format_id === '140' && f.url) ||
+                rawFormats.find((f) => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none') && f.url);
+
+              if (fmt1080 || rawFormats.some((f) => f.height && f.height >= 1080)) {
+                formats.push({
+                  id: '1080p',
+                  format: 'mp4',
+                  quality: '1080p HD (Full HD)',
+                  resolution: '1920x1080',
+                  hasAudio: true,
+                  hasVideo: true,
+                  downloadUrl: fmt1080?.url,
+                  fileSize: fmt1080 ? formatBytes(fmt1080.filesize || fmt1080.filesize_approx) : undefined,
+                });
+              }
+
+              if (fmt720 || rawFormats.some((f) => f.height && f.height >= 720) || !fmt1080) {
+                formats.push({
+                  id: '720p',
+                  format: 'mp4',
+                  quality: '720p HD (Standard HD)',
+                  resolution: '1280x720',
+                  hasAudio: true,
+                  hasVideo: true,
+                  downloadUrl: fmt720?.url,
+                  fileSize: fmt720 ? formatBytes(fmt720.filesize || fmt720.filesize_approx) : undefined,
+                });
+              }
+
+              if (fmt480 || rawFormats.some((f) => f.height && f.height >= 480)) {
+                formats.push({
+                  id: '480p',
+                  format: 'mp4',
+                  quality: '480p (Standard)',
+                  resolution: '854x480',
+                  hasAudio: true,
+                  hasVideo: true,
+                  downloadUrl: fmt480?.url,
+                  fileSize: fmt480 ? formatBytes(fmt480.filesize || fmt480.filesize_approx) : undefined,
+                });
+              }
+
+              // 360p (Fast Progressive Download - Always present on YouTube)
+              formats.push({
+                id: '360p',
+                format: 'mp4',
+                quality: '360p (Fast Download)',
+                resolution: '640x360',
+                hasAudio: true,
+                hasVideo: true,
+                downloadUrl: fmt360?.url,
+                fileSize: fmt360 ? formatBytes(fmt360.filesize || fmt360.filesize_approx) : undefined,
+              });
+
+              // MP3 / Audio Format
+              formats.push({
+                id: 'mp3',
+                format: 'mp3',
+                quality: '320 kbps (High Quality Audio)',
+                hasAudio: true,
+                hasVideo: false,
+                downloadUrl: bestAudio?.url,
+                fileSize: bestAudio ? formatBytes(bestAudio.filesize || bestAudio.filesize_approx) : '4.5 MB',
+              });
+            }
+
+            // 2. Instagram Formats
             const isInstagram = targetUrl.includes('instagram.com') || targetUrl.includes('instagr.am');
             if (isInstagram) {
               const igProgressive = rawFormats.filter(
@@ -175,66 +259,67 @@ export const ytDlpRunner = {
               }
             }
 
-            const directVideoFormats = rawFormats.filter(
-              (f) =>
-                f.ext === 'mp4' &&
-                f.vcodec &&
-                f.vcodec !== 'none' &&
-                (!f.protocol || !f.protocol.includes('m3u8'))
-            );
+            if (!isYouTube && !isInstagram) {
+              const directVideoFormats = rawFormats.filter(
+                (f) =>
+                  f.ext === 'mp4' &&
+                  f.vcodec &&
+                  f.vcodec !== 'none' &&
+                  (!f.protocol || !f.protocol.includes('m3u8'))
+              );
 
-            const videoFormats =
-              directVideoFormats.length > 0
-                ? directVideoFormats
-                : rawFormats.filter(
-                    (f) =>
-                      f.vcodec &&
-                      f.vcodec !== 'none' &&
-                      (!f.protocol || !f.protocol.includes('m3u8'))
-                  );
+              const videoFormats =
+                directVideoFormats.length > 0
+                  ? directVideoFormats
+                  : rawFormats.filter(
+                      (f) =>
+                        f.vcodec &&
+                        f.vcodec !== 'none' &&
+                        (!f.protocol || !f.protocol.includes('m3u8'))
+                    );
 
-            // Sort: prioritize formats that have both audio and video, then by height descending
-            videoFormats.sort((a, b) => {
-              const aAudio = a.acodec && a.acodec !== 'none' ? 1 : 0;
-              const bAudio = b.acodec && b.acodec !== 'none' ? 1 : 0;
-              if (bAudio !== aAudio) return bAudio - aAudio;
-              return (b.height || 0) - (a.height || 0);
-            });
+              videoFormats.sort((a, b) => {
+                const aAudio = a.acodec && a.acodec !== 'none' ? 1 : 0;
+                const bAudio = b.acodec && b.acodec !== 'none' ? 1 : 0;
+                if (bAudio !== aAudio) return bAudio - aAudio;
+                return (b.height || 0) - (a.height || 0);
+              });
 
-            for (const f of videoFormats) {
-              const height = f.height;
-              if (!height || height < 144) continue;
-              const qualityLabel = `${height}p`;
+              for (const f of videoFormats) {
+                const height = f.height;
+                if (!height || height < 144) continue;
+                const qualityLabel = `${height}p`;
 
-              if (!seenQualities.has(qualityLabel)) {
-                seenQualities.add(qualityLabel);
-                formats.push({
-                  id: f.format_id,
-                  format: 'mp4',
-                  quality: qualityLabel,
-                  resolution: f.resolution || `${f.width}x${f.height}`,
-                  fileSize: formatBytes(f.filesize || f.filesize_approx),
-                  hasAudio: f.acodec !== 'none',
-                  hasVideo: true,
-                  downloadUrl: f.url && f.url.startsWith('http') ? f.url : undefined,
-                });
+                if (!seenQualities.has(qualityLabel)) {
+                  seenQualities.add(qualityLabel);
+                  formats.push({
+                    id: f.format_id,
+                    format: 'mp4',
+                    quality: qualityLabel,
+                    resolution: f.resolution || `${f.width}x${f.height}`,
+                    fileSize: formatBytes(f.filesize || f.filesize_approx),
+                    hasAudio: f.acodec !== 'none',
+                    hasVideo: true,
+                    downloadUrl: f.url && f.url.startsWith('http') ? f.url : undefined,
+                  });
+                }
+
+                if (formats.length >= 4) break;
               }
 
-              if (formats.length >= 4) break;
-            }
-
-            // Fallback progressive standard format if none picked
-            if (formats.length === 0 && videoFormats.length > 0) {
-              const first = videoFormats[0];
-              formats.push({
-                id: first.format_id,
-                format: 'mp4',
-                quality: `${first.height || 720}p`,
-                fileSize: formatBytes(first.filesize || first.filesize_approx),
-                hasAudio: first.acodec !== 'none',
-                hasVideo: true,
-                downloadUrl: first.url && first.url.startsWith('http') ? first.url : undefined,
-              });
+              // Fallback progressive standard format if none picked
+              if (formats.length === 0 && videoFormats.length > 0) {
+                const first = videoFormats[0];
+                formats.push({
+                  id: first.format_id,
+                  format: 'mp4',
+                  quality: `${first.height || 720}p`,
+                  fileSize: formatBytes(first.filesize || first.filesize_approx),
+                  hasAudio: first.acodec !== 'none',
+                  hasVideo: true,
+                  downloadUrl: first.url && first.url.startsWith('http') ? first.url : undefined,
+                });
+              }
             }
 
             // 2. MP3 / Audio Format (non-m3u8)
@@ -379,11 +464,13 @@ export const ytDlpRunner = {
           media.sourceUrl
         );
       } else {
-        // Use the requested format combined with best available audio
-        const formatArg =
-          formatId && !formatId.startsWith('mp3')
-            ? `${formatId}+ba[ext=m4a]/bestaudio/${formatId}+ba/best`
-            : 'bestvideo[height<=720]+bestaudio/best[height<=720]/best';
+        let height = 720;
+        if (formatId.includes('1080')) height = 1080;
+        else if (formatId.includes('720')) height = 720;
+        else if (formatId.includes('480')) height = 480;
+        else if (formatId.includes('360')) height = 360;
+
+        const formatArg = `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`;
         args.push(
           '-f',
           formatArg,
@@ -459,9 +546,18 @@ export const ytDlpRunner = {
       if (isYouTube) {
         if (isMp3) {
           formatArg = '140/251/ba/bestaudio';
+        } else if (formatId.includes('1080')) {
+          args.push('--js-runtimes', 'node');
+          formatArg = '137/bestvideo[height<=1080]/22/18/b/best';
+        } else if (formatId.includes('720')) {
+          args.push('--js-runtimes', 'node');
+          formatArg = '22/136/398/bestvideo[height<=720]/18/b/best';
+        } else if (formatId.includes('480')) {
+          args.push('--js-runtimes', 'node');
+          formatArg = '135/397/bestvideo[height<=480]/18/b/best';
         } else {
           args.push('--extractor-args', 'youtube:player_client=android');
-          formatArg = '22/18/b/best';
+          formatArg = '18/b/best';
         }
       } else {
         formatArg = isMp3 ? 'ba/bestaudio' : 'b/best';

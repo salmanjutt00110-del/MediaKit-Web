@@ -5,6 +5,9 @@ import { ytDlpRunner } from '../ytdlp';
 // In-memory stream cache to make repeat and pre-warmed downloads instantaneous
 const youtubeStreamCache = new Map<string, { url: string; expiry: number }>();
 
+// In-memory media info cache to make subsequent format downloads instant
+const youtubeMediaInfoCache = new Map<string, { info: MediaMetadata; expiry: number }>();
+
 // In-flight conversion promise map to de-duplicate simultaneous prewarm and user requests
 const inFlightConversions = new Map<string, Promise<ProviderDownloadResult>>();
 
@@ -43,12 +46,22 @@ export class YouTubeAdapter extends MediaProvider {
   }
 
   async getMediaInfo(url: string): Promise<MediaMetadata> {
-    const videoId = this.extractVideoId(url) || 'unknown';
+    const videoId = this.extractVideoId(url) || url;
+
+    // Check cache
+    const cached = youtubeMediaInfoCache.get(videoId);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.info;
+    }
 
     // 1. Primary Engine: yt-dlp local extractor
     if (ytDlpRunner.isAvailable()) {
       try {
         const info = await ytDlpRunner.getMediaInfo(url);
+        youtubeMediaInfoCache.set(videoId, {
+          info,
+          expiry: Date.now() + 15 * 60 * 1000,
+        });
         return info;
       } catch (err: any) {
         if (err.code === 'PRIVATE_CONTENT' || err.code === 'UNAVAILABLE_CONTENT') {
@@ -176,7 +189,123 @@ export class YouTubeAdapter extends MediaProvider {
       };
     }
 
-    // 1. Primary Engine: Direct Stream URL via yt-dlp -g (Instant 1-2s response, zero lag!)
+    // 1. For HD Formats (1080p, 480p, 720p without progressive stream), attempt cloud conversion first for merged video+audio
+    const isHdMerge = formatId.includes('1080') || formatId.includes('480') || (formatId.includes('720') && !matchingFormat?.downloadUrl);
+
+    if (isHdMerge) {
+      if (inFlightConversions.has(cacheKey)) {
+        try {
+          return await inFlightConversions.get(cacheKey)!;
+        } catch {}
+      }
+
+      const conversionPromise = (async (): Promise<ProviderDownloadResult> => {
+        try {
+          const isMp3 =
+            formatId.toLowerCase().includes('mp3') ||
+            formatId.toLowerCase().includes('audio');
+          const format = isMp3 ? 'mp3' : formatId.replace(/[^0-9]/g, '') || '720';
+
+          const initRes = await fetch(
+            `https://loader.to/ajax/download.php?button=1&start=1&end=1&format=${format}&url=${encodeURIComponent(
+              media.sourceUrl
+            )}`,
+            {
+              headers: {
+                'User-Agent':
+                  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                Referer: 'https://loader.to/',
+              },
+              signal: AbortSignal.timeout(8000),
+            }
+          );
+
+          const init = await initRes.json();
+          if (init.id) {
+            if (init.download_url) {
+              youtubeStreamCache.set(cacheKey, {
+                url: init.download_url,
+                expiry: Date.now() + 3 * 60 * 60 * 1000,
+              });
+              return {
+                success: true,
+                downloadUrl: init.download_url,
+                message: 'Direct media file prepared successfully.',
+              };
+            }
+
+            const progressUrl =
+              init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
+
+            // Fast polling with max 20 attempts (up to ~15s)
+            for (let attempt = 0; attempt < 20; attempt++) {
+              if (attempt > 0) {
+                await new Promise((r) => setTimeout(r, 750));
+              }
+
+              try {
+                const pRes = await fetch(progressUrl, {
+                  headers: { 'User-Agent': 'Mozilla/5.0' },
+                  signal: AbortSignal.timeout(3500),
+                });
+                const pData = await pRes.json();
+
+                if (pData.text === 'Failed' || pData.success === -1) {
+                  break;
+                }
+
+                if (pData.success === 1 && pData.download_url) {
+                  youtubeStreamCache.set(cacheKey, {
+                    url: pData.download_url,
+                    expiry: Date.now() + 3 * 60 * 60 * 1000,
+                  });
+                  return {
+                    success: true,
+                    downloadUrl: pData.download_url,
+                    message: 'Direct media file prepared successfully.',
+                  };
+                }
+              } catch {}
+            }
+          }
+        } catch (e: any) {
+          console.warn('loader.to HD merge failed, falling back to direct stream:', e.message);
+        } finally {
+          inFlightConversions.delete(cacheKey);
+        }
+
+        // Fallback to direct stream URL via yt-dlp if loader.to was unavailable or timed out
+        if (ytDlpRunner.isAvailable()) {
+          try {
+            const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
+            if (streamUrl && streamUrl.startsWith('http')) {
+              const cleanTitle = (media.title || 'YouTube_Video')
+                .replace(/[/\\?%*:|"<>]/g, '_')
+                .trim();
+              const safeUrl = `/api/download/file?url=${encodeURIComponent(
+                streamUrl
+              )}&title=${encodeURIComponent(cleanTitle)}&ext=mp4`;
+
+              return {
+                success: true,
+                downloadUrl: safeUrl,
+                message: 'Direct media stream prepared successfully.',
+              };
+            }
+          } catch {}
+        }
+
+        return {
+          success: false,
+          message: 'Unable to prepare download stream for this format. Please try another quality tier.',
+        };
+      })();
+
+      inFlightConversions.set(cacheKey, conversionPromise);
+      return await conversionPromise;
+    }
+
+    // 2. Direct Stream URL via yt-dlp -g for progressive / audio formats (Instant 1-2s response)
     if (ytDlpRunner.isAvailable()) {
       try {
         const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
@@ -206,7 +335,7 @@ export class YouTubeAdapter extends MediaProvider {
         console.warn('yt-dlp getStreamUrl fallback to local media:', streamErr.message);
       }
 
-      // Fallback 1b: Local file downloader with concurrent fragments
+      // Fallback 2b: Local file downloader with concurrent fragments
       try {
         const localPath = await ytDlpRunner.downloadMedia(media, formatId);
         if (localPath) {
@@ -225,102 +354,10 @@ export class YouTubeAdapter extends MediaProvider {
       }
     }
 
-    // If already in flight, reuse the ongoing conversion promise
-    if (inFlightConversions.has(cacheKey)) {
-      try {
-        return await inFlightConversions.get(cacheKey)!;
-      } catch {
-        // Fallback to launching fresh if previous crashed
-      }
-    }
-
-    const conversionPromise = (async (): Promise<ProviderDownloadResult> => {
-      try {
-        const isMp3 =
-          formatId.toLowerCase().includes('mp3') ||
-          formatId.toLowerCase().includes('audio');
-        const format = isMp3 ? 'mp3' : formatId.replace(/[^0-9]/g, '') || '720';
-
-        const initRes = await fetch(
-          `https://loader.to/ajax/download.php?button=1&start=1&end=1&format=${format}&url=${encodeURIComponent(
-            media.sourceUrl
-          )}`,
-          {
-            headers: {
-              'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              Referer: 'https://loader.to/',
-            },
-            signal: AbortSignal.timeout(8000),
-          }
-        );
-
-        const init = await initRes.json();
-        if (!init.id) {
-          throw new Error(init.message || 'Unable to initialize download stream.');
-        }
-
-        // If already finished at initialization
-        if (init.download_url) {
-          youtubeStreamCache.set(cacheKey, {
-            url: init.download_url,
-            expiry: Date.now() + 3 * 60 * 60 * 1000,
-          });
-          return {
-            success: true,
-            downloadUrl: init.download_url,
-            message: 'Direct media file prepared successfully.',
-          };
-        }
-
-        const progressUrl =
-          init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
-
-        // Fast polling with max 6 attempts (max 3 seconds total)
-        for (let attempt = 0; attempt < 6; attempt++) {
-          if (attempt > 0) {
-            await new Promise((r) => setTimeout(r, 500));
-          }
-
-          const pRes = await fetch(progressUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-            signal: AbortSignal.timeout(3000),
-          });
-          const pData = await pRes.json();
-
-          if (pData.text === 'Failed' || pData.success === -1) {
-            break;
-          }
-
-          if (pData.success === 1 && pData.download_url) {
-            youtubeStreamCache.set(cacheKey, {
-              url: pData.download_url,
-              expiry: Date.now() + 3 * 60 * 60 * 1000,
-            });
-            return {
-              success: true,
-              downloadUrl: pData.download_url,
-              message: 'Direct media file prepared successfully.',
-            };
-          }
-        }
-
-        throw new Error('Video conversion took too long. Please try another quality format.');
-      } finally {
-        inFlightConversions.delete(cacheKey);
-      }
-    })();
-
-    inFlightConversions.set(cacheKey, conversionPromise);
-
-    try {
-      return await conversionPromise;
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message || 'Unable to prepare download stream for this format.',
-      };
-    }
+    return {
+      success: false,
+      message: 'Unable to prepare download stream for this format.',
+    };
   }
 }
 
