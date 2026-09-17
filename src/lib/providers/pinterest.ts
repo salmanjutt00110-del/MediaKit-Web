@@ -58,18 +58,46 @@ export class PinterestAdapter extends MediaProvider {
 
     try {
       const response = await fetch(rawUrl, {
-        method: 'HEAD',
+        method: 'GET',
         redirect: 'follow',
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
         },
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(8000),
       });
-      if (response.url && response.url.includes('pinterest.com')) {
+
+      if (response.url && response.url.includes('/pin/')) {
         return response.url;
       }
-    } catch {}
+
+      // Check HTML for deep alternate / canonical pin link
+      const text = await response.text();
+      const pinMatch =
+        text.match(/href=["'](android-app:\/\/com\.pinterest\/pinterest\/pin\/[0-9]+)["']/i) ||
+        text.match(/href=["'](ios-app:\/\/429047995\/pinterest\/pin\/[0-9]+)["']/i) ||
+        text.match(/https?:\/\/(?:www\.)?pinterest\.[a-z.]+\/pin\/([0-9]+)/i) ||
+        text.match(/url=(https%3A%2F%2F[^\s"&]+pinterest\.[a-z.]+%2Fpin%2F[0-9]+)/i);
+
+      if (pinMatch) {
+        const matched = pinMatch[1];
+        if (matched.startsWith('http')) {
+          return decodeURIComponent(matched);
+        }
+        const pinId = matched.replace(/[^0-9]/g, '');
+        if (pinId) {
+          return `https://www.pinterest.com/pin/${pinId}/`;
+        }
+      }
+
+      if (response.url && /\/pin\/[0-9]+/i.test(response.url)) {
+        return response.url;
+      }
+    } catch (err: any) {
+      logger.warn('Pinterest resolve canonical URL warning', { msg: err.message, rawUrl });
+    }
 
     return rawUrl;
   }
@@ -82,7 +110,7 @@ export class PinterestAdapter extends MediaProvider {
   }
 
   /**
-   * Fast HTML & JSON-LD Scraper for Pinterest Videos
+   * Fast HTML, HLS & JSON-LD Scraper for Pinterest Videos
    */
   private async scrapePinterest(url: string): Promise<{
     title?: string;
@@ -95,9 +123,11 @@ export class PinterestAdapter extends MediaProvider {
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
         },
-        signal: AbortSignal.timeout(7000),
+        signal: AbortSignal.timeout(8000),
       });
 
       if (!response.ok) return {};
@@ -116,17 +146,46 @@ export class PinterestAdapter extends MediaProvider {
         directVideoUrl = ogVideo[1].replace(/&amp;/g, '&');
       }
 
-      // 2. Search JSON / script tags for v.pinimg.com video URLs
+      // 2. Search JSON / script tags for .mp4 URLs on (v|v1|v2).pinimg.com
       if (!directVideoUrl) {
         const vPinMatch =
-          html.match(/https:\/\/v\.pinimg\.com\/videos\/[^\s"'\\]+\.mp4/i) ||
-          html.match(/"url":"(https:\/\/v\.pinimg\.com\/videos\/[^"]+\.mp4)"/i);
+          html.match(/https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^\s"'\\]+\.mp4/i) ||
+          html.match(/"url"\s*:\s*"(https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^"]+\.mp4)"/i) ||
+          html.match(/"contentUrl"\s*:\s*"(https?:\/\/[^"]+\.mp4)"/i);
         if (vPinMatch) {
           directVideoUrl = (vPinMatch[1] || vPinMatch[0]).replace(/\\u0026/g, '&').replace(/\\/g, '');
         }
       }
 
-      // 3. Extract title
+      // 3. Search for HLS .m3u8 URLs and convert to 720p MP4
+      if (!directVideoUrl) {
+        const m3u8Match =
+          html.match(/https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^\s"'\\]+\.m3u8/i) ||
+          html.match(/"url"\s*:\s*"(https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^"]+\.m3u8)"/i);
+        if (m3u8Match) {
+          const rawM3u8 = (m3u8Match[1] || m3u8Match[0]).replace(/\\u0026/g, '&').replace(/\\/g, '');
+          directVideoUrl = rawM3u8.replace(/\/hls\//g, '/720p/').replace(/\.m3u8/g, '.mp4');
+        }
+      }
+
+      // 4. Search embedded JSON in __PWS_DATA__
+      if (!directVideoUrl) {
+        const pwsMatches = html.match(/<script id="__PWS_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+        if (pwsMatches) {
+          const rawPws = pwsMatches[1];
+          const mp4InPws = rawPws.match(/https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^\s"'\\]+\.mp4/i);
+          if (mp4InPws) {
+            directVideoUrl = mp4InPws[0].replace(/\\u0026/g, '&').replace(/\\/g, '');
+          } else {
+            const m3u8InPws = rawPws.match(/https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^\s"'\\]+\.m3u8/i);
+            if (m3u8InPws) {
+              directVideoUrl = m3u8InPws[0].replace(/\\u0026/g, '&').replace(/\\/g, '').replace(/\/hls\//g, '/720p/').replace(/\.m3u8/g, '.mp4');
+            }
+          }
+        }
+      }
+
+      // 5. Extract title
       let title: string | undefined;
       const ogTitle =
         html.match(/property="og:title"[^>]+content="([^"]+)"/i) ||
@@ -139,21 +198,29 @@ export class PinterestAdapter extends MediaProvider {
         }
       }
 
-      // 4. Extract thumbnail
+      // 6. Extract thumbnail
       let thumbnailUrl: string | undefined;
       const ogImage =
         html.match(/property="og:image"[^>]+content="([^"]+)"/i) ||
         html.match(/content="([^"]+)"[^>]+property="og:image"/i) ||
-        html.match(/https:\/\/i\.pinimg\.com\/originals\/[^\s"']+/i);
+        html.match(/https?:\/\/i\.pinimg\.com\/(?:originals|736x|564x)\/[^\s"'\\]+\.(?:jpg|jpeg|png|webp)/i);
       if (ogImage) {
-        thumbnailUrl = (ogImage[1] || ogImage[0]).replace(/&amp;/g, '&');
+        const found = (ogImage[1] || ogImage[0]).replace(/&amp;/g, '&').replace(/\\/g, '');
+        if (
+          !found.includes('facebook_share_image') &&
+          !found.includes('default_avatar') &&
+          !found.includes('favicon')
+        ) {
+          thumbnailUrl = found;
+        }
       }
 
-      // 5. Extract author
+      // 7. Extract author
       let author: string | undefined;
       const authorMatch =
         html.match(/property="og:site_name"[^>]+content="([^"]+)"/i) ||
-        html.match(/"author":\{"name":"([^"]+)"/i);
+        html.match(/"author":\{"name":"([^"]+)"/i) ||
+        html.match(/"uploader":\s*"([^"]+)"/i);
       if (authorMatch && authorMatch[1] && !authorMatch[1].toLowerCase().includes('pinterest')) {
         author = authorMatch[1].trim();
       }
@@ -189,14 +256,25 @@ export class PinterestAdapter extends MediaProvider {
         if (info) {
           title = title || info.title;
           if (info.author) author = info.author;
-          if (info.thumbnailUrl) thumbnailUrl = info.thumbnailUrl;
+          if (info.thumbnailUrl && !info.thumbnailUrl.includes('facebook_share_image')) {
+            thumbnailUrl = info.thumbnailUrl;
+          }
           if (info.formats && info.formats.length > 0) {
-            directVideo = info.formats[0].downloadUrl;
+            const firstFmtWithUrl = info.formats.find((f) => f.downloadUrl);
+            if (firstFmtWithUrl) {
+              directVideo = firstFmtWithUrl.downloadUrl;
+            }
           }
         }
       } catch (err: any) {
         logger.info('Pinterest yt-dlp info fallback', { msg: err.message });
       }
+    }
+
+    if (!directVideo) {
+      throw new Error(
+        'Could not extract a downloadable video from this Pinterest link. Please make sure the link is to a public video pin and try again.'
+      );
     }
 
     const cleanTitle = title || `Pinterest Video (${pinId})`;

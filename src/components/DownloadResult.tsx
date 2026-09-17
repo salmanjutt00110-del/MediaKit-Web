@@ -84,17 +84,47 @@ export default function DownloadResult({
   const displayTitle = cleanAndDecodeTitle(media.title);
 
   // Thumbnail states
-  const [imgSrc, setImgSrc] = useState<string | undefined>(media.thumbnailUrl);
+  const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
   const [imgError, setImgError] = useState(false);
   const [isImgLoading, setIsImgLoading] = useState(true);
   const [hasTriedProxy, setHasTriedProxy] = useState(false);
 
   useEffect(() => {
-    setImgSrc(media.thumbnailUrl);
-    setImgError(!media.thumbnailUrl);
-    setIsImgLoading(!!media.thumbnailUrl);
+    const rawThumb =
+      media.thumbnailUrl &&
+      !media.thumbnailUrl.includes('facebook_share_image') &&
+      !media.thumbnailUrl.includes('default_avatar')
+        ? media.thumbnailUrl
+        : undefined;
+
+    if (rawThumb) {
+      // For Pinterest & Instagram, route through /api/thumbnail immediately to bypass hotlink/CORS protection
+      if (media.platform === 'pinterest' || media.platform === 'instagram') {
+        setImgSrc(`/api/thumbnail?url=${encodeURIComponent(rawThumb)}`);
+      } else {
+        setImgSrc(rawThumb);
+      }
+      setImgError(false);
+      setIsImgLoading(true);
+    } else {
+      setImgSrc(undefined);
+      setImgError(true);
+      setIsImgLoading(false);
+    }
     setHasTriedProxy(false);
-  }, [media.id, media.sourceUrl, media.thumbnailUrl]);
+  }, [media.id, media.sourceUrl, media.thumbnailUrl, media.platform]);
+
+  // Safety timer to ensure skeleton never gets stuck
+  useEffect(() => {
+    if (!imgSrc || imgError) {
+      setIsImgLoading(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setIsImgLoading(false);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [imgSrc, imgError]);
 
   const handleImageError = () => {
     if (!hasTriedProxy && media.thumbnailUrl && !media.thumbnailUrl.startsWith('/api/thumbnail')) {

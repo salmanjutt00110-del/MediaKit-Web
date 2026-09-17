@@ -108,6 +108,10 @@
   background: linear-gradient(135deg, #831843 0%, #c026d3 50%, #f97316 100%);
 }
 
+.fallback_pinterest {
+  background: linear-gradient(135deg, #e60023 0%, #b3001b 100%);
+}
+
 .fallbackIcon {
   display: flex;
   align-items: center;

@@ -95,6 +95,9 @@ export async function GET(request: NextRequest) {
     } else if (targetUrl.includes('fbcdn.net') || targetUrl.includes('facebook.com')) {
       upstreamHeaders['Referer'] = 'https://www.facebook.com/';
       upstreamHeaders['Origin'] = 'https://www.facebook.com';
+    } else if (targetUrl.includes('pinimg.com') || targetUrl.includes('pinterest.com')) {
+      upstreamHeaders['Referer'] = 'https://www.pinterest.com/';
+      upstreamHeaders['Origin'] = 'https://www.pinterest.com';
     }
 
     const upstreamRes = await fetch(targetUrl, {

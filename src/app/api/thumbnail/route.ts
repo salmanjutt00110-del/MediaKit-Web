@@ -34,13 +34,23 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch upstream thumbnail with clean headers without client-side domain referrer
+    const upstreamHeaders: Record<string, string> = {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.9',
+    };
+
+    if (targetUrl.includes('pinimg.com') || targetUrl.includes('pinterest.com')) {
+      upstreamHeaders['Referer'] = 'https://www.pinterest.com/';
+      upstreamHeaders['Origin'] = 'https://www.pinterest.com';
+    } else if (targetUrl.includes('instagram.com') || targetUrl.includes('cdninstagram.com')) {
+      upstreamHeaders['Referer'] = 'https://www.instagram.com/';
+      upstreamHeaders['Origin'] = 'https://www.instagram.com';
+    }
+
     const res = await fetch(targetUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
+      headers: upstreamHeaders,
       signal: AbortSignal.timeout(6000),
     });
 
