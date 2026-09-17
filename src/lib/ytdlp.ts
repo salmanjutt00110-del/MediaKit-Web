@@ -112,7 +112,7 @@ export const ytDlpRunner = {
 
       const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
       if (isYouTube) {
-        args.push('--js-runtimes', 'node');
+        args.push('--js-runtimes', `node:${process.execPath}`);
       }
 
       const cookies = getCookiesPath();
@@ -547,13 +547,13 @@ export const ytDlpRunner = {
         if (isMp3) {
           formatArg = '140/251/ba/bestaudio';
         } else if (formatId.includes('1080')) {
-          args.push('--js-runtimes', 'node');
+          args.push('--js-runtimes', `node:${process.execPath}`);
           formatArg = '137/bestvideo[height<=1080]/22/18/b/best';
         } else if (formatId.includes('720')) {
-          args.push('--js-runtimes', 'node');
+          args.push('--js-runtimes', `node:${process.execPath}`);
           formatArg = '22/136/398/bestvideo[height<=720]/18/b/best';
         } else if (formatId.includes('480')) {
-          args.push('--js-runtimes', 'node');
+          args.push('--js-runtimes', `node:${process.execPath}`);
           formatArg = '135/397/bestvideo[height<=480]/18/b/best';
         } else {
           args.push('--extractor-args', 'youtube:player_client=android');
