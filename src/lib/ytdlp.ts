@@ -112,7 +112,7 @@ export const ytDlpRunner = {
 
       const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
       if (isYouTube) {
-        args.push('--extractor-args', 'youtube:player_client=android,web');
+        args.push('--extractor-args', 'youtube:player_client=android');
       }
 
       const cookies = getCookiesPath();
@@ -125,7 +125,7 @@ export const ytDlpRunner = {
       execFile(
         /*turbopackIgnore: true*/ executable,
         args,
-        { maxBuffer: 15 * 1024 * 1024, timeout: 25000 },
+        { maxBuffer: 25 * 1024 * 1024, timeout: 20000 },
         (error, stdout, stderr) => {
           if (error) {
             const msg = stderr || error.message;
@@ -413,30 +413,23 @@ export const ytDlpRunner = {
         formatId.toLowerCase().includes('mp3') ||
         formatId.toLowerCase().includes('audio');
 
-      // Prefer progressive mp4 formats (18 for 360p, b, best) or direct audio stream (140, ba)
-      const formatArg = isMp3
-        ? '140/ba/bestaudio/b'
-        : formatId &&
-          formatId !== '720p' &&
-          formatId !== '360p' &&
-          formatId !== '1080p' &&
-          formatId !== '480p'
-        ? `${formatId}/18/b/best[height<=720]/best`
-        : '18/b/best[height<=720]/best';
-
-      const args = [
-        '--js-runtimes',
-        'node',
-        '-g',
-        '-f',
-        formatArg,
-        '--no-playlist',
-      ];
-
       const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
+
+      let formatArg: string;
+      const args: string[] = ['-g', '--no-playlist'];
+
       if (isYouTube) {
-        args.push('--extractor-args', 'youtube:player_client=android,web');
+        if (isMp3) {
+          formatArg = '140/251/ba/bestaudio';
+        } else {
+          args.push('--extractor-args', 'youtube:player_client=android');
+          formatArg = '22/18/b/best';
+        }
+      } else {
+        formatArg = isMp3 ? 'ba/bestaudio' : 'b/best';
       }
+
+      args.push('-f', formatArg);
 
       const cookies = getCookiesPath();
       if (cookies) {

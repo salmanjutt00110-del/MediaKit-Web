@@ -276,10 +276,10 @@ export class YouTubeAdapter extends MediaProvider {
         const progressUrl =
           init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-        // Fast polling with max 20 attempts
-        for (let attempt = 0; attempt < 20; attempt++) {
+        // Fast polling with max 6 attempts (max 3 seconds total)
+        for (let attempt = 0; attempt < 6; attempt++) {
           if (attempt > 0) {
-            await new Promise((r) => setTimeout(r, 400));
+            await new Promise((r) => setTimeout(r, 500));
           }
 
           const pRes = await fetch(progressUrl, {
@@ -305,7 +305,7 @@ export class YouTubeAdapter extends MediaProvider {
           }
         }
 
-        throw new Error('Conversion processing timeout. Please retry in a moment.');
+        throw new Error('Video conversion took too long. Please try another quality format.');
       } finally {
         inFlightConversions.delete(cacheKey);
       }
@@ -316,17 +316,9 @@ export class YouTubeAdapter extends MediaProvider {
     try {
       return await conversionPromise;
     } catch (err: any) {
-      // Internal stream proxy fallback
-      const streamEndpoint = `/api/download/file?url=${encodeURIComponent(
-        media.sourceUrl
-      )}&title=${encodeURIComponent(media.title || 'media')}&ext=${
-        formatId.includes('mp3') ? 'mp3' : 'mp4'
-      }`;
-
       return {
-        success: true,
-        downloadUrl: streamEndpoint,
-        message: 'Direct media stream prepared.',
+        success: false,
+        message: err.message || 'Unable to prepare download stream for this format.',
       };
     }
   }
