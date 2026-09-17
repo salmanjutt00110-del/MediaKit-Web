@@ -228,10 +228,15 @@ export class InstagramAdapter extends MediaProvider {
       },
     ];
 
+    const textMatches = (title || '').match(/#([a-zA-Z0-9_\u0600-\u06FF]+)/g) || [];
+    const hashtags = Array.from(new Set(textMatches));
+
     const result: MediaMetadata = {
       id: shortcode,
       platform: 'instagram',
       title,
+      description: title,
+      hashtags,
       author,
       thumbnailUrl,
       sourceUrl: resolvedUrl,

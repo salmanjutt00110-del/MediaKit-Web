@@ -77,6 +77,8 @@ interface YtDlpJsonOutput {
   duration_string?: string;
   thumbnail?: string;
   formats?: YtDlpFormatRaw[];
+  description?: string;
+  tags?: string[];
 }
 
 function formatBytes(bytes?: number): string | undefined {
@@ -222,6 +224,11 @@ export const ytDlpRunner = {
               });
             }
 
+            const rawTags = (data.tags || []).map((t: string) => (t.startsWith('#') ? t : `#${t}`));
+            const combinedText = `${data.title || ''} ${data.description || ''}`;
+            const textMatches = combinedText.match(/#([a-zA-Z0-9_\u0600-\u06FF]+)/g) || [];
+            const hashtags = Array.from(new Set([...textMatches, ...rawTags]));
+
             const media: MediaMetadata = {
               id: data.id || 'media',
               platform: 'youtube',
@@ -230,6 +237,8 @@ export const ytDlpRunner = {
               duration: data.duration_string || (data.duration ? `${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')}` : undefined),
               thumbnailUrl: data.thumbnail,
               sourceUrl: targetUrl,
+              description: data.description,
+              hashtags,
               formats,
               requiresProviderSetup: false,
             };

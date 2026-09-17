@@ -34,6 +34,13 @@ export interface MediaMetadata {
   formats: MediaFormat[];
   requiresProviderSetup?: boolean;
   providerStatusMessage?: string;
+  description?: string;
+  hashtags?: string[];
+  script?: {
+    text: string;
+    srt?: string;
+    language?: string;
+  };
 }
 
 export type DownloadState =

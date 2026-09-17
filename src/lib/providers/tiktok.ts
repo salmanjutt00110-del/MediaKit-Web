@@ -339,10 +339,15 @@ export class TikTokAdapter extends MediaProvider {
       } catch {}
     }
 
+    const textMatches = (finalTitle || '').match(/#([a-zA-Z0-9_\u0600-\u06FF]+)/g) || [];
+    const hashtags: string[] = Array.from(new Set<string>(textMatches));
+
     const result: MediaMetadata = {
       id: String(tikwmData?.id || oembedResult?.video_id || videoId),
       platform: 'tiktok',
       title: finalTitle,
+      description: finalTitle,
+      hashtags,
       author: finalAuthor,
       duration: finalDuration,
       thumbnailUrl: finalThumbnail,

@@ -43,17 +43,14 @@ interface BatchItem {
   error?: string;
 }
 
+const MAX_BATCH_URLS = 5;
+
 const DEMO_BATCH_LINKS = [
-  'https://www.youtube.com/watch?v=0e3GPea1Tyg',
-  'https://www.youtube.com/watch?v=j18MRhEfmPk',
-  'https://www.tiktok.com/t/ZP83tPtQX/',
-  'https://www.facebook.com/share/r/1Bu9dcvRh',
   'https://www.youtube.com/watch?v=GLoeAJUcz38',
-  'https://www.youtube.com/watch?v=kJQP7kiw5Fk',
-  'https://www.youtube.com/watch?v=5CPAtEmHAio',
-  'https://www.youtube.com/watch?v=JGwWNGJdvx8',
-  'https://www.youtube.com/watch?v=zNNYy1QYKrI',
-  'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+  'https://www.tiktok.com/t/ZP83tPtQX/',
+  'https://www.youtube.com/watch?v=j18MRhEfmPk',
+  'https://www.facebook.com/share/r/1Bu9dcvRh',
+  'https://www.youtube.com/watch?v=0e3GPea1Tyg',
 ];
 
 export default function Downloader() {
@@ -408,18 +405,43 @@ export default function Downloader() {
       }
 
       const targetFormat = currentMedia.formats?.find((f) => f.id === formatId);
-      const formatQuality = targetFormat?.quality || formatId;
+      const isAudio =
+        formatId.toLowerCase().includes('mp3') ||
+        formatId.toLowerCase().includes('audio') ||
+        targetFormat?.format === 'mp3';
+      const ext = isAudio ? 'mp3' : 'mp4';
+      const safeTitle = (currentMedia.title || 'media')
+        .replace(/[/\\?%*:|"<>]/g, '_')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const filename = `${safeTitle}.${ext}`;
 
-      if (!customMedia) {
-        setDownloadProgress({
-          percent: 0,
-          receivedMB: '0 MB',
-          totalMB: '',
-          active: true,
-          formatTitle: formatQuality,
-        });
+      // INSTANT SPEED FLOW:
+      // If direct download URL is already provided by provider (e.g. TikTok, Instagram, Facebook),
+      // launch the browser download immediately with zero lag!
+      if (targetFormat?.downloadUrl && (targetFormat.downloadUrl.startsWith('http://') || targetFormat.downloadUrl.startsWith('https://') || targetFormat.downloadUrl.startsWith('/api/'))) {
+        let finalDlUrl = targetFormat.downloadUrl;
+        if (finalDlUrl.startsWith('http://') || finalDlUrl.startsWith('https://')) {
+          finalDlUrl = `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
+        }
+
+        const dlAnchor = document.createElement('a');
+        dlAnchor.href = finalDlUrl;
+        dlAnchor.setAttribute('download', filename);
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+        document.body.removeChild(dlAnchor);
+
+        setDownloadToast({ title: safeTitle, ext });
+
+        if (!customMedia) {
+          setState('completed');
+          setCompletedInfo({ title: safeTitle, ext, formatId });
+        }
+        return true;
       }
 
+      // Fast-path API stream: trigger immediate background streaming download
       const response = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -451,16 +473,6 @@ export default function Downloader() {
       }
 
       const rawDlUrl = data.data.downloadUrl;
-      const isAudio =
-        formatId.toLowerCase().includes('mp3') ||
-        formatId.toLowerCase().includes('audio') ||
-        rawDlUrl.endsWith('.mp3');
-      const ext = isAudio ? 'mp3' : 'mp4';
-      const safeTitle = (currentMedia.title || 'media')
-        .replace(/[/\\?%*:|"<>]/g, '_')
-        .replace(/\s+/g, ' ')
-        .trim();
-      const filename = `${safeTitle}.${ext}`;
 
       // Native browser background download
       const dlAnchor = document.createElement('a');
@@ -470,7 +482,7 @@ export default function Downloader() {
       dlAnchor.click();
       document.body.removeChild(dlAnchor);
 
-      // Trigger floating top premium toast notification
+      // Trigger floating top premium toast notification immediately
       setDownloadToast({
         title: safeTitle,
         ext,
@@ -527,7 +539,7 @@ export default function Downloader() {
 
   const handleLoadDemoLinks = () => {
     setBatchInput(DEMO_BATCH_LINKS.join('\n'));
-    setClipboardToast('Loaded 10 Demo Video Links!');
+    setClipboardToast('Loaded 5 Demo Video Links!');
   };
 
   const handleClearBatch = () => {
@@ -539,10 +551,14 @@ export default function Downloader() {
     setBatchDownloadProgress({ current: 0, total: 0 });
   };
 
-  // Process all batch URLs concurrently with pooling
+  // Process all batch URLs concurrently with pooling (Max 5 Links)
   const handleProcessBatch = async () => {
-    const urls = Array.from(new Set(parsedBatchUrls)).slice(0, 15);
+    const urls = Array.from(new Set(parsedBatchUrls)).slice(0, MAX_BATCH_URLS);
     if (urls.length === 0) return;
+
+    if (parsedBatchUrls.length > MAX_BATCH_URLS) {
+      setClipboardToast(`Processing first ${MAX_BATCH_URLS} links (batch limit)`);
+    }
 
     setIsBatchProcessing(true);
     setBatchProgress({ current: 0, total: urls.length });
@@ -794,7 +810,7 @@ export default function Downloader() {
             >
               <Layers size={16} />
               <span>Batch Download</span>
-              <span className={styles.modeBadge}>10-12 Links</span>
+              <span className={styles.modeBadge}>5 Links Max</span>
             </button>
           </div>
 
@@ -997,7 +1013,7 @@ export default function Downloader() {
             </>
           )}
 
-          {/* TAB 2: BATCH DOWNLOADER (10-12 VIDEOS) */}
+          {/* TAB 2: BATCH DOWNLOADER (MAX 5 VIDEOS) */}
           {activeTab === 'batch' && (
             <div className={styles.batchContainer}>
               <div className={styles.batchCard}>
@@ -1005,11 +1021,11 @@ export default function Downloader() {
                   <div className={styles.batchHeaderLeft}>
                     <h2 className={styles.batchHeading}>Batch Video Downloader</h2>
                     <p className={styles.batchSubtitle}>
-                      Paste up to 15 video links (one per line) from YouTube, TikTok, Facebook, or Instagram.
+                      Paste up to 5 video links (one per line) from YouTube, TikTok, Facebook, or Instagram.
                     </p>
                   </div>
                   <div className={styles.batchCounterBadge}>
-                    <span>{parsedBatchUrls.length} / 15 Links</span>
+                    <span>{Math.min(parsedBatchUrls.length, MAX_BATCH_URLS)} / {MAX_BATCH_URLS} Links</span>
                   </div>
                 </div>
 
@@ -1017,9 +1033,9 @@ export default function Downloader() {
                   <textarea
                     value={batchInput}
                     onChange={(e) => setBatchInput(e.target.value)}
-                    placeholder="Paste 10 to 12 video links here (one URL per line)...&#10;https://www.youtube.com/watch?v=0e3GPea1Tyg&#10;https://www.tiktok.com/@creator/video/1234567&#10;https://www.facebook.com/share/r/...&#10;https://www.instagram.com/reel/..."
+                    placeholder="Paste up to 5 video links here (one URL per line)...&#10;https://www.youtube.com/watch?v=GLoeAJUcz38&#10;https://www.tiktok.com/@creator/video/1234567&#10;https://www.facebook.com/share/r/...&#10;https://www.instagram.com/reel/..."
                     className={styles.batchTextarea}
-                    rows={5}
+                    rows={4}
                     disabled={isBatchProcessing || isBatchDownloading}
                   />
                 </div>
@@ -1042,7 +1058,7 @@ export default function Downloader() {
                       disabled={isBatchProcessing || isBatchDownloading}
                     >
                       <Sparkles size={15} />
-                      <span>Load 10 Demo Videos</span>
+                      <span>Load 5 Demo Videos</span>
                     </button>
                     {batchInput && (
                       <button
