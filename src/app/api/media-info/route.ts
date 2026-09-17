@@ -4,6 +4,9 @@ import { ProviderRegistry } from '@/lib/providers';
 import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     // 1. Rate Limiting: 60 requests per minute per IP (allows batch lookups)
