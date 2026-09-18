@@ -5,6 +5,10 @@ export interface ProviderDownloadResult {
   message: string;
   downloadUrl?: string;
   suggestedFilename?: string;
+  fileSizeBytes?: number;
+  fileSizeFormatted?: string;
+  resolution?: string;
+  duration?: string;
 }
 
 export type DownloadProgressCallback = (progress: {

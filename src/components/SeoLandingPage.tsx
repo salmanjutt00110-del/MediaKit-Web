@@ -89,11 +89,11 @@ export default function SeoLandingPage({
               <h1 className={styles.h1}>{displayTitle}</h1>
               <p className={styles.subheading}>{subtitle}</p>
             </div>
-
-            {/* Embedded Interactive Downloader */}
-            <Downloader />
           </div>
         </section>
+
+        {/* Embedded Interactive Downloader */}
+        <Downloader />
 
         {/* SUPPORTED URL EXAMPLES */}
         {supportedUrls && supportedUrls.length > 0 && (

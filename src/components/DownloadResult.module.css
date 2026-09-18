@@ -1196,10 +1196,27 @@
   }
 
   .thumbnailWrapper {
+    border-radius: var(--radius-md);
+  }
+
+  .thumbnailWrapper.aspectLandscape {
     width: 100%;
     max-width: 100%;
     aspect-ratio: 16 / 9;
-    border-radius: var(--radius-md);
+  }
+
+  .thumbnailWrapper.aspectPortrait {
+    width: 200px;
+    max-width: 65%;
+    aspect-ratio: 9 / 16;
+    margin: 0 auto;
+  }
+
+  .thumbnailWrapper.aspectSquare {
+    width: 220px;
+    max-width: 75%;
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
   }
 
   .contentWrapper {

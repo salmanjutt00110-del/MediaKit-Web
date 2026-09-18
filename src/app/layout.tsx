@@ -14,9 +14,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'MediaKit — Best Free Video Downloader | YouTube, TikTok, Facebook, Instagram',
+  title: 'MediaKit — Free Online Video Downloader | YouTube, TikTok, Instagram, Facebook, Pinterest',
   description:
-    'Download high-definition videos, reels, stories, shorts, and high-bitrate MP3 audio from YouTube, TikTok (no watermark), Facebook, Instagram, and Pinterest for free with blazing fast speed.',
+    'Download videos, reels, stories, shorts, and MP3 audio from YouTube, TikTok (no watermark), Facebook, Instagram, and Pinterest with high speed and authentic quality options.',
   keywords: [
     'video downloader',
     'free video downloader',
@@ -51,9 +51,9 @@ export const metadata: Metadata = {
     apple: [{ url: '/logo.png' }],
   },
   openGraph: {
-    title: 'MediaKit — Best Free Video Downloader | YouTube, TikTok, Facebook, Instagram',
+    title: 'MediaKit — Free Online Video Downloader | YouTube, TikTok, Instagram, Facebook, Pinterest',
     description:
-      'Fast, free, and watermark-free online media downloader for YouTube, TikTok, Facebook, Instagram, and Pinterest in 1080p HD and 320kbps MP3.',
+      'Fast, free, and watermark-free online media downloader for YouTube, TikTok, Facebook, Instagram, and Pinterest with direct MP4 and MP3 streams.',
     url: 'https://mediakit.website/',
     siteName: 'MediaKit',
     images: [
@@ -69,7 +69,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'MediaKit — Best Free Video Downloader',
+    title: 'MediaKit — Free Online Video Downloader',
     description:
       'Fast, free, and watermark-free online media downloader for YouTube, TikTok, Facebook, Instagram, and Pinterest.',
     images: ['/logo.png'],

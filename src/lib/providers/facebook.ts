@@ -1,7 +1,7 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
-import { cleanAndDecodeTitle, sanitizeFilename } from '../string-utils';
+import { cleanAndDecodeTitle, sanitizeFilename, probeUrlSize } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
 import { extractSnapSave } from '../snapsave-native';
 
@@ -229,7 +229,7 @@ export class FacebookAdapter extends MediaProvider {
             id: videoId,
             platform: 'facebook',
             title: info.title || `Facebook Video (${videoId})`,
-            author: info.author || 'Facebook Creator',
+            author: info.author || 'Unavailable',
             thumbnailUrl: proxiedThumb,
             sourceUrl: resolvedUrl,
             requiresProviderSetup: false,
@@ -274,37 +274,46 @@ export class FacebookAdapter extends MediaProvider {
       ? `/api/thumbnail?url=${encodeURIComponent(fbThumb)}`
       : undefined;
 
+    const isDifferent = Boolean(fbHd && fbSd && fbHd !== fbSd);
+    const [hdSize, sdSize] = await Promise.all([
+      fbHd ? probeUrlSize(fbHd) : Promise.resolve(undefined),
+      isDifferent && fbSd ? probeUrlSize(fbSd) : Promise.resolve(undefined),
+    ]);
+
     const formats: MediaFormat[] = [];
     if (fbHd) {
       formats.push({
         id: 'hd',
         format: 'mp4',
-        quality: '720p HD (High Definition)',
+        quality: isDifferent ? 'HD Video (High Definition)' : 'Video (MP4)',
         resolution: '1280x720',
         hasAudio: true,
         hasVideo: true,
         downloadUrl: fbHd,
+        fileSize: hdSize,
       });
     }
-    if (fbSd) {
+    if (isDifferent && fbSd) {
       formats.push({
         id: 'sd',
         format: 'mp4',
-        quality: 'SD Quality (Fast Download)',
+        quality: 'SD Video (Standard Quality)',
         resolution: '640x360',
         hasAudio: true,
         hasVideo: true,
         downloadUrl: fbSd,
+        fileSize: sdSize,
       });
     }
-    if (fbHd || fbSd) {
+    const audioSource = fbHd || fbSd;
+    if (audioSource) {
       formats.push({
         id: 'mp3',
         format: 'mp3',
         quality: 'Original Audio (MP3)',
         hasAudio: true,
         hasVideo: false,
-        downloadUrl: fbSd || fbHd,
+        downloadUrl: audioSource,
       });
     }
 
@@ -312,7 +321,7 @@ export class FacebookAdapter extends MediaProvider {
       id: videoId,
       platform: 'facebook',
       title,
-      author: 'Facebook Creator',
+      author: 'Unavailable',
       thumbnailUrl,
       sourceUrl: resolvedUrl,
       formats,
@@ -389,16 +398,20 @@ export class FacebookAdapter extends MediaProvider {
       }
 
       try {
-        const localPath = await ytDlpRunner.downloadMedia(media, formatId);
-        if (localPath) {
+        const localResult = await ytDlpRunner.downloadMedia(media, formatId);
+        if (localResult && localResult.serveUrl) {
           fbStreamCache.set(cacheKey, {
-            url: localPath,
+            url: localResult.serveUrl,
             expiry: Date.now() + 20 * 60 * 1000,
           });
           return {
             success: true,
-            downloadUrl: localPath,
-            message: 'Direct media file prepared successfully.',
+            downloadUrl: localResult.serveUrl,
+            fileSizeBytes: localResult.fileSizeBytes,
+            fileSizeFormatted: localResult.fileSizeFormatted,
+            resolution: localResult.resolution,
+            duration: localResult.duration,
+            message: 'Direct media file prepared and validated successfully.',
           };
         }
       } catch (err: unknown) {

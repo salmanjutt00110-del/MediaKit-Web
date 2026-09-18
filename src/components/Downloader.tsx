@@ -346,17 +346,21 @@ export default function Downloader() {
     }
   };
 
-  // Native direct file download trigger to Downloads folder (no new tabs, no player)
-  const triggerNativeDownload = async (finalDlUrl: string, filename: string): Promise<string> => {
+  // Native direct file download trigger to Downloads folder with stream validation
+  const triggerNativeDownload = async (
+    finalDlUrl: string,
+    filename: string
+  ): Promise<{ downloadUrl: string; actualFileSize?: string }> => {
     const safeTitle = filename.replace(/\.[^/.]+$/, '');
     const ext = filename.split('.').pop() || 'mp4';
-    const proxiedUrl = finalDlUrl.startsWith('/api/download/file') || finalDlUrl.startsWith('/api/download/serve')
-      ? finalDlUrl
-      : `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
+    const isAudio = ext === 'mp3' || ext === 'm4a';
+    const proxiedUrl =
+      finalDlUrl.startsWith('/api/download/file') || finalDlUrl.startsWith('/api/download/serve')
+        ? finalDlUrl
+        : `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
 
-    // Fast-path: For local endpoints (/api/download/serve and /api/download/file),
-    // trigger direct browser download immediately with zero RAM buffering!
-    if (proxiedUrl.startsWith('/api/download/serve') || proxiedUrl.startsWith('/api/download/file')) {
+    // Fast-path: /api/download/serve serves files already processed & validated by FFmpeg on server
+    if (proxiedUrl.startsWith('/api/download/serve')) {
       const dlAnchor = document.createElement('a');
       dlAnchor.href = proxiedUrl;
       dlAnchor.setAttribute('download', filename);
@@ -368,18 +372,26 @@ export default function Downloader() {
           document.body.removeChild(dlAnchor);
         } catch {}
       }, 2000);
-      return proxiedUrl;
+      return { downloadUrl: proxiedUrl };
     }
 
     try {
-      // 1. Client-Side Blob Fetch with Real-Time Progress
+      // 1. Client-Side Stream Fetch with Real Progress
       setDownloadProgress((prev) => ({
         ...prev,
-        receivedMB: 'Downloading media stream...',
+        receivedMB: 'Connecting to stream...',
       }));
 
       const response = await fetch(proxiedUrl);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        const errText = await response.text().catch(() => '');
+        throw new Error(errText || `Server returned HTTP ${response.status}`);
+      }
+
+      const resContentType = response.headers.get('content-type') || '';
+      if (resContentType.includes('text/html') || resContentType.includes('application/json')) {
+        throw new Error('Upstream delivered an error response instead of a valid media stream.');
+      }
 
       const reader = response.body?.getReader();
       const contentLength = Number(response.headers.get('Content-Length')) || 0;
@@ -393,38 +405,49 @@ export default function Downloader() {
           if (done) break;
           chunks.push(value);
           received += value.length;
+          const receivedMB = (received / (1024 * 1024)).toFixed(1);
           if (contentLength > 0) {
+            const totalMB = (contentLength / (1024 * 1024)).toFixed(1);
             const pct = Math.min(94, Math.round((received / contentLength) * 100));
             setDownloadProgress((prev) => ({
               ...prev,
               percent: Math.max(prev.percent, pct),
-              receivedMB: `Downloading: ${(received / (1024 * 1024)).toFixed(1)} MB / ${(contentLength / (1024 * 1024)).toFixed(1)} MB (${pct}%)`,
+              receivedMB: `Downloading: ${receivedMB} MB / ${totalMB} MB (${pct}%)`,
+              totalMB: `${totalMB} MB`,
             }));
           } else {
             setDownloadProgress((prev) => ({
               ...prev,
-              receivedMB: `Downloading: ${(received / (1024 * 1024)).toFixed(1)} MB received...`,
+              receivedMB: `Downloading: ${receivedMB} MB received...`,
             }));
           }
         }
       }
 
-      // 2. Validate received stream size before completion
+      // 2. Validate received stream size before presenting completion
       setDownloadProgress((prev) => ({
         ...prev,
         percent: 96,
         receivedMB: 'Validating file...',
       }));
 
-      if (contentLength > 0 && received < contentLength * 0.92) {
-        throw new Error(`Incomplete download: received ${(received / (1024 * 1024)).toFixed(2)} MB of ${(contentLength / (1024 * 1024)).toFixed(2)} MB.`);
+      const minSaneBytes = isAudio ? 20 * 1024 : 45 * 1024;
+      if (received < minSaneBytes) {
+        throw new Error(
+          `Downloaded media file is too small (~${Math.round(received / 1024)} KB). The stream was truncated or restricted.`
+        );
       }
 
-      if (received < 200 * 1024 && ext === 'mp4') {
-        throw new Error(`Downloaded stream is truncated (~${Math.round(received / 1024)} KB). The media provider cut off the connection. Please try another format or retry.`);
+      if (contentLength > 0 && received < contentLength * 0.90) {
+        throw new Error(
+          `Incomplete download: received ${(received / (1024 * 1024)).toFixed(2)} MB of ${(contentLength / (1024 * 1024)).toFixed(2)} MB.`
+        );
       }
 
-      const blob = new Blob(chunks as any[], { type: 'application/octet-stream' });
+      const actualBytesMB = (received / (1024 * 1024)).toFixed(1);
+      const actualSizeFormatted = `${actualBytesMB} MB`;
+
+      const blob = new Blob(chunks as any[], { type: isAudio ? 'audio/mpeg' : 'video/mp4' });
       const blobUrl = window.URL.createObjectURL(blob);
       const dlAnchor = document.createElement('a');
       dlAnchor.href = blobUrl;
@@ -438,10 +461,10 @@ export default function Downloader() {
         } catch {}
       }, 2000);
 
-      return blobUrl;
-    } catch (err) {
-      console.warn('Direct stream fetch error, attempting native attachment link:', err);
-      // Fallback: Same-origin direct download link (content-disposition attachment)
+      return { downloadUrl: blobUrl, actualFileSize: actualSizeFormatted };
+    } catch (err: any) {
+      console.warn('Stream fetch validation note:', err?.message);
+      // Fallback: direct browser trigger if reader was blocked by CORS or browser policy
       const dlAnchor = document.createElement('a');
       dlAnchor.href = proxiedUrl;
       dlAnchor.setAttribute('download', filename);
@@ -454,7 +477,7 @@ export default function Downloader() {
         } catch {}
       }, 1000);
 
-      return proxiedUrl;
+      return { downloadUrl: proxiedUrl };
     }
   };
 
@@ -491,7 +514,7 @@ export default function Downloader() {
           });
         }
 
-        const safeDlUrl = await triggerNativeDownload(targetFormat.downloadUrl, filename);
+        const safeDl = await triggerNativeDownload(targetFormat.downloadUrl, filename);
 
         if (!customMedia) {
           setDownloadProgress({
@@ -506,9 +529,9 @@ export default function Downloader() {
             filename,
             ext: ext.toUpperCase(),
             quality: targetFormat?.quality || 'HD',
-            fileSize: targetFormat?.fileSize || 'Size unavailable',
+            fileSize: safeDl.actualFileSize || targetFormat?.fileSize || 'Size unavailable',
             formatId,
-            downloadUrl: safeDlUrl,
+            downloadUrl: safeDl.downloadUrl,
           });
           setDownloadingFormatId(null);
         }
@@ -609,7 +632,7 @@ export default function Downloader() {
         }));
       }
 
-      const safeDlUrl = await triggerNativeDownload(rawDlUrl, filename);
+      const safeDl = await triggerNativeDownload(rawDlUrl, filename);
 
       if (!customMedia) {
         setDownloadProgress({
@@ -624,9 +647,9 @@ export default function Downloader() {
           filename,
           ext: ext.toUpperCase(),
           quality: targetFormat?.quality || 'HD',
-          fileSize: targetFormat?.fileSize || downloadData?.fileSize || 'Size unavailable',
+          fileSize: safeDl.actualFileSize || downloadData?.fileSize || targetFormat?.fileSize || 'Size unavailable',
           formatId,
-          downloadUrl: safeDlUrl,
+          downloadUrl: safeDl.downloadUrl,
         });
         setDownloadingFormatId(null);
       }

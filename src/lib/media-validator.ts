@@ -175,8 +175,9 @@ export async function validateMediaFile(
   const fileSizeBytes = stats.size;
   const fileSizeFormatted = formatBytes(fileSizeBytes);
 
-  // 1. Sane minimum size check: absolute minimum 25 KB for any media container
-  if (fileSizeBytes < 25 * 1024) {
+  // 1. Sane minimum size check: absolute minimum 50 KB for video, 25 KB for audio
+  const minThreshold = options.isAudioOnly ? 25 * 1024 : 50 * 1024;
+  if (fileSizeBytes < minThreshold) {
     return {
       isValid: false,
       error: `File is too small (${fileSizeFormatted}). Likely an error page or empty response.`,
@@ -239,11 +240,11 @@ export async function validateMediaFile(
     };
   }
 
-  // 6. Probed Duration vs File Size Sanity (Catch the 200 KB on 16-min video bug!)
+  // 6. Probed Duration vs File Size Sanity (Catches truncated streams, e.g. 200 KB on a 16-min video)
   // For any video longer than 30 seconds, a standard MP4 requires at least 25 KB per second (~200 kbps).
   // A 16-minute (960s) video requires at least 15–25 MB. 200 KB is less than 0.25 KB/s (completely truncated!)
   if (!options.isAudioOnly && probe.durationSeconds > 30) {
-    const minExpectedBytes = Math.min(1.5 * 1024 * 1024, probe.durationSeconds * 20 * 1024); // at least 20 KB/sec
+    const minExpectedBytes = Math.min(2 * 1024 * 1024, probe.durationSeconds * 20 * 1024); // at least 20 KB/sec
     if (fileSizeBytes < minExpectedBytes) {
       return {
         isValid: false,

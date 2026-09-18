@@ -1,7 +1,7 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
-import { cleanAndDecodeTitle, sanitizeFilename } from '../string-utils';
+import { cleanAndDecodeTitle, sanitizeFilename, probeUrlSize } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
 
 interface PinterestCacheEntry {
@@ -240,30 +240,30 @@ export class PinterestAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(pinId);
     if (cached) return cached;
 
-    // 2. Scrape directly from page
-    const scraped = await this.scrapePinterest(resolvedUrl);
-
-    // 3. Fallback to yt-dlp if direct video wasn't found in initial HTML
-    let directVideo = scraped.directVideoUrl;
-    let title = scraped.title;
-    let author = scraped.author || 'Pinterest Creator';
-    let thumbnailUrl = scraped.thumbnailUrl;
-
-    if (!directVideo && ytDlpRunner.isAvailable()) {
+    // 2. Primary Engine: yt-dlp native extraction if available
+    if (ytDlpRunner.isAvailable()) {
       try {
         const info = await ytDlpRunner.getMediaInfo(resolvedUrl);
-        if (info) {
-          title = title || info.title;
-          if (info.author) author = info.author;
-          if (info.thumbnailUrl && !info.thumbnailUrl.includes('facebook_share_image')) {
-            thumbnailUrl = info.thumbnailUrl;
-          }
-          if (info.formats && info.formats.length > 0) {
-            const firstFmtWithUrl = info.formats.find((f) => f.downloadUrl);
-            if (firstFmtWithUrl) {
-              directVideo = firstFmtWithUrl.downloadUrl;
-            }
-          }
+        if (info && info.formats && info.formats.length > 0) {
+          const proxiedThumb = info.thumbnailUrl
+            ? `/api/thumbnail?url=${encodeURIComponent(info.thumbnailUrl)}`
+            : undefined;
+
+          const result: MediaMetadata = {
+            ...info,
+            id: pinId,
+            platform: 'pinterest',
+            title: info.title || `Pinterest Video (${pinId})`,
+            author: info.author || 'Unavailable',
+            thumbnailUrl: proxiedThumb,
+            sourceUrl: resolvedUrl,
+            requiresProviderSetup: false,
+          };
+
+          setCachedMedia(resolvedUrl, result);
+          setCachedMedia(rawUrl, result);
+          setCachedMedia(pinId, result);
+          return result;
         }
       } catch (err: unknown) {
         const error = err as Error;
@@ -271,9 +271,16 @@ export class PinterestAdapter extends MediaProvider {
       }
     }
 
+    // 3. Fallback: Scrape directly from page
+    const scraped = await this.scrapePinterest(resolvedUrl);
+    const directVideo = scraped.directVideoUrl;
+    const title = scraped.title;
+    const author = scraped.author || 'Unavailable';
+    const thumbnailUrl = scraped.thumbnailUrl;
+
     if (!directVideo) {
       throw new Error(
-        'Could not extract a downloadable video from this Pinterest link. Please make sure the link is to a public video pin and try again.'
+        'Unable to process this Pinterest link. Please make sure the link is to a public video pin and try again.'
       );
     }
 
@@ -282,24 +289,17 @@ export class PinterestAdapter extends MediaProvider {
       ? `/api/thumbnail?url=${encodeURIComponent(thumbnailUrl)}`
       : undefined;
 
+    const vidSize = await probeUrlSize(directVideo);
+
     const formats: MediaFormat[] = [
       {
-        id: 'hd',
+        id: 'video',
         format: 'mp4',
-        quality: '720p HD (High Definition)',
-        resolution: '720x1280',
+        quality: 'Video (MP4)',
         hasAudio: true,
         hasVideo: true,
         downloadUrl: directVideo,
-      },
-      {
-        id: 'sd',
-        format: 'mp4',
-        quality: 'SD Quality (Fast Download)',
-        resolution: '480x854',
-        hasAudio: true,
-        hasVideo: true,
-        downloadUrl: directVideo,
+        fileSize: vidSize,
       },
       {
         id: 'mp3',
@@ -381,12 +381,16 @@ export class PinterestAdapter extends MediaProvider {
 
       // 3. Fallback to yt-dlp downloadMedia
       try {
-        const localPath = await ytDlpRunner.downloadMedia(media, formatId);
-        if (localPath) {
+        const localResult = await ytDlpRunner.downloadMedia(media, formatId);
+        if (localResult && localResult.serveUrl) {
           return {
             success: true,
-            downloadUrl: localPath,
-            message: 'Direct media file prepared successfully.',
+            downloadUrl: localResult.serveUrl,
+            fileSizeBytes: localResult.fileSizeBytes,
+            fileSizeFormatted: localResult.fileSizeFormatted,
+            resolution: localResult.resolution,
+            duration: localResult.duration,
+            message: 'Direct media file prepared and validated successfully.',
           };
         }
       } catch (err: unknown) {

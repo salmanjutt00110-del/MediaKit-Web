@@ -214,3 +214,30 @@ export function isSafeUrl(rawUrl: string): boolean {
     return false;
   }
 }
+
+/**
+ * Probes the remote media URL via HEAD request to obtain the real Content-Length.
+ * Never invents or estimates size if the server doesn't provide it.
+ */
+export async function probeUrlSize(url?: string): Promise<string | undefined> {
+  if (!url || !url.startsWith('http') || !isSafeUrl(url)) return undefined;
+  try {
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    };
+    if (url.includes('getmyfb') || url.includes('ssscdn')) {
+      headers['Referer'] = 'https://getmyfb.com/';
+    }
+    const res = await fetch(url, {
+      method: 'HEAD',
+      headers,
+      signal: AbortSignal.timeout(3000),
+    });
+    const len = Number(res.headers.get('content-length'));
+    if (len && len > 0 && !isNaN(len)) {
+      const mb = len / (1024 * 1024);
+      return mb >= 1 ? `${mb.toFixed(1)} MB` : `${Math.round(len / 1024)} KB`;
+    }
+  } catch {}
+  return undefined;
+}

@@ -675,7 +675,7 @@
   }
 
   .urlInput {
-    font-size: 0.88rem;
+    font-size: 16px; /* 16px prevents iOS Safari auto-zoom */
   }
 
   .downloadBtn {
@@ -702,7 +702,7 @@
   }
 
   .urlInput {
-    font-size: 0.82rem;
+    font-size: 16px; /* 16px prevents iOS Safari auto-zoom */
   }
 
   .downloadBtn {
@@ -1589,19 +1589,29 @@
 
   .downloaderContainer {
     width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
     padding: 0;
+    box-sizing: border-box;
   }
 
   .modeTabsWrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     margin-bottom: 12px;
     width: 100%;
   }
 
   .modeTabsCapsule {
     width: 100%;
-    max-width: 350px;
+    max-width: 340px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
     padding: 3px;
+    box-sizing: border-box;
   }
 
   .modeTab {
@@ -1621,23 +1631,78 @@
   .downloaderForm {
     gap: 10px;
     width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
   }
 
   .inputCapsule {
     height: 50px;
-    padding: 5px 10px 5px 16px;
+    min-height: 50px;
+    padding: 4px 8px 4px 14px;
     gap: 8px;
     border-radius: var(--radius-full);
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .urlInput {
-    font-size: 0.94rem;
+    font-size: 16px; /* 16px prevents iOS Safari from auto-zooming and skewing layout */
     padding: 6px 0;
+    min-width: 0;
+  }
+
+  .pasteBtn {
+    height: 36px;
+    min-height: 36px;
+    padding: 5px 11px;
+    font-size: 0.78rem;
+    touch-action: manipulation;
   }
 
   .downloadBtn {
     height: 50px;
+    min-height: 50px;
     font-size: 1.02rem;
     border-radius: var(--radius-full);
+    width: 100%;
+    box-sizing: border-box;
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 360px) {
+  .downloaderContainer {
+    width: 100%;
+    padding: 0;
+  }
+
+  .inputCapsule {
+    padding: 4px 6px 4px 10px;
+    gap: 6px;
+    height: 48px;
+    min-height: 48px;
+  }
+
+  .pasteBtn {
+    padding: 4px 8px;
+    height: 34px;
+    min-height: 34px;
+    font-size: 0.74rem;
+    gap: 3px;
+  }
+
+  .downloadBtn {
+    height: 48px;
+    min-height: 48px;
+    font-size: 0.95rem;
+  }
+
+  .modeTabsCapsule {
+    max-width: 100%;
+  }
+
+  .modeTab {
+    padding: 6px 8px;
+    font-size: 0.78rem;
   }
 }

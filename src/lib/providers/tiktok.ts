@@ -1,7 +1,7 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
-import { sanitizeFilename } from '../string-utils';
+import { sanitizeFilename, probeUrlSize } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
 
 interface CacheEntry {
@@ -285,7 +285,7 @@ export class TikTokAdapter extends MediaProvider {
       tikwmData?.author?.nickname ||
       (tikwmData?.author?.unique_id ? `@${tikwmData.author.unique_id}` : undefined) ||
       oembedResult?.author_name ||
-      (oembedResult?.author_unique_id ? `@${oembedResult.author_unique_id}` : 'TikTok Creator');
+      (oembedResult?.author_unique_id ? `@${oembedResult.author_unique_id}` : 'Unavailable');
 
     const finalThumbnail =
       universalData?.thumbnailUrl ||
@@ -317,6 +317,12 @@ export class TikTokAdapter extends MediaProvider {
       universalData?.musicUrl ||
       undefined;
 
+    const [hdSize, sdSize, mp3Size] = await Promise.all([
+      hdDownloadUrl ? probeUrlSize(hdDownloadUrl) : Promise.resolve(undefined),
+      sdDownloadUrl && sdDownloadUrl !== hdDownloadUrl ? probeUrlSize(sdDownloadUrl) : Promise.resolve(undefined),
+      mp3DownloadUrl ? probeUrlSize(mp3DownloadUrl) : Promise.resolve(undefined),
+    ]);
+
     const formats: MediaFormat[] = [
       {
         id: 'hd',
@@ -326,6 +332,7 @@ export class TikTokAdapter extends MediaProvider {
         hasAudio: true,
         hasVideo: true,
         downloadUrl: hdDownloadUrl,
+        fileSize: hdSize,
       },
       {
         id: 'sd',
@@ -335,6 +342,7 @@ export class TikTokAdapter extends MediaProvider {
         hasAudio: true,
         hasVideo: true,
         downloadUrl: sdDownloadUrl,
+        fileSize: sdSize || hdSize,
       },
       {
         id: 'mp3',
@@ -343,6 +351,7 @@ export class TikTokAdapter extends MediaProvider {
         hasAudio: true,
         hasVideo: false,
         downloadUrl: mp3DownloadUrl,
+        fileSize: mp3Size,
       },
     ];
 

@@ -156,12 +156,22 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const contentLength = upstreamRes.headers.get('content-length');
+    const contentLengthNum = Number(contentLength);
+    if (contentLengthNum && contentLengthNum < (ext === 'mp3' ? 20480 : 40960)) {
+      logger.warn('Upstream media response size is suspiciously small', { targetUrl: targetUrl.slice(0, 80), contentLengthNum });
+      return new Response('The source media provider returned an incomplete or truncated stream. Please choose another format or try again.', {
+        status: 422,
+      });
+    }
+
     const safeAscii = sanitizeAsciiFilename(title, ext);
     const safeUtf8 = sanitizeFilename(title, ext);
 
     const headers = new Headers();
-    // Use application/octet-stream to prevent mobile browsers from playing video inline or in new tab
-    headers.set('Content-Type', 'application/octet-stream');
+    // Authentic MIME type ensures Android and mobile OS save file to Downloads and register in video gallery
+    const mimeType = ext === 'mp3' ? 'audio/mpeg' : ext === 'm4a' ? 'audio/mp4' : 'video/mp4';
+    headers.set('Content-Type', mimeType);
     headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('Accept-Ranges', 'bytes');
     headers.set(
@@ -170,7 +180,6 @@ export async function GET(request: NextRequest) {
     );
 
     // Forward caching and range parameters
-    const contentLength = upstreamRes.headers.get('content-length');
     if (contentLength) {
       headers.set('Content-Length', contentLength);
     }
@@ -232,7 +241,8 @@ export async function HEAD(request: NextRequest) {
     }
 
     const headers = new Headers();
-    headers.set('Content-Type', 'application/octet-stream');
+    const mimeType = ext === 'mp3' ? 'audio/mpeg' : ext === 'm4a' ? 'audio/mp4' : 'video/mp4';
+    headers.set('Content-Type', mimeType);
     headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('Accept-Ranges', 'bytes');
     const contentLength = upstreamRes.headers.get('content-length');

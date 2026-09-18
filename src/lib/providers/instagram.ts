@@ -1,7 +1,7 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
-import { cleanAndDecodeTitle, sanitizeFilename } from '../string-utils';
+import { cleanAndDecodeTitle, sanitizeFilename, probeUrlSize } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
 import { extractSnapSave } from '../snapsave-native';
 
@@ -254,7 +254,7 @@ export class InstagramAdapter extends MediaProvider {
 
           const realAuthor = info.author
             ? (info.author.startsWith('@') ? info.author : `@${info.author}`)
-            : 'Information unavailable';
+            : 'Unavailable';
 
           const result: MediaMetadata = {
             ...info,
@@ -281,41 +281,58 @@ export class InstagramAdapter extends MediaProvider {
     // 2. High-Speed API Extractor (GetMyFB multi-platform)
     const getmyfb = await this.extractGetMyFB(resolvedUrl).catch(() => null);
     if (getmyfb && (getmyfb.hdUrl || getmyfb.sdUrl)) {
-      const bestUrl = getmyfb.hdUrl || getmyfb.sdUrl!;
-      const formats: MediaFormat[] = [
-        {
+      const hdUrl = getmyfb.hdUrl;
+      const sdUrl = getmyfb.sdUrl;
+      const isDifferent = Boolean(hdUrl && sdUrl && hdUrl !== sdUrl);
+
+      const [hdSize, sdSize] = await Promise.all([
+        probeUrlSize(hdUrl),
+        isDifferent ? probeUrlSize(sdUrl) : Promise.resolve(undefined),
+      ]);
+
+      const formats: MediaFormat[] = [];
+      if (hdUrl) {
+        formats.push({
           id: 'hd',
           format: 'mp4',
-          quality: '1080p HD (High Definition)',
-          resolution: '1080x1920',
+          quality: isDifferent ? 'HD Video (High Definition)' : 'Video (MP4)',
+          resolution: '720x1280',
           hasAudio: true,
           hasVideo: true,
-          downloadUrl: getmyfb.hdUrl || bestUrl,
-        },
-        {
+          downloadUrl: hdUrl,
+          fileSize: hdSize,
+        });
+      }
+      if (isDifferent && sdUrl) {
+        formats.push({
           id: 'sd',
           format: 'mp4',
-          quality: 'SD Quality (Fast Download)',
+          quality: 'SD Video (Standard Quality)',
           resolution: '480x854',
           hasAudio: true,
           hasVideo: true,
-          downloadUrl: getmyfb.sdUrl || bestUrl,
-        },
-        {
+          downloadUrl: sdUrl,
+          fileSize: sdSize,
+        });
+      }
+
+      const audioUrl = hdUrl || sdUrl;
+      if (audioUrl) {
+        formats.push({
           id: 'mp3',
           format: 'mp3',
           quality: 'Original Audio (MP3)',
           hasAudio: true,
           hasVideo: false,
-          downloadUrl: bestUrl,
-        },
-      ];
+          downloadUrl: audioUrl,
+        });
+      }
 
       const result: MediaMetadata = {
         id: shortcode,
         platform: 'instagram',
         title: getmyfb.title || `Instagram Reel (${shortcode})`,
-        author: 'Information unavailable',
+        author: 'Unavailable',
         thumbnailUrl: getmyfb.thumb ? `/api/thumbnail?url=${encodeURIComponent(getmyfb.thumb)}` : undefined,
         sourceUrl: resolvedUrl,
         formats,
@@ -338,8 +355,10 @@ export class InstagramAdapter extends MediaProvider {
           ? `/api/thumbnail?url=${encodeURIComponent(rawThumbnail)}`
           : undefined;
 
+        const sizes = await Promise.all(snapItems.map((it) => probeUrlSize(it.url)));
+
         const formats: MediaFormat[] = snapItems.map((item, idx) => {
-          const resLabel = item.resolution || (idx === 0 ? '720p HD (High Definition)' : 'SD Quality (Fast Download)');
+          const resLabel = item.resolution || (idx === 0 ? 'HD Video (High Definition)' : 'SD Quality (Fast Download)');
           const isHd = resLabel.toLowerCase().includes('hd') || resLabel.includes('720') || resLabel.includes('1080');
           return {
             id: isHd ? 'hd' : `sd_${idx}`,
@@ -349,6 +368,7 @@ export class InstagramAdapter extends MediaProvider {
             hasAudio: true,
             hasVideo: true,
             downloadUrl: item.url,
+            fileSize: sizes[idx],
           };
         });
 
@@ -367,7 +387,7 @@ export class InstagramAdapter extends MediaProvider {
           id: shortcode,
           platform: 'instagram',
           title: `Instagram Reel (${shortcode})`,
-          author: 'Information unavailable',
+          author: 'Unavailable',
           thumbnailUrl,
           sourceUrl: resolvedUrl,
           formats,
@@ -387,7 +407,7 @@ export class InstagramAdapter extends MediaProvider {
     // 4. Fallback scrape metadata
     const meta = await this.scrapeInstagramMetadata(shortcode, resolvedUrl);
     const title = meta.title || `Instagram Reel (${shortcode})`;
-    const author = meta.author || 'Information unavailable';
+    const author = meta.author || 'Unavailable';
     const rawThumbnail = meta.thumbnailUrl;
     const thumbnailUrl = rawThumbnail
       ? `/api/thumbnail?url=${encodeURIComponent(rawThumbnail)}`
@@ -395,6 +415,7 @@ export class InstagramAdapter extends MediaProvider {
 
     const formats: MediaFormat[] = [];
     if (meta.directVideoUrl) {
+      const vidSize = await probeUrlSize(meta.directVideoUrl);
       formats.push({
         id: 'hd',
         format: 'mp4',
@@ -403,6 +424,7 @@ export class InstagramAdapter extends MediaProvider {
         hasAudio: true,
         hasVideo: true,
         downloadUrl: meta.directVideoUrl,
+        fileSize: vidSize,
       });
       formats.push({
         id: 'mp3',
@@ -505,16 +527,20 @@ export class InstagramAdapter extends MediaProvider {
       }
 
       try {
-        const localPath = await ytDlpRunner.downloadMedia(media, formatId);
-        if (localPath) {
+        const localResult = await ytDlpRunner.downloadMedia(media, formatId);
+        if (localResult && localResult.serveUrl) {
           igStreamCache.set(cacheKey, {
-            url: localPath,
+            url: localResult.serveUrl,
             expiry: Date.now() + 20 * 60 * 1000,
           });
           return {
             success: true,
-            downloadUrl: localPath,
-            message: 'Direct media file prepared successfully.',
+            downloadUrl: localResult.serveUrl,
+            fileSizeBytes: localResult.fileSizeBytes,
+            fileSizeFormatted: localResult.fileSizeFormatted,
+            resolution: localResult.resolution,
+            duration: localResult.duration,
+            message: 'Direct media file prepared and validated successfully.',
           };
         }
       } catch (err: unknown) {

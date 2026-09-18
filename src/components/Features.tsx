@@ -18,8 +18,8 @@ const features = [
     iconClass: styles.iconPurple,
   },
   {
-    title: 'Blazing Fast',
-    description: 'Our servers ensure the highest download speed possible.',
+    title: 'High Performance',
+    description: 'Streams original media directly from supported platforms with FFmpeg audio-video merging.',
     icon: <Gauge size={24} />,
     iconClass: styles.iconGreen,
   },

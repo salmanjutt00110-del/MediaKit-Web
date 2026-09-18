@@ -143,6 +143,10 @@ export async function POST(request: NextRequest) {
                 data: {
                   ...downloadResult,
                   downloadUrl: downloadResult.downloadUrl,
+                  fileSize: downloadResult.fileSizeFormatted,
+                  fileSizeBytes: downloadResult.fileSizeBytes,
+                  resolution: downloadResult.resolution,
+                  duration: downloadResult.duration,
                 },
               });
             }
@@ -191,6 +195,10 @@ export async function POST(request: NextRequest) {
       data: {
         ...downloadResult,
         downloadUrl: finalDownloadUrl,
+        fileSize: downloadResult.fileSizeFormatted,
+        fileSizeBytes: downloadResult.fileSizeBytes,
+        resolution: downloadResult.resolution,
+        duration: downloadResult.duration,
       },
     });
   } catch (err: unknown) {

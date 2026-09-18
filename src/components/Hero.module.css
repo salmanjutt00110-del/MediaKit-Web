@@ -2,7 +2,7 @@
   padding-top: 40px;
   padding-bottom: 24px;
   position: relative;
-  overflow: visible;
+  overflow: clip;
 }
 
 .heroGrid {

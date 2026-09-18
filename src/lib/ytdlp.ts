@@ -127,6 +127,26 @@ function formatBytes(bytes?: number): string | undefined {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+export function formatMediaDuration(sec?: number, str?: string): string | undefined {
+  if (str && str.trim()) return str.trim();
+  if (!sec || isNaN(sec) || sec <= 0) return undefined;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+export interface DownloadedMediaFile {
+  serveUrl: string;
+  fileSizeBytes: number;
+  fileSizeFormatted: string;
+  resolution?: string;
+  duration?: string;
+}
+
 export const ytDlpRunner = {
   isAvailable(): boolean {
     return !!getYtDlpCommand();
@@ -146,7 +166,7 @@ export const ytDlpRunner = {
 
       const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
       if (isYouTube) {
-        args.push('--js-runtimes', `node:${process.execPath}`);
+        args.push('--js-runtimes', 'node');
       }
 
       const cookies = getCookiesPath();
@@ -270,8 +290,9 @@ export const ytDlpRunner = {
 
             // 2. Instagram Formats
             if (isInstagram) {
+              // Only consider true progressive formats (having both video AND audio codecs)
               const igProgressive = rawFormats.filter(
-                (f) => f.ext === 'mp4' && f.url && (f.vcodec && f.vcodec !== 'none')
+                (f) => f.ext === 'mp4' && f.url && f.vcodec && f.vcodec !== 'none' && f.acodec && f.acodec !== 'none'
               );
               igProgressive.sort((a, b) => (b.height || 0) - (a.height || 0));
 
@@ -293,42 +314,73 @@ export const ytDlpRunner = {
                 }
               }
 
-              // If progressive formats found, also add MP3 option
-              if (formats.length > 0 && formats[0].downloadUrl) {
-                formats.push({
-                  id: 'mp3',
-                  format: 'mp3',
-                  quality: 'Original Audio (MP3)',
-                  hasAudio: true,
-                  hasVideo: false,
-                  downloadUrl: formats[0].downloadUrl,
-                });
+              // If no progressive format with audio was found, but video formats exist (e.g. DASH video streams)
+              // We expose them WITHOUT downloadUrl so the download engine merges audio + video via FFmpeg!
+              if (formats.length === 0) {
+                const igVideoFormats = rawFormats.filter(
+                  (f) => f.vcodec && f.vcodec !== 'none' && (f.height || 0) >= 240
+                );
+                igVideoFormats.sort((a, b) => (b.height || 0) - (a.height || 0));
+
+                for (const f of igVideoFormats) {
+                  const height = f.height || 720;
+                  const label = height >= 1080 ? '1080p HD (High Definition)' : height >= 720 ? '720p HD (Standard HD)' : `${height}p SD`;
+                  if (!seenQualities.has(label)) {
+                    seenQualities.add(label);
+                    formats.push({
+                      id: f.format_id || `${height}p`,
+                      format: 'mp4',
+                      quality: label,
+                      resolution: `${f.width || 720}x${height}`,
+                      hasAudio: true, // Will be merged with audio stream by download engine
+                      hasVideo: true,
+                      downloadUrl: undefined, // Enforces server-side FFmpeg merge with audio
+                      fileSize: formatBytes(f.filesize || f.filesize_approx),
+                    });
+                  }
+                  if (formats.length >= 3) break;
+                }
               }
+
+              // Audio Format (MP3)
+              const bestAudio = rawFormats.find((f) => f.acodec && f.acodec !== 'none');
+              formats.push({
+                id: 'mp3',
+                format: 'mp3',
+                quality: 'Original Audio (MP3)',
+                hasAudio: true,
+                hasVideo: false,
+                downloadUrl: undefined, // Enforces server-side conversion so real audio stream is extracted
+                fileSize: formatBytes(bestAudio?.filesize || bestAudio?.filesize_approx),
+              });
             }
 
             // 3. Other Platforms (TikTok, Facebook, Pinterest)
             if (!isYouTube && !isInstagram) {
               const videoFormats = rawFormats.filter(
                 (f) =>
-                  f.vcodec &&
-                  f.vcodec !== 'none' &&
+                  ((f.vcodec && f.vcodec !== 'none') || f.format_id === 'hd' || f.format_id === 'sd' || f.ext === 'mp4') &&
                   (!f.protocol || !f.protocol.includes('m3u8'))
               );
 
-              videoFormats.sort((a, b) => (b.height || 0) - (a.height || 0));
+              videoFormats.sort((a, b) => {
+                const hA = a.height || (a.format_id === 'hd' ? 720 : a.format_id === 'sd' ? 360 : 0);
+                const hB = b.height || (b.format_id === 'hd' ? 720 : b.format_id === 'sd' ? 360 : 0);
+                return hB - hA;
+              });
 
               for (const f of videoFormats) {
-                const height = f.height;
-                if (!height || height < 144) continue;
-                const qualityLabel = `${height}p`;
+                const height = f.height || (f.format_id === 'hd' ? 720 : f.format_id === 'sd' ? 360 : undefined);
+                const qualityLabel = height ? `${height}p` : f.format_id.toUpperCase();
 
-                if (!seenQualities.has(qualityLabel)) {
+                if (!seenQualities.has(f.format_id) && !seenQualities.has(qualityLabel)) {
+                  seenQualities.add(f.format_id);
                   seenQualities.add(qualityLabel);
                   formats.push({
                     id: f.format_id,
                     format: 'mp4',
-                    quality: `${qualityLabel} HD`,
-                    resolution: f.resolution || `${f.width || ''}x${height}`,
+                    quality: f.format_id === 'hd' ? 'HD Video (720p)' : f.format_id === 'sd' ? 'SD Video (360p)' : `${qualityLabel} HD`,
+                    resolution: f.resolution || (f.width && height ? `${f.width}x${height}` : height ? `${height}p` : undefined),
                     fileSize: formatBytes(f.filesize || f.filesize_approx),
                     hasAudio: f.acodec !== 'none',
                     hasVideo: true,
@@ -359,6 +411,15 @@ export const ytDlpRunner = {
                   hasVideo: false,
                   downloadUrl: bestAudio.url,
                 });
+              } else if (formats.length > 0) {
+                formats.push({
+                  id: 'mp3',
+                  format: 'mp3',
+                  quality: 'Original Audio (MP3)',
+                  hasAudio: true,
+                  hasVideo: false,
+                  downloadUrl: undefined,
+                });
               }
             }
 
@@ -383,7 +444,7 @@ export const ytDlpRunner = {
               platform: resolvedPlatform,
               title: safeTitle || (data.id ? `${resolvedPlatform.toUpperCase()} Media (${data.id})` : 'Information unavailable'),
               author: data.uploader || data.channel || (data.uploader_id ? `@${data.uploader_id}` : 'Information unavailable'),
-              duration: data.duration_string || (data.duration ? `${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, '0')}` : undefined),
+              duration: formatMediaDuration(data.duration, data.duration_string),
               thumbnailUrl: data.thumbnail,
               sourceUrl: targetUrl,
               description: data.description,
@@ -404,13 +465,13 @@ export const ytDlpRunner = {
 
   /**
    * Downloads, converts, and merges authentic media file (MP3 audio or merged HD MP4).
-   * Saves to ephemeral temp storage and returns the local secure serve URL.
+   * Saves to ephemeral temp storage and returns the local secure serve URL with verified file metrics.
    */
   async downloadMedia(
     media: MediaMetadata,
     formatId: string,
     onProgress?: (progress: { percent: number; stage: string; speed?: string; total?: string }) => void
-  ): Promise<string> {
+  ): Promise<DownloadedMediaFile> {
     const videoId = media.id;
     const format = media.formats?.find((f) => f.id === formatId);
     const isMp3 =
@@ -447,7 +508,12 @@ export const ytDlpRunner = {
             } else {
               const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
               onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
-              return `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`;
+              return {
+                serveUrl: `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`,
+                fileSizeBytes: stats.size,
+                fileSizeFormatted: formatBytes(stats.size) || 'Size unavailable',
+                resolution: knownHeight ? `${knownHeight}p` : undefined,
+              };
             }
           } else {
             // First access since server start: probe once, then remember result
@@ -464,7 +530,13 @@ export const ytDlpRunner = {
               } else {
                 const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
                 onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
-                return `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`;
+                return {
+                  serveUrl: `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`,
+                  fileSizeBytes: stats.size,
+                  fileSizeFormatted: formatBytes(stats.size) || 'Size unavailable',
+                  resolution: cachedProbe.resolution,
+                  duration: cachedProbe.durationSeconds ? `${Math.round(cachedProbe.durationSeconds)}s` : undefined,
+                };
               }
             } catch {
               try { fs.unlinkSync(cachedFilePath); } catch {}
@@ -473,7 +545,11 @@ export const ytDlpRunner = {
         } else {
           const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
           onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
-          return `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`;
+          return {
+            serveUrl: `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`,
+            fileSizeBytes: stats.size,
+            fileSizeFormatted: formatBytes(stats.size) || 'Size unavailable',
+          };
         }
       }
     }
@@ -542,15 +618,20 @@ export const ytDlpRunner = {
 
         // Prefer h264 (avc1) to guarantee remux-only merge (no transcode).
         // AV1/VP9 formats require transcoding to MP4 which can lose resolution.
-        // The chain: exact h264 mp4 → any h264 → any codec mp4 → any codec any ext → combined progressive
-        const formatArg = [
-          `bestvideo[height<=${height}][vcodec^=avc1]+bestaudio[ext=m4a]`,
-          `bestvideo[height<=${height}][vcodec^=avc1]+bestaudio`,
-          `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]`,
-          `bestvideo[height<=${height}]+bestaudio`,
-          `best[height<=${height}]`,
-          `best`,
-        ].join('/');
+        // Enforce lower bound (height * 0.72) so 720p won't silently degrade to 360p or 360p won't jump to 720p
+        const minHeight = Math.max(144, Math.round(height * 0.72));
+        const isExactId = /^\d+$/.test(formatId);
+
+        const formatArg = isExactId
+          ? `${formatId}+bestaudio/${formatId}/best`
+          : [
+              `bestvideo[height<=${height}][height>=${minHeight}][vcodec^=avc1]+bestaudio[ext=m4a]`,
+              `bestvideo[height<=${height}][height>=${minHeight}]+bestaudio`,
+              `bestvideo[height<=${height}][vcodec^=avc1]+bestaudio[ext=m4a]`,
+              `bestvideo[height<=${height}]+bestaudio`,
+              `best[height<=${height}]`,
+              `best`,
+            ].join('/');
 
         logger.info('yt-dlp format selection', { formatId, height, formatArg: formatArg.slice(0, 120) });
 
@@ -696,9 +777,16 @@ export const ytDlpRunner = {
             const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
             onProgress?.({
               percent: 100,
-              stage: 'Complete! Preparing download...',
+              stage: 'Completed',
+              total: validation.fileSizeFormatted,
             });
-            return resolve(`/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`);
+            return resolve({
+              serveUrl: `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`,
+              fileSizeBytes: validation.fileSizeBytes,
+              fileSizeFormatted: validation.fileSizeFormatted,
+              resolution: validation.probe.resolution,
+              duration: validation.probe.durationSeconds ? `${Math.round(validation.probe.durationSeconds)}s` : undefined,
+            });
           } catch (e: unknown) {
             try { if (fs.existsSync(tempOutputFile)) fs.unlinkSync(tempOutputFile); } catch {}
             const err = e as Error;
