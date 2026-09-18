@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   YouTubeIcon,
   TikTokIcon,
@@ -16,58 +17,141 @@ import styles from './Footer.module.css';
 
 export default function Footer() {
   const scrollToTop = (e: React.MouseEvent) => {
-    e.preventDefault();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (typeof window !== 'undefined' && window.location.pathname === '/') {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return (
-    <footer className={styles.footerWrapper}>
+    <footer className={styles.footerWrapper} role="contentinfo">
       <div className="app-container">
-        <div className={styles.footerGrid}>
-          {/* LEFT: Logo + Title + Tagline (Click scrolls to top) */}
-          <a
-            href="#home"
-            onClick={scrollToTop}
-            className={styles.brandCol}
-            style={{ textDecoration: 'none', cursor: 'pointer' }}
-            title="Scroll to Top"
-          >
-            <Image
-              src="/logo.png"
-              alt="MediaKit"
-              width={36}
-              height={36}
-              className={styles.brandLogo}
-            />
-            <div className={styles.brandTextGroup}>
-              <span className={styles.brandName}>MediaKit</span>
-              <span className={styles.tagline}>Download. Keep. Enjoy.</span>
-            </div>
-          </a>
-
-          {/* CENTER: Navigation Links */}
-          <div className={styles.navCenter}>
-            <a href="#home" onClick={scrollToTop} className={styles.footerLink}>
-              Home
-            </a>
-            <a href="#how-it-works" className={styles.footerLink}>
-              How It Works
-            </a>
-            <a href="#faq" className={styles.footerLink}>
-              FAQ
-            </a>
-            <a href="#disclaimer" className={styles.footerLink}>
-              Disclaimer
-            </a>
-            <a href="#privacy" className={styles.footerLink}>
-              Privacy
-            </a>
-            <a href="#contact" className={styles.footerLink}>
-              Contact
-            </a>
+        <div className={styles.footerColumns}>
+          {/* COLUMN 1: Brand Info */}
+          <div className={styles.brandCol}>
+            <Link
+              href="/"
+              onClick={scrollToTop}
+              className={styles.brandHeader}
+              title="MediaKit Home"
+            >
+              <Image
+                src="/logo.png"
+                alt="MediaKit Logo"
+                width={38}
+                height={38}
+                className={styles.brandLogo}
+              />
+              <div className={styles.brandTextGroup}>
+                <span className={styles.brandName}>MediaKit</span>
+                <span className={styles.tagline}>Download. Keep. Enjoy.</span>
+              </div>
+            </Link>
+            <p className={styles.brandDescription}>
+              Professional-grade online media utility to download high-definition video, audio, reels, and shorts from across the web.
+            </p>
           </div>
 
-          {/* RIGHT: Social Media & Repository Icons */}
+          {/* COLUMN 2: Video Tools */}
+          <div>
+            <h4 className={styles.footerColTitle}>Video Downloaders</h4>
+            <ul className={styles.footerColLinks}>
+              <li>
+                <Link href="/youtube-video-downloader" className={styles.footerLink}>
+                  YouTube Downloader
+                </Link>
+              </li>
+              <li>
+                <Link href="/youtube-shorts-downloader" className={styles.footerLink}>
+                  YouTube Shorts
+                </Link>
+              </li>
+              <li>
+                <Link href="/tiktok-video-downloader" className={styles.footerLink}>
+                  TikTok Downloader
+                </Link>
+              </li>
+              <li>
+                <Link href="/video-downloader" className={styles.footerLink}>
+                  All-in-One Downloader
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* COLUMN 3: Social Media Tools */}
+          <div>
+            <h4 className={styles.footerColTitle}>Social & Audio</h4>
+            <ul className={styles.footerColLinks}>
+              <li>
+                <Link href="/instagram-video-downloader" className={styles.footerLink}>
+                  Instagram Downloader
+                </Link>
+              </li>
+              <li>
+                <Link href="/instagram-reels-downloader" className={styles.footerLink}>
+                  Instagram Reels
+                </Link>
+              </li>
+              <li>
+                <Link href="/facebook-video-downloader" className={styles.footerLink}>
+                  Facebook Downloader
+                </Link>
+              </li>
+              <li>
+                <Link href="/facebook-reels-downloader" className={styles.footerLink}>
+                  Facebook Reels
+                </Link>
+              </li>
+              <li>
+                <Link href="/pinterest-video-downloader" className={styles.footerLink}>
+                  Pinterest Downloader
+                </Link>
+              </li>
+              <li>
+                <Link href="/youtube-mp3" className={styles.footerLink}>
+                  YouTube to MP3
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* COLUMN 4: Legal & Help */}
+          <div>
+            <h4 className={styles.footerColTitle}>Help & Legal</h4>
+            <ul className={styles.footerColLinks}>
+              <li>
+                <Link href="/faq" className={styles.footerLink}>
+                  FAQ & Guides
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className={styles.footerLink}>
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacy" className={styles.footerLink}>
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="https://wa.me/923100128702?text=Hello%20MediaKit%20Support"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.footerLink}
+                >
+                  WhatsApp Support
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        {/* BOTTOM ROW */}
+        <div className={styles.bottomRow}>
+          <span>&copy; {new Date().getFullYear()} MediaKit. All rights reserved.</span>
           <div className={styles.socialRow}>
             <a
               href="https://github.com/salmanjutt00110-del/MediaKit-Web"
@@ -89,33 +173,22 @@ export default function Footer() {
             >
               <WhatsAppIcon size={18} color="currentColor" />
             </a>
-            <a href="#youtube" className={styles.socialLink} aria-label="YouTube">
+            <Link href="/youtube-video-downloader" className={styles.socialLink} aria-label="YouTube Downloader">
               <YouTubeIcon size={19} color="currentColor" />
-            </a>
-            <a href="#tiktok" className={styles.socialLink} aria-label="TikTok">
+            </Link>
+            <Link href="/tiktok-video-downloader" className={styles.socialLink} aria-label="TikTok Downloader">
               <TikTokIcon size={17} color="currentColor" />
-            </a>
-            <a href="#instagram" className={styles.socialLink} aria-label="Instagram">
+            </Link>
+            <Link href="/instagram-video-downloader" className={styles.socialLink} aria-label="Instagram Downloader">
               <InstagramIcon size={18} color="currentColor" />
-            </a>
-            <a href="#facebook" className={styles.socialLink} aria-label="Facebook">
+            </Link>
+            <Link href="/facebook-video-downloader" className={styles.socialLink} aria-label="Facebook Downloader">
               <FacebookIcon size={18} color="currentColor" />
-            </a>
-            <a href="#pinterest" className={styles.socialLink} aria-label="Pinterest">
+            </Link>
+            <Link href="/pinterest-video-downloader" className={styles.socialLink} aria-label="Pinterest Downloader">
               <PinterestIcon size={18} color="currentColor" />
-            </a>
-            <a href="#x" className={styles.socialLink} aria-label="X (Twitter)">
-              <XTwitterIcon size={16} color="currentColor" />
-            </a>
+            </Link>
           </div>
-        </div>
-
-        {/* BOTTOM ROW */}
-        <div className={styles.bottomRow}>
-          <span>&copy; {new Date().getFullYear()} MediaKit. All rights reserved.</span>
-          <span className={styles.creatorsTag}>
-            Made for creators. By creators. &#10084;&#65039;
-          </span>
         </div>
       </div>
     </footer>

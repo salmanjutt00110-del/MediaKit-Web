@@ -35,20 +35,38 @@
 }
 
 .thumbnailWrapper {
-  width: 220px;
-  aspect-ratio: 16 / 9;
   background: var(--bg-subtle);
   border-radius: var(--radius-md);
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
   border: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.2s ease, aspect-ratio 0.2s ease;
+}
+
+.aspectLandscape {
+  width: 220px;
+  aspect-ratio: 16 / 9;
+}
+
+.aspectPortrait {
+  width: 140px;
+  aspect-ratio: 9 / 16;
+}
+
+.aspectSquare {
+  width: 170px;
+  aspect-ratio: 1 / 1;
 }
 
 .thumbnailImg {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   transition: opacity 0.3s ease;
 }
 
@@ -86,45 +104,24 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  color: #ffffff;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
   padding: 12px;
   text-align: center;
-}
-
-.fallback_tiktok {
-  background: linear-gradient(135deg, #000000 0%, #111827 50%, #042f2e 100%);
-}
-
-.fallback_youtube {
-  background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
-}
-
-.fallback_facebook {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
-}
-
-.fallback_instagram {
-  background: linear-gradient(135deg, #831843 0%, #c026d3 50%, #f97316 100%);
-}
-
-.fallback_pinterest {
-  background: linear-gradient(135deg, #e60023 0%, #b3001b 100%);
 }
 
 .fallbackIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+  color: var(--text-muted);
 }
 
 .fallbackText {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  opacity: 0.95;
-  text-transform: uppercase;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
 }
 
 .contentWrapper {

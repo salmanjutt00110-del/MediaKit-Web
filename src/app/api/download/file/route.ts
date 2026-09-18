@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { logger } from '@/lib/logger';
+import { sanitizeAsciiFilename, sanitizeFilename } from '@/lib/string-utils';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Max allowed serverless duration
@@ -20,7 +21,8 @@ function isSafeUrl(rawUrl: string): boolean {
       host === '0.0.0.0' ||
       host === '::1' ||
       host.endsWith('.local') ||
-      host.endsWith('.internal')
+      host.endsWith('.internal') ||
+      host.endsWith('.lan')
     ) {
       return false;
     }
@@ -28,14 +30,29 @@ function isSafeUrl(rawUrl: string): boolean {
     // Check for private IPv4 patterns
     const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
     if (ipv4Match) {
-      const [_, a, b] = ipv4Match.map(Number);
+      const a = Number(ipv4Match[1]);
+      const b = Number(ipv4Match[2]);
       if (
+        a === 0 || // 0.0.0.0/8
         a === 10 || // 10.0.0.0/8
         a === 127 || // 127.0.0.0/8
         (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
         (a === 192 && b === 168) || // 192.168.0.0/16
-        (a === 169 && b === 254) || // 169.254.0.0/16 (Link Local / Cloud Metadata)
-        a === 0
+        (a === 169 && b === 254) // 169.254.0.0/16 (Link Local / Cloud Metadata)
+      ) {
+        return false;
+      }
+    }
+
+    // Check IPv6 private/link-local
+    if (host.startsWith('[') && host.endsWith(']')) {
+      const ipv6 = host.slice(1, -1).toLowerCase();
+      if (
+        ipv6 === '::1' ||
+        ipv6.startsWith('fe80:') ||
+        ipv6.startsWith('fc') ||
+        ipv6.startsWith('fd') ||
+        ipv6.includes('127.0.0.1')
       ) {
         return false;
       }
@@ -47,25 +64,19 @@ function isSafeUrl(rawUrl: string): boolean {
   }
 }
 
-// Build clean sanitized filename for Content-Disposition
-function buildSafeFilename(title: string, ext: string): string {
-  const cleanTitle = (title || 'media')
-    .replace(/[/\\?%*:|"<>]/g, '_')
-    .replace(/[\x00-\x1f\x80-\x9f]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim() || 'media';
-  return `${cleanTitle}.${ext}`;
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const targetUrl = searchParams.get('url');
     const title = searchParams.get('title') || 'media';
-    const ext = (searchParams.get('ext') || 'mp4').toLowerCase();
+    const ext = (searchParams.get('ext') || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '');
 
     if (!targetUrl || !isSafeUrl(targetUrl)) {
       return new Response('Invalid or disallowed media URL parameter', { status: 400 });
+    }
+
+    if (targetUrl.includes('googlevideo.com')) {
+      return new Response('Direct GoogleVideo streams must be processed and merged via the server download engine.', { status: 400 });
     }
 
     const rangeHeader = request.headers.get('range');
@@ -94,7 +105,7 @@ export async function GET(request: NextRequest) {
       upstreamHeaders['Origin'] = 'https://www.youtube.com';
     } else if (targetUrl.includes('tiktokcdn') || targetUrl.includes('tiktok.com') || targetUrl.includes('tikwm.com')) {
       upstreamHeaders['Referer'] = 'https://www.tiktok.com/';
-    } else if (targetUrl.includes('cdninstagram.com') || targetUrl.includes('instagram.com')) {
+    } else if (targetUrl.includes('cdninstagram.com') || targetUrl.includes('instagram.com') || targetUrl.includes('fbcdn.net')) {
       upstreamHeaders['Referer'] = 'https://www.instagram.com/';
       upstreamHeaders['Origin'] = 'https://www.instagram.com';
     } else if (targetUrl.includes('fbcdn.net') || targetUrl.includes('facebook.com')) {
@@ -111,6 +122,11 @@ export async function GET(request: NextRequest) {
       headers: upstreamHeaders,
       redirect: 'follow',
     });
+
+    // Verify redirected URL against SSRF
+    if (upstreamRes.url && !isSafeUrl(upstreamRes.url)) {
+      return new Response('Redirection to disallowed host rejected', { status: 403 });
+    }
 
     if (!upstreamRes.ok && upstreamRes.status !== 206) {
       logger.error('Upstream media returned error status', {
@@ -133,12 +149,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const asciiTitle = (title || 'media')
-      .replace(/[^a-zA-Z0-9_\-\s]/g, '')
-      .replace(/\s+/g, '_')
-      .trim() || 'media';
-    const asciiFilename = `${asciiTitle}.${ext}`;
-    const utf8Filename = buildSafeFilename(title, ext);
+    if (contentType.startsWith('image/') && ext !== 'jpg' && ext !== 'png' && ext !== 'webp') {
+      logger.warn('Upstream returned image instead of video', { targetUrl: targetUrl.slice(0, 80), contentType });
+      return new Response('Upstream source delivered an image preview instead of a video stream.', {
+        status: 422,
+      });
+    }
+
+    const safeAscii = sanitizeAsciiFilename(title, ext);
+    const safeUtf8 = sanitizeFilename(title, ext);
 
     const headers = new Headers();
     // Use application/octet-stream to prevent mobile browsers from playing video inline or in new tab
@@ -147,7 +166,7 @@ export async function GET(request: NextRequest) {
     headers.set('Accept-Ranges', 'bytes');
     headers.set(
       'Content-Disposition',
-      `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(utf8Filename)}`
+      `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(safeUtf8)}`
     );
 
     // Forward caching and range parameters
@@ -178,9 +197,10 @@ export async function GET(request: NextRequest) {
       status,
       headers,
     });
-  } catch (err: any) {
-    logger.error('Error in /api/download/file proxy', err);
-    return new Response('Streaming proxy error: ' + (err.message || 'Unknown error'), {
+  } catch (err: unknown) {
+    const error = err as Error;
+    logger.error('Error in /api/download/file proxy', error);
+    return new Response('Streaming proxy error: ' + (error.message || 'Unknown error'), {
       status: 500,
     });
   }
@@ -192,7 +212,7 @@ export async function HEAD(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const targetUrl = searchParams.get('url');
     const title = searchParams.get('title') || 'media';
-    const ext = (searchParams.get('ext') || 'mp4').toLowerCase();
+    const ext = (searchParams.get('ext') || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '');
 
     if (!targetUrl || !isSafeUrl(targetUrl)) {
       return new Response(null, { status: 400 });
@@ -207,6 +227,10 @@ export async function HEAD(request: NextRequest) {
       redirect: 'follow',
     });
 
+    if (upstreamRes.url && !isSafeUrl(upstreamRes.url)) {
+      return new Response(null, { status: 403 });
+    }
+
     const headers = new Headers();
     headers.set('Content-Type', 'application/octet-stream');
     headers.set('X-Content-Type-Options', 'nosniff');
@@ -215,16 +239,13 @@ export async function HEAD(request: NextRequest) {
     if (contentLength) {
       headers.set('Content-Length', contentLength);
     }
-    const asciiTitle = (title || 'media')
-      .replace(/[^a-zA-Z0-9_\-\s]/g, '')
-      .replace(/\s+/g, '_')
-      .trim() || 'media';
-    const asciiFilename = `${asciiTitle}.${ext}`;
-    const utf8Filename = buildSafeFilename(title, ext);
+
+    const safeAscii = sanitizeAsciiFilename(title, ext);
+    const safeUtf8 = sanitizeFilename(title, ext);
 
     headers.set(
       'Content-Disposition',
-      `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(utf8Filename)}`
+      `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(safeUtf8)}`
     );
     headers.set('Access-Control-Allow-Origin', '*');
 

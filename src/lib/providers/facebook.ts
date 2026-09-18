@@ -1,7 +1,7 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
-import { cleanAndDecodeTitle } from '../string-utils';
+import { cleanAndDecodeTitle, sanitizeFilename } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
 import { extractSnapSave } from '../snapsave-native';
 
@@ -69,7 +69,6 @@ export class FacebookAdapter extends MediaProvider {
       target = `https://${target}`;
     }
 
-    // Fast expansion of short share links (e.g. facebook.com/share/r/1Bu9dcvRh or fb.watch)
     if (target.includes('fb.watch') || target.includes('/share/')) {
       try {
         const headRes = await fetch(target, {
@@ -79,15 +78,24 @@ export class FacebookAdapter extends MediaProvider {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           },
-          signal: AbortSignal.timeout(3500),
+          signal: AbortSignal.timeout(6000),
         });
         if (headRes.url && headRes.url !== target) {
           target = headRes.url;
         }
-      } catch (err) {
-        logger.warn('Facebook short URL expand warning', { target, err });
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.warn('Facebook link expansion warning', { target, msg: error.message });
       }
     }
+
+    try {
+      const parsed = new URL(target);
+      if (parsed.hostname === 'm.facebook.com') {
+        parsed.hostname = 'www.facebook.com';
+        target = parsed.toString();
+      }
+    } catch {}
 
     return target;
   }
@@ -103,20 +111,16 @@ export class FacebookAdapter extends MediaProvider {
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          Accept:
-            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
-          'Sec-Fetch-Dest': 'document',
-          'Sec-Fetch-Mode': 'navigate',
-          'Sec-Fetch-Site': 'none',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         },
-        signal: AbortSignal.timeout(4500), // Fast 4.5s timeout prevents hanging
+        signal: AbortSignal.timeout(7000),
       });
 
       if (res.ok) {
         const html = await res.text();
 
-        // Extract title
         let title: string | undefined;
         const ogTitle =
           html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
@@ -126,7 +130,6 @@ export class FacebookAdapter extends MediaProvider {
           title = cleanAndDecodeTitle(ogTitle[1]);
         }
 
-        // Extract thumbnail
         let thumbnailUrl: string | undefined;
         const ogImage =
           html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
@@ -136,7 +139,6 @@ export class FacebookAdapter extends MediaProvider {
           thumbnailUrl = ogImage[1].replace(/&amp;/g, '&').replace(/\\\//g, '/');
         }
 
-        // Extract direct video streams if embedded in public page
         let hdUrl: string | undefined;
         let sdUrl: string | undefined;
 
@@ -156,8 +158,9 @@ export class FacebookAdapter extends MediaProvider {
 
         return { title, thumbnailUrl, hdUrl, sdUrl };
       }
-    } catch (err: any) {
-      logger.warn('Facebook page scrape warning', { url, msg: err.message });
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('Facebook page scrape warning', { url, msg: error.message });
     }
     return {};
   }
@@ -197,8 +200,9 @@ export class FacebookAdapter extends MediaProvider {
           title: titleMatch ? cleanAndDecodeTitle(titleMatch[1].trim()) : undefined,
         };
       }
-    } catch (err: any) {
-      logger.warn('GetMyFB extraction warning', { msg: err.message });
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('GetMyFB extraction warning', { msg: error.message });
     }
     return null;
   }
@@ -211,7 +215,38 @@ export class FacebookAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(videoId);
     if (cached) return cached;
 
-    // Run GetMyFB and page scraper in parallel
+    // 1. Primary Engine: yt-dlp native extraction if available
+    if (ytDlpRunner.isAvailable()) {
+      try {
+        const info = await ytDlpRunner.getMediaInfo(resolvedUrl);
+        if (info && info.formats && info.formats.length > 0) {
+          const proxiedThumb = info.thumbnailUrl
+            ? `/api/thumbnail?url=${encodeURIComponent(info.thumbnailUrl)}`
+            : undefined;
+
+          const result: MediaMetadata = {
+            ...info,
+            id: videoId,
+            platform: 'facebook',
+            title: info.title || `Facebook Video (${videoId})`,
+            author: info.author || 'Facebook Creator',
+            thumbnailUrl: proxiedThumb,
+            sourceUrl: resolvedUrl,
+            requiresProviderSetup: false,
+          };
+
+          setCachedMedia(resolvedUrl, result);
+          setCachedMedia(rawUrl, result);
+          setCachedMedia(videoId, result);
+          return result;
+        }
+      } catch (ytErr: unknown) {
+        const error = ytErr as Error;
+        logger.warn('Facebook yt-dlp extraction note:', { msg: error.message });
+      }
+    }
+
+    // 2. Parallel web scrapers
     const [getmyfbData, scraped] = await Promise.all([
       this.extractGetMyFB(resolvedUrl).catch(() => null),
       this.scrapeFacebookPage(resolvedUrl).catch(() => ({} as { title?: string; thumbnailUrl?: string; hdUrl?: string; sdUrl?: string })),
@@ -235,54 +270,49 @@ export class FacebookAdapter extends MediaProvider {
     }
 
     const title = getmyfbData?.title || scraped.title || `Facebook Video (${videoId})`;
-    // Wrap with thumbnail proxy to avoid cross-origin and CDN referrer blocks
     const thumbnailUrl = fbThumb
       ? `/api/thumbnail?url=${encodeURIComponent(fbThumb)}`
       : undefined;
 
-    const formats: MediaFormat[] = [
-      {
+    const formats: MediaFormat[] = [];
+    if (fbHd) {
+      formats.push({
         id: 'hd',
         format: 'mp4',
-        quality: '1080p HD (High Definition)',
-        resolution: '1920x1080',
-        hasAudio: true,
-        hasVideo: true,
-        downloadUrl: fbHd || fbSd || undefined,
-      },
-      {
-        id: '720p',
-        format: 'mp4',
-        quality: '720p HD (Standard HD)',
+        quality: '720p HD (High Definition)',
         resolution: '1280x720',
         hasAudio: true,
         hasVideo: true,
-        downloadUrl: fbHd || fbSd || undefined,
-      },
-      {
+        downloadUrl: fbHd,
+      });
+    }
+    if (fbSd) {
+      formats.push({
         id: 'sd',
         format: 'mp4',
         quality: 'SD Quality (Fast Download)',
         resolution: '640x360',
         hasAudio: true,
         hasVideo: true,
-        downloadUrl: fbSd || fbHd || undefined,
-      },
-      {
+        downloadUrl: fbSd,
+      });
+    }
+    if (fbHd || fbSd) {
+      formats.push({
         id: 'mp3',
         format: 'mp3',
         quality: 'Original Audio (MP3)',
         hasAudio: true,
         hasVideo: false,
-        downloadUrl: fbHd || fbSd || undefined,
-      },
-    ];
+        downloadUrl: fbSd || fbHd,
+      });
+    }
 
     const result: MediaMetadata = {
       id: videoId,
       platform: 'facebook',
       title,
-      author: 'Facebook Video',
+      author: 'Facebook Creator',
       thumbnailUrl,
       sourceUrl: resolvedUrl,
       formats,
@@ -302,14 +332,12 @@ export class FacebookAdapter extends MediaProvider {
 
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
-
-    const cleanTitle = (media.title || 'facebook-media')
-      .replace(/[/\\?%*:|"<>]/g, '_')
-      .trim();
+    const ext = isMp3 ? 'mp3' : 'mp4';
+    const cleanTitle = sanitizeFilename(media.title || 'Facebook_Video', ext);
 
     const wrapProxy = (rawUrl: string) => {
-      if (rawUrl.startsWith('/api/download/file')) return rawUrl;
-      return `/api/download/file?url=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+      if (rawUrl.startsWith('/api/download/file') || rawUrl.startsWith('/api/download/serve')) return rawUrl;
+      return `/api/download/file?url=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
     };
 
     // 1. Direct return if format already has prepared download URL
@@ -339,14 +367,33 @@ export class FacebookAdapter extends MediaProvider {
       };
     }
 
-    // 2. Try yt-dlp local downloader (Fast & Direct)
+    // 3. Try yt-dlp local downloader
     if (ytDlpRunner.isAvailable()) {
+      try {
+        const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
+        if (streamUrl && streamUrl.startsWith('http')) {
+          const safeUrl = wrapProxy(streamUrl);
+          fbStreamCache.set(cacheKey, {
+            url: safeUrl,
+            expiry: Date.now() + 2 * 60 * 60 * 1000,
+          });
+          return {
+            success: true,
+            downloadUrl: safeUrl,
+            message: 'Direct media stream prepared successfully.',
+          };
+        }
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.warn('Facebook yt-dlp stream failed, trying downloadMedia', { msg: error.message });
+      }
+
       try {
         const localPath = await ytDlpRunner.downloadMedia(media, formatId);
         if (localPath) {
           fbStreamCache.set(cacheKey, {
             url: localPath,
-            expiry: Date.now() + 6 * 60 * 60 * 1000,
+            expiry: Date.now() + 20 * 60 * 1000,
           });
           return {
             success: true,
@@ -354,79 +401,12 @@ export class FacebookAdapter extends MediaProvider {
             message: 'Direct media file prepared successfully.',
           };
         }
-      } catch (err: any) {
-        logger.warn('Facebook yt-dlp download attempt', { msg: err.message });
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.warn('Facebook yt-dlp download attempt', { msg: error.message });
       }
     }
 
-    // 3. Fast check via loader.to with maximum 2s wait
-    try {
-      const convFormat = isMp3 ? 'mp3' : formatId.includes('1080') ? '1080' : '720';
-      const initRes = await fetch(
-        `https://loader.to/ajax/download.php?button=1&start=1&end=1&format=${convFormat}&url=${encodeURIComponent(
-          media.sourceUrl
-        )}`,
-        {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            Referer: 'https://loader.to/',
-          },
-          signal: AbortSignal.timeout(3500),
-        }
-      );
-
-      const init = await initRes.json();
-      if (init.download_url) {
-        fbStreamCache.set(cacheKey, {
-          url: init.download_url,
-          expiry: Date.now() + 2 * 60 * 60 * 1000,
-        });
-        return {
-          success: true,
-          downloadUrl: init.download_url,
-          message: 'Direct media file prepared successfully.',
-        };
-      }
-
-      if (init.id) {
-        const progressUrl =
-          init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
-
-        for (let attempt = 0; attempt < 3; attempt++) {
-          await new Promise((r) => setTimeout(r, 450));
-          const pRes = await fetch(progressUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-            signal: AbortSignal.timeout(2000),
-          });
-          const pData = await pRes.json();
-          if (pData.text === 'Failed' || pData.success === -1) {
-            break;
-          }
-          if (pData.success === 1 && pData.download_url) {
-            fbStreamCache.set(cacheKey, {
-              url: pData.download_url,
-              expiry: Date.now() + 2 * 60 * 60 * 1000,
-            });
-            return {
-              success: true,
-              downloadUrl: pData.download_url,
-              message: 'Direct media file prepared successfully.',
-            };
-          }
-        }
-      }
-    } catch {}
-
-    // 4. Clean stream proxy fallback
-    const proxyPath = `/api/download/file?url=${encodeURIComponent(
-      media.sourceUrl
-    )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
-
-    return {
-      success: true,
-      downloadUrl: proxyPath,
-      message: 'Direct media stream prepared.',
-    };
+    throw new Error('Unable to extract Facebook video stream. Please ensure the post is public and contains a valid video.');
   }
 }

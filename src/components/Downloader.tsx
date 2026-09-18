@@ -86,7 +86,10 @@ export default function Downloader() {
   });
   const [completedInfo, setCompletedInfo] = useState<{
     title: string;
+    filename: string;
     ext: string;
+    quality: string;
+    fileSize: string;
     formatId: string;
     downloadUrl?: string;
   } | null>(null);
@@ -99,14 +102,6 @@ export default function Downloader() {
   const [isBatchDownloading, setIsBatchDownloading] = useState(false);
   const [batchDownloadProgress, setBatchDownloadProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
 
-  // Floating Notification Toast
-  const [downloadToast, setDownloadToast] = useState<{
-    title: string;
-    ext: string;
-    isBatch?: boolean;
-    batchCount?: number;
-  } | null>(null);
-
   const isProcessingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -117,14 +112,6 @@ export default function Downloader() {
       return () => clearTimeout(timer);
     }
   }, [clipboardToast]);
-
-  // Auto-dismiss download notification toast
-  useEffect(() => {
-    if (downloadToast) {
-      const timer = setTimeout(() => setDownloadToast(null), 5500);
-      return () => clearTimeout(timer);
-    }
-  }, [downloadToast]);
 
   // Client-side auto-detection with debouncing for typing
   useEffect(() => {
@@ -401,12 +388,17 @@ export default function Downloader() {
   const triggerNativeDownload = async (finalDlUrl: string, filename: string): Promise<string> => {
     const safeTitle = filename.replace(/\.[^/.]+$/, '');
     const ext = filename.split('.').pop() || 'mp4';
-    const proxiedUrl = finalDlUrl.startsWith('/api/download/file')
+    const proxiedUrl = finalDlUrl.startsWith('/api/download/file') || finalDlUrl.startsWith('/api/download/serve')
       ? finalDlUrl
       : `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
 
     try {
       // 1. Client-Side Blob Fetch with Real-Time Progress
+      setDownloadProgress((prev) => ({
+        ...prev,
+        receivedMB: 'Downloading media stream...',
+      }));
+
       const response = await fetch(proxiedUrl);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -423,14 +415,34 @@ export default function Downloader() {
           chunks.push(value);
           received += value.length;
           if (contentLength > 0) {
-            const pct = Math.min(99, Math.round((received / contentLength) * 100));
+            const pct = Math.min(94, Math.round((received / contentLength) * 100));
             setDownloadProgress((prev) => ({
               ...prev,
               percent: Math.max(prev.percent, pct),
-              receivedMB: `${(received / (1024 * 1024)).toFixed(1)} MB / ${(contentLength / (1024 * 1024)).toFixed(1)} MB (${pct}%)`,
+              receivedMB: `Downloading: ${(received / (1024 * 1024)).toFixed(1)} MB / ${(contentLength / (1024 * 1024)).toFixed(1)} MB (${pct}%)`,
+            }));
+          } else {
+            setDownloadProgress((prev) => ({
+              ...prev,
+              receivedMB: `Downloading: ${(received / (1024 * 1024)).toFixed(1)} MB received...`,
             }));
           }
         }
+      }
+
+      // 2. Validate received stream size before completion
+      setDownloadProgress((prev) => ({
+        ...prev,
+        percent: 96,
+        receivedMB: 'Validating file...',
+      }));
+
+      if (contentLength > 0 && received < contentLength * 0.92) {
+        throw new Error(`Incomplete download: received ${(received / (1024 * 1024)).toFixed(2)} MB of ${(contentLength / (1024 * 1024)).toFixed(2)} MB.`);
+      }
+
+      if (received < 200 * 1024 && ext === 'mp4') {
+        throw new Error(`Downloaded stream is truncated (~${Math.round(received / 1024)} KB). The media provider cut off the connection. Please try another format or retry.`);
       }
 
       const blob = new Blob(chunks as any[], { type: 'application/octet-stream' });
@@ -449,7 +461,7 @@ export default function Downloader() {
 
       return blobUrl;
     } catch (err) {
-      console.warn('Direct stream fallback to attachment trigger:', err);
+      console.warn('Direct stream fetch error, attempting native attachment link:', err);
       // Fallback: Same-origin direct download link (content-disposition attachment)
       const dlAnchor = document.createElement('a');
       dlAnchor.href = proxiedUrl;
@@ -494,8 +506,8 @@ export default function Downloader() {
           setState('downloading');
           setError(null);
           setDownloadProgress({
-            percent: 15,
-            receivedMB: 'Fetching media stream...',
+            percent: 20,
+            receivedMB: 'Fetching media...',
             totalMB: '',
             active: true,
             formatTitle: targetFormat?.quality || formatId,
@@ -503,49 +515,62 @@ export default function Downloader() {
         }
 
         const safeDlUrl = await triggerNativeDownload(targetFormat.downloadUrl, filename);
-        setDownloadToast({ title: safeTitle, ext });
 
         if (!customMedia) {
           setDownloadProgress({
             percent: 100,
-            receivedMB: 'Download complete! Saved to your Downloads.',
+            receivedMB: 'Download complete ✓ Saved to your Downloads.',
             totalMB: '',
             active: false,
           });
           setState('completed');
-          setCompletedInfo({ title: safeTitle, ext, formatId, downloadUrl: safeDlUrl });
+          setCompletedInfo({
+            title: safeTitle,
+            filename,
+            ext: ext.toUpperCase(),
+            quality: targetFormat?.quality || 'HD',
+            fileSize: targetFormat?.fileSize || 'Size unavailable',
+            formatId,
+            downloadUrl: safeDlUrl,
+          });
           setDownloadingFormatId(null);
         }
 
         return true;
       }
 
-      // STREAM PATH: Call /api/download with smooth, non-stalling progress
+      // STREAM PATH: Call /api/download with real state progression
       if (!customMedia) {
         setDownloadingFormatId(formatId);
         setState('downloading');
         setError(null);
         setCompletedInfo(null);
         setDownloadProgress({
-          percent: 25,
-          receivedMB: 'Connecting to media server...',
+          percent: 15,
+          receivedMB: 'Preparing...',
           totalMB: '',
           active: true,
           formatTitle: targetFormat?.quality || formatId,
         });
 
-        // Smooth progression
-        let currentP = 25;
+        // Authentic progression
+        let currentP = 15;
         progressTimer = setInterval(() => {
-          if (currentP < 85) {
-            currentP += 12;
+          if (currentP < 75) {
+            currentP += 10;
+            const stageLabel =
+              currentP <= 25
+                ? 'Preparing...'
+                : currentP <= 50
+                ? 'Fetching media...'
+                : 'Processing...';
             setDownloadProgress((prev) => ({
               ...prev,
               percent: currentP,
-              receivedMB: currentP > 50 ? 'Preparing download...' : 'Fetching media chunks...',
+              receivedMB: stageLabel,
             }));
           }
-        }, 350);
+        }, 500);
       }
 
       const response = await fetch('/api/download', {
@@ -582,17 +607,24 @@ export default function Downloader() {
 
       const rawDlUrl = data.data.downloadUrl;
       const safeDlUrl = await triggerNativeDownload(rawDlUrl, filename);
-      setDownloadToast({ title: safeTitle, ext });
 
       if (!customMedia) {
         setDownloadProgress({
           percent: 100,
-          receivedMB: 'Download ready! Saved to your Downloads.',
+          receivedMB: 'Download complete ✓ Saved to your Downloads.',
           totalMB: '',
           active: false,
         });
         setState('completed');
-        setCompletedInfo({ title: safeTitle, ext, formatId, downloadUrl: safeDlUrl });
+        setCompletedInfo({
+          title: safeTitle,
+          filename,
+          ext: ext.toUpperCase(),
+          quality: targetFormat?.quality || 'HD',
+          fileSize: targetFormat?.fileSize || 'Size unavailable',
+          formatId,
+          downloadUrl: safeDlUrl,
+        });
         setDownloadingFormatId(null);
       }
 
@@ -785,14 +817,6 @@ export default function Downloader() {
     setIsBatchDownloading(true);
     setBatchDownloadProgress({ current: 0, total: readyItems.length });
 
-    // Show top notification toast
-    setDownloadToast({
-      title: `${readyItems.length} Videos Batch Download`,
-      ext: 'mp4',
-      isBatch: true,
-      batchCount: readyItems.length,
-    });
-
     for (let i = 0; i < readyItems.length; i++) {
       const item = readyItems[i];
       setBatchDownloadProgress({ current: i + 1, total: readyItems.length });
@@ -855,34 +879,6 @@ export default function Downloader() {
 
   return (
     <section id="downloader" className={styles.downloaderSection} aria-label="Media Downloader">
-      {/* Sleek Dynamic Island Floating Download Toast */}
-      {downloadToast && (
-        <div className={styles.downloadToast} role="alert" aria-live="assertive">
-          <div className={styles.toastPill}>
-            <div className={styles.toastIconWrapper}>
-              <ArrowDownToLine size={15} className={styles.toastDownloadIcon} />
-            </div>
-            <div className={styles.toastInfo}>
-              <span className={styles.toastTag}>
-                {downloadToast.isBatch ? 'BATCH' : downloadToast.ext.toUpperCase()}
-              </span>
-              <span className={styles.toastTitle} title={downloadToast.title}>
-                {downloadToast.title}
-              </span>
-            </div>
-            <div className={styles.toastActivePulse} title="Downloading in background" />
-            <button
-              type="button"
-              onClick={() => setDownloadToast(null)}
-              className={styles.toastCloseBtn}
-              aria-label="Close notification"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="app-container">
         <div className={styles.downloaderContainer}>
           {/* Mode Switcher Tabs (Single Video | Batch Download | 25 MAX) */}
@@ -919,10 +915,6 @@ export default function Downloader() {
                   isFocused ? styles.inputCapsuleFocus : ''
                 }`}
               >
-                <div className={styles.linkIcon}>
-                  <LinkIcon size={20} color="#2563EB" />
-                </div>
-
                 <input
                   ref={inputRef}
                   type="url"
@@ -1107,40 +1099,61 @@ export default function Downloader() {
                 </div>
               )}
 
-              {/* Sleek Download Started Banner */}
+              {/* Premium International SaaS Download Completion Notification */}
               {state === 'completed' && completedInfo && (
-                <div className={styles.downloadCompleteCard} role="status" aria-live="polite">
-                  <div className={styles.completeHeader}>
-                    <div className={styles.completeHeaderIcon}>
-                      <CheckCircle2 size={18} />
+                <div className={styles.completionBanner} role="status" aria-live="polite">
+                  <div className={styles.completionMain}>
+                    <div className={styles.completionStatusRow}>
+                      <div className={styles.completionCheckIcon}>
+                        <Check size={14} strokeWidth={3} />
+                      </div>
+                      <span className={styles.completionStatusTitle}>Download complete</span>
+                      <button
+                        type="button"
+                        onClick={() => setCompletedInfo(null)}
+                        className={styles.completionDismissBtn}
+                        aria-label="Dismiss completion notice"
+                        title="Dismiss"
+                      >
+                        <X size={14} />
+                      </button>
                     </div>
-                    <div className={styles.completeTextGroup}>
-                      <span className={styles.completeTitle}>Download Started!</span>
-                      <p className={styles.completeSubtext} title={`${completedInfo.title}.${completedInfo.ext}`}>
-                        <strong>{completedInfo.title}.{completedInfo.ext}</strong> is downloading in your browser background.
-                      </p>
+
+                    <div className={styles.completionFilename} title={completedInfo.filename}>
+                      {completedInfo.filename}
+                    </div>
+
+                    <div className={styles.completionMetaRow}>
+                      <span className={styles.completionMetaItem}>{completedInfo.quality}</span>
+                      <span className={styles.completionMetaDot}>•</span>
+                      <span className={styles.completionMetaItem}>{completedInfo.ext}</span>
+                      <span className={styles.completionMetaDot}>•</span>
+                      <span className={styles.completionMetaItem}>
+                        {completedInfo.fileSize || 'Size unavailable'}
+                      </span>
                     </div>
                   </div>
-                  <div className={styles.completeActions}>
+
+                  <div className={styles.completionActions}>
                     {completedInfo.downloadUrl && (
                       <button
                         type="button"
                         onClick={() => {
                           if (completedInfo.downloadUrl) {
-                            triggerNativeDownload(completedInfo.downloadUrl, `${completedInfo.title}.${completedInfo.ext}`);
+                            triggerNativeDownload(completedInfo.downloadUrl, completedInfo.filename);
                           }
                         }}
-                        className={styles.actionBtnPrimary}
-                        title="Save file directly to device"
+                        className={styles.completionBtnPrimary}
+                        title="Save or open file directly"
                       >
-                        <Download size={13} />
+                        <Download size={14} />
                         <span>Save File</span>
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={() => handleDownloadFormat(completedInfo.formatId)}
-                      className={styles.actionBtnSecondary}
+                      className={styles.completionBtnSecondary}
                       title="Download again"
                     >
                       <RefreshCw size={13} />
@@ -1149,8 +1162,8 @@ export default function Downloader() {
                     <button
                       type="button"
                       onClick={handleClear}
-                      className={styles.actionBtnSecondary}
-                      title="Download another video"
+                      className={styles.completionBtnGhost}
+                      title="Enter a new link"
                     >
                       <span>New Link</span>
                     </button>
@@ -1183,6 +1196,7 @@ export default function Downloader() {
               {/* Single Result Card */}
               {mediaInfo && (
                 <DownloadResult
+                  key={mediaInfo.id || mediaInfo.sourceUrl}
                   media={mediaInfo}
                   onDownloadFormat={handleDownloadFormat}
                   isDownloading={state === 'downloading'}

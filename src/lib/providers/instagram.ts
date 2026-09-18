@@ -1,8 +1,8 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
-import { cleanAndDecodeTitle } from '../string-utils';
-import { ytDlpRunner, getCookiesPath } from '../ytdlp';
+import { cleanAndDecodeTitle, sanitizeFilename } from '../string-utils';
+import { ytDlpRunner } from '../ytdlp';
 import { extractSnapSave } from '../snapsave-native';
 
 interface IgCacheEntry {
@@ -25,7 +25,7 @@ function getCachedMedia(key: string): MediaMetadata | null {
 function setCachedMedia(key: string, data: MediaMetadata) {
   igMediaCache.set(key, {
     data,
-    expiresAt: Date.now() + 10 * 60 * 1000, // 10 min cache
+    expiresAt: Date.now() + 10 * 60 * 1000,
   });
   if (igMediaCache.size > 150) {
     const first = igMediaCache.keys().next().value;
@@ -78,7 +78,7 @@ export class InstagramAdapter extends MediaProvider {
   }
 
   /**
-   * Fast metadata and thumbnail scraper
+   * Fast metadata and thumbnail scraper fallback
    */
   private async scrapeInstagramMetadata(shortcode: string, canonicalUrl: string): Promise<{
     title?: string;
@@ -95,7 +95,7 @@ export class InstagramAdapter extends MediaProvider {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           },
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(5000),
         }
       );
       if (oembedRes.ok) {
@@ -110,7 +110,7 @@ export class InstagramAdapter extends MediaProvider {
       }
     } catch {}
 
-    // 2. Try captioned embed scraping with browser headers (try both /p/ and /reel/)
+    // 2. Try captioned embed scraping with browser headers
     const embedUrls = [
       canonicalUrl.includes('/reel')
         ? `https://www.instagram.com/reel/${shortcode}/embed/captioned/`
@@ -126,7 +126,7 @@ export class InstagramAdapter extends MediaProvider {
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
           },
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(6000),
         });
 
         if (res.ok) {
@@ -180,8 +180,9 @@ export class InstagramAdapter extends MediaProvider {
             return { title, author, thumbnailUrl, directVideoUrl };
           }
         }
-      } catch (err: any) {
-        logger.warn('Instagram embed scrape warning', { shortcode, msg: err.message });
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.warn('Instagram embed scrape warning', { shortcode, msg: error.message });
       }
     }
 
@@ -203,7 +204,7 @@ export class InstagramAdapter extends MediaProvider {
           'referer': 'https://getmyfb.com/',
         },
         body: formData.toString(),
-        signal: AbortSignal.timeout(6500),
+        signal: AbortSignal.timeout(6000),
       });
 
       if (!res.ok) return null;
@@ -223,8 +224,9 @@ export class InstagramAdapter extends MediaProvider {
           title: titleMatch ? cleanAndDecodeTitle(titleMatch[1].trim()) : undefined,
         };
       }
-    } catch (err: any) {
-      logger.warn('Instagram GetMyFB extraction warning', { msg: err.message });
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('Instagram GetMyFB extraction warning', { msg: error.message });
     }
     return null;
   }
@@ -237,7 +239,46 @@ export class InstagramAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(shortcode);
     if (cached) return cached;
 
-    // 0. High-Speed API Extractor (GetMyFB multi-platform)
+    // 1. Primary Engine: yt-dlp native extraction (Extracts authentic caption, author username, thumbnail, dimensions, direct video)
+    if (ytDlpRunner.isAvailable()) {
+      try {
+        const info = await ytDlpRunner.getMediaInfo(resolvedUrl);
+        if (info && info.formats && info.formats.length > 0) {
+          const proxiedThumb = info.thumbnailUrl
+            ? `/api/thumbnail?url=${encodeURIComponent(info.thumbnailUrl)}`
+            : undefined;
+
+          const realTitle = info.title && !info.title.toLowerCase().includes('instagram video')
+            ? cleanAndDecodeTitle(info.title)
+            : `Instagram Reel (${shortcode})`;
+
+          const realAuthor = info.author
+            ? (info.author.startsWith('@') ? info.author : `@${info.author}`)
+            : 'Information unavailable';
+
+          const result: MediaMetadata = {
+            ...info,
+            id: shortcode,
+            platform: 'instagram',
+            title: realTitle,
+            author: realAuthor,
+            thumbnailUrl: proxiedThumb,
+            sourceUrl: resolvedUrl,
+            requiresProviderSetup: false,
+          };
+
+          setCachedMedia(resolvedUrl, result);
+          setCachedMedia(rawUrl, result);
+          setCachedMedia(shortcode, result);
+          return result;
+        }
+      } catch (ytErr: unknown) {
+        const error = ytErr as Error;
+        logger.warn('Instagram yt-dlp extraction note, trying web extractors:', { msg: error.message });
+      }
+    }
+
+    // 2. High-Speed API Extractor (GetMyFB multi-platform)
     const getmyfb = await this.extractGetMyFB(resolvedUrl).catch(() => null);
     if (getmyfb && (getmyfb.hdUrl || getmyfb.sdUrl)) {
       const bestUrl = getmyfb.hdUrl || getmyfb.sdUrl!;
@@ -250,15 +291,6 @@ export class InstagramAdapter extends MediaProvider {
           hasAudio: true,
           hasVideo: true,
           downloadUrl: getmyfb.hdUrl || bestUrl,
-        },
-        {
-          id: '720p',
-          format: 'mp4',
-          quality: '720p HD (Standard HD)',
-          resolution: '720x1280',
-          hasAudio: true,
-          hasVideo: true,
-          downloadUrl: bestUrl,
         },
         {
           id: 'sd',
@@ -283,7 +315,7 @@ export class InstagramAdapter extends MediaProvider {
         id: shortcode,
         platform: 'instagram',
         title: getmyfb.title || `Instagram Reel (${shortcode})`,
-        author: 'Instagram Creator',
+        author: 'Information unavailable',
         thumbnailUrl: getmyfb.thumb ? `/api/thumbnail?url=${encodeURIComponent(getmyfb.thumb)}` : undefined,
         sourceUrl: resolvedUrl,
         formats,
@@ -296,7 +328,7 @@ export class InstagramAdapter extends MediaProvider {
       return result;
     }
 
-    // 1. High-Performance Serverless Extractor: snapsave (extracts real HD video & thumbnail in <2s)
+    // 3. Fallback serverless extractor: snapsave
     try {
       const snapItems = await extractSnapSave(resolvedUrl);
       if (snapItems && snapItems.length > 0) {
@@ -320,19 +352,7 @@ export class InstagramAdapter extends MediaProvider {
           };
         });
 
-        // Add 720p / 360p aliases and MP3 audio
         if (bestItem.url) {
-          if (!formats.some((f) => f.id === '720p')) {
-            formats.push({
-              id: '720p',
-              format: 'mp4',
-              quality: '720p HD (Standard HD)',
-              resolution: '720x1280',
-              hasAudio: true,
-              hasVideo: true,
-              downloadUrl: bestItem.url,
-            });
-          }
           formats.push({
             id: 'mp3',
             format: 'mp3',
@@ -343,13 +363,11 @@ export class InstagramAdapter extends MediaProvider {
           });
         }
 
-        const cleanTitle = `Instagram Reel (${shortcode})`;
-
         const result: MediaMetadata = {
           id: shortcode,
           platform: 'instagram',
-          title: cleanTitle,
-          author: 'Instagram Creator',
+          title: `Instagram Reel (${shortcode})`,
+          author: 'Information unavailable',
           thumbnailUrl,
           sourceUrl: resolvedUrl,
           formats,
@@ -361,69 +379,46 @@ export class InstagramAdapter extends MediaProvider {
         setCachedMedia(shortcode, result);
         return result;
       }
-    } catch (err: any) {
-      logger.warn('Instagram snapsave extraction error', { msg: err.message });
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('Instagram snapsave extraction error', { msg: error.message });
     }
 
-    // 2. Fallback scrape metadata
+    // 4. Fallback scrape metadata
     const meta = await this.scrapeInstagramMetadata(shortcode, resolvedUrl);
-
-    const isReel = resolvedUrl.includes('/reel');
-    const title = meta.title || (isReel ? `Instagram Reel (${shortcode})` : `Instagram Post (${shortcode})`);
-    const author = meta.author || 'Instagram Creator';
-    // If thumbnail was found, wrap with thumbnail proxy to avoid cross-origin 403 blocks
+    const title = meta.title || `Instagram Reel (${shortcode})`;
+    const author = meta.author || 'Information unavailable';
     const rawThumbnail = meta.thumbnailUrl;
     const thumbnailUrl = rawThumbnail
       ? `/api/thumbnail?url=${encodeURIComponent(rawThumbnail)}`
       : undefined;
 
-    const formats: MediaFormat[] = [
-      {
+    const formats: MediaFormat[] = [];
+    if (meta.directVideoUrl) {
+      formats.push({
         id: 'hd',
         format: 'mp4',
-        quality: '1080p HD (High Definition)',
-        resolution: '1080x1920',
-        hasAudio: true,
-        hasVideo: true,
-        downloadUrl: meta.directVideoUrl,
-      },
-      {
-        id: '720p',
-        format: 'mp4',
-        quality: '720p HD (Standard HD)',
+        quality: '720p HD (High Definition)',
         resolution: '720x1280',
         hasAudio: true,
         hasVideo: true,
         downloadUrl: meta.directVideoUrl,
-      },
-      {
-        id: 'sd',
-        format: 'mp4',
-        quality: 'SD Quality (Fast Download)',
-        resolution: '480x854',
-        hasAudio: true,
-        hasVideo: true,
-        downloadUrl: meta.directVideoUrl,
-      },
-      {
+      });
+      formats.push({
         id: 'mp3',
         format: 'mp3',
         quality: 'Original Audio (MP3)',
         hasAudio: true,
         hasVideo: false,
         downloadUrl: meta.directVideoUrl,
-      },
-    ];
-
-    const textMatches = (title || '').match(/#([a-zA-Z0-9_\u0600-\u06FF]+)/g) || [];
-    const hashtags = Array.from(new Set(textMatches));
+      });
+    }
 
     const result: MediaMetadata = {
       id: shortcode,
       platform: 'instagram',
       title,
       description: title,
-      hashtags,
       author,
       thumbnailUrl,
       sourceUrl: resolvedUrl,
@@ -444,9 +439,8 @@ export class InstagramAdapter extends MediaProvider {
 
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
-    const cleanTitle = (media.title || 'Instagram_Video')
-      .replace(/[/\\?%*:|"<>]/g, '_')
-      .trim();
+    const ext = isMp3 ? 'mp3' : 'mp4';
+    const cleanTitle = sanitizeFilename(media.title || 'Instagram_Video', ext);
 
     // 1. If format has directVideoUrl or prepared download URL, proxy it safely with attachment header
     const format = media.formats.find((f) => f.id === formatId);
@@ -457,7 +451,6 @@ export class InstagramAdapter extends MediaProvider {
       if (anyFmtWithUrl) {
         directUrl = anyFmtWithUrl.downloadUrl;
       } else {
-        // Re-scrape with full timeout in case first pass was incomplete
         const shortcode = this.extractShortcode(media.sourceUrl) || media.id;
         const freshMeta = await this.scrapeInstagramMetadata(shortcode, media.sourceUrl);
         if (freshMeta.directVideoUrl) {
@@ -467,9 +460,9 @@ export class InstagramAdapter extends MediaProvider {
     }
 
     if (directUrl && directUrl.startsWith('http')) {
-      const safeUrl = directUrl.startsWith('/api/download/file')
+      const safeUrl = directUrl.startsWith('/api/download/file') || directUrl.startsWith('/api/download/serve')
         ? directUrl
-        : `/api/download/file?url=${encodeURIComponent(directUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+        : `/api/download/file?url=${encodeURIComponent(directUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
       return {
         success: true,
         downloadUrl: safeUrl,
@@ -488,14 +481,14 @@ export class InstagramAdapter extends MediaProvider {
       };
     }
 
-    // 3. Try yt-dlp direct stream extraction (FAST: 1-2 seconds, zero ffmpeg overhead)
+    // 3. Try yt-dlp direct stream or downloadMedia
     if (ytDlpRunner.isAvailable()) {
       try {
         const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
         if (streamUrl && streamUrl.startsWith('http')) {
           const safeUrl = `/api/download/file?url=${encodeURIComponent(
             streamUrl
-          )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+          )}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
           igStreamCache.set(cacheKey, {
             url: safeUrl,
             expiry: Date.now() + 2 * 60 * 60 * 1000,
@@ -506,8 +499,9 @@ export class InstagramAdapter extends MediaProvider {
             message: 'Direct media download prepared successfully.',
           };
         }
-      } catch (err: any) {
-        logger.warn('Instagram yt-dlp getStreamUrl failed, trying downloadMedia', { msg: err.message });
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.warn('Instagram yt-dlp getStreamUrl failed, trying downloadMedia', { msg: error.message });
       }
 
       try {
@@ -515,7 +509,7 @@ export class InstagramAdapter extends MediaProvider {
         if (localPath) {
           igStreamCache.set(cacheKey, {
             url: localPath,
-            expiry: Date.now() + 6 * 60 * 60 * 1000,
+            expiry: Date.now() + 20 * 60 * 1000,
           });
           return {
             success: true,
@@ -523,77 +517,11 @@ export class InstagramAdapter extends MediaProvider {
             message: 'Direct media file prepared successfully.',
           };
         }
-      } catch (err: any) {
-        logger.warn('Instagram yt-dlp download attempt', { msg: err.message });
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.warn('Instagram yt-dlp download attempt', { msg: error.message });
       }
     }
-
-    // 4. Fast conversion probe via loader.to (max 4 fast checks)
-    try {
-      const convFormat = isMp3 ? 'mp3' : formatId.includes('1080') ? '1080' : '720';
-      const initRes = await fetch(
-        `https://loader.to/ajax/download.php?button=1&start=1&end=1&format=${convFormat}&url=${encodeURIComponent(
-          media.sourceUrl
-        )}`,
-        {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            Referer: 'https://loader.to/',
-          },
-          signal: AbortSignal.timeout(4000),
-        }
-      );
-
-      const init = await initRes.json();
-      if (init.download_url) {
-        const safeUrl = `/api/download/file?url=${encodeURIComponent(
-          init.download_url
-        )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
-        igStreamCache.set(cacheKey, {
-          url: safeUrl,
-          expiry: Date.now() + 2 * 60 * 60 * 1000,
-        });
-        return {
-          success: true,
-          downloadUrl: safeUrl,
-          message: 'Direct media file prepared successfully.',
-        };
-      }
-
-      if (init.id) {
-        const progressUrl =
-          init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
-
-        for (let attempt = 0; attempt < 5; attempt++) {
-          await new Promise((r) => setTimeout(r, 400));
-          try {
-            const pRes = await fetch(progressUrl, {
-              headers: { 'User-Agent': 'Mozilla/5.0' },
-              signal: AbortSignal.timeout(2000),
-            });
-            const pData = await pRes.json();
-            if (pData.text === 'Failed' || pData.success === -1) {
-              break;
-            }
-            if (pData.success === 1 && pData.download_url) {
-              const safeUrl = `/api/download/file?url=${encodeURIComponent(
-                pData.download_url
-              )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
-              igStreamCache.set(cacheKey, {
-                url: safeUrl,
-                expiry: Date.now() + 2 * 60 * 60 * 1000,
-              });
-              return {
-                success: true,
-                downloadUrl: safeUrl,
-                message: 'Direct media file prepared successfully.',
-              };
-            }
-          } catch {}
-        }
-      }
-    } catch {}
 
     throw new Error('Unable to extract Instagram video stream. Meta requires public posts or active browser cookies (place cookies.txt into the bin folder for unrestricted downloads).');
   }

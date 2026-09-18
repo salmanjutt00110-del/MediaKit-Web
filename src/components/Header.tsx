@@ -33,6 +33,9 @@ export default function Header() {
   };
 
   const scrollToTop = (e: React.MouseEvent) => {
+    if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+      return; // Allow standard router navigation to home
+    }
     e.preventDefault();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setActiveNav('home');

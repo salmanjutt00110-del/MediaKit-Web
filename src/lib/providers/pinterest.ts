@@ -1,7 +1,7 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
-import { cleanAndDecodeTitle } from '../string-utils';
+import { cleanAndDecodeTitle, sanitizeFilename } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
 
 interface PinterestCacheEntry {
@@ -9,7 +9,6 @@ interface PinterestCacheEntry {
   expiresAt: number;
 }
 const pinMediaCache = new Map<string, PinterestCacheEntry>();
-const pinStreamCache = new Map<string, { url: string; expiry: number }>();
 
 function getCachedMedia(key: string): MediaMetadata | null {
   const entry = pinMediaCache.get(key);
@@ -64,19 +63,18 @@ export class PinterestAdapter extends MediaProvider {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
         },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(6000),
       });
 
-      if (response.url && response.url.includes('/pin/')) {
+      if (response.url && response.url !== rawUrl && !response.url.includes('pin.it')) {
         return response.url;
       }
 
-      // Check HTML for deep alternate / canonical pin link
       const text = await response.text();
       const pinMatch =
-        text.match(/href=["'](android-app:\/\/com\.pinterest\/pinterest\/pin\/[0-9]+)["']/i) ||
+        text.match(/href=["'](https?:\/\/(?:www\.)?pinterest\.[a-z.]+\/pin\/[0-9]+(?:\/|\?[^"']*)?)["']/i) ||
+        text.match(/content=["'](https?:\/\/(?:www\.)?pinterest\.[a-z.]+\/pin\/[0-9]+(?:\/|\?[^"']*)?)["']/i) ||
         text.match(/href=["'](ios-app:\/\/429047995\/pinterest\/pin\/[0-9]+)["']/i) ||
         text.match(/https?:\/\/(?:www\.)?pinterest\.[a-z.]+\/pin\/([0-9]+)/i) ||
         text.match(/url=(https%3A%2F%2F[^\s"&]+pinterest\.[a-z.]+%2Fpin%2F[0-9]+)/i);
@@ -95,8 +93,9 @@ export class PinterestAdapter extends MediaProvider {
       if (response.url && /\/pin\/[0-9]+/i.test(response.url)) {
         return response.url;
       }
-    } catch (err: any) {
-      logger.warn('Pinterest resolve canonical URL warning', { msg: err.message, rawUrl });
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('Pinterest resolve canonical URL warning', { msg: error.message, rawUrl });
     }
 
     return rawUrl;
@@ -109,9 +108,6 @@ export class PinterestAdapter extends MediaProvider {
     return generalMatch ? generalMatch[0] : null;
   }
 
-  /**
-   * Fast HTML, HLS & JSON-LD Scraper for Pinterest Videos
-   */
   private async scrapePinterest(url: string): Promise<{
     title?: string;
     author?: string;
@@ -119,93 +115,95 @@ export class PinterestAdapter extends MediaProvider {
     directVideoUrl?: string;
   }> {
     try {
-      const response = await fetch(url, {
+      const res = await fetch(url, {
         headers: {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          Accept:
-            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(7000),
       });
 
-      if (!response.ok) return {};
+      if (!res.ok) {
+        return {};
+      }
 
-      const html = await response.text();
+      const html = await res.text();
 
-      // 1. Direct video URL in OpenGraph or video tag
+      // 1. Direct regex for V_720P mp4 or similar
       let directVideoUrl: string | undefined;
-      const ogVideo =
-        html.match(/property="og:video"[^>]+content="([^"]+)"/i) ||
-        html.match(/content="([^"]+)"[^>]+property="og:video"/i) ||
-        html.match(/property="og:video:secure_url"[^>]+content="([^"]+)"/i) ||
-        html.match(/<video[^>]+src="([^"]+)"/i);
+      const v720Match = html.match(/https?:\/\/[^"'\s<>]+?\/v_720p\/[^"'\s<>]+\.mp4/i);
+      const vHlsMatch = html.match(/https?:\/\/[^"'\s<>]+?\/v_exp[0-9a-zA-Z]+\/[^"'\s<>]+\.mp4/i);
+      const vGeneralMatch = html.match(/https?:\/\/[^"'\s<>]+?\/video\/[^"'\s<>]+\.mp4/i);
+      const generalMp4 = html.match(/https?:\/\/(?:v1\.pinimg\.com|v\.pinimg\.com)\/[^"'\s<>]+\.mp4/i);
 
-      if (ogVideo) {
-        directVideoUrl = ogVideo[1].replace(/&amp;/g, '&');
+      if (v720Match) {
+        directVideoUrl = v720Match[0];
+      } else if (vHlsMatch) {
+        directVideoUrl = vHlsMatch[0];
+      } else if (vGeneralMatch) {
+        directVideoUrl = vGeneralMatch[0];
+      } else if (generalMp4) {
+        directVideoUrl = generalMp4[0];
       }
 
-      // 2. Search JSON / script tags for .mp4 URLs on (v|v1|v2).pinimg.com
+      // 2. Extract from JSON-LD script
       if (!directVideoUrl) {
-        const vPinMatch =
-          html.match(/https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^\s"'\\]+\.mp4/i) ||
-          html.match(/"url"\s*:\s*"(https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^"]+\.mp4)"/i) ||
-          html.match(/"contentUrl"\s*:\s*"(https?:\/\/[^"]+\.mp4)"/i);
-        if (vPinMatch) {
-          directVideoUrl = (vPinMatch[1] || vPinMatch[0]).replace(/\\u0026/g, '&').replace(/\\/g, '');
-        }
-      }
-
-      // 3. Search for HLS .m3u8 URLs and convert to 720p MP4
-      if (!directVideoUrl) {
-        const m3u8Match =
-          html.match(/https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^\s"'\\]+\.m3u8/i) ||
-          html.match(/"url"\s*:\s*"(https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^"]+\.m3u8)"/i);
-        if (m3u8Match) {
-          const rawM3u8 = (m3u8Match[1] || m3u8Match[0]).replace(/\\u0026/g, '&').replace(/\\/g, '');
-          directVideoUrl = rawM3u8.replace(/\/hls\//g, '/720p/').replace(/\.m3u8/g, '.mp4');
-        }
-      }
-
-      // 4. Search embedded JSON in __PWS_DATA__
-      if (!directVideoUrl) {
-        const pwsMatches = html.match(/<script id="__PWS_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
-        if (pwsMatches) {
-          const rawPws = pwsMatches[1];
-          const mp4InPws = rawPws.match(/https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^\s"'\\]+\.mp4/i);
-          if (mp4InPws) {
-            directVideoUrl = mp4InPws[0].replace(/\\u0026/g, '&').replace(/\\/g, '');
-          } else {
-            const m3u8InPws = rawPws.match(/https?:\/\/(?:v|v1|v2)\.pinimg\.com\/videos\/[^\s"'\\]+\.m3u8/i);
-            if (m3u8InPws) {
-              directVideoUrl = m3u8InPws[0].replace(/\\u0026/g, '&').replace(/\\/g, '').replace(/\/hls\//g, '/720p/').replace(/\.m3u8/g, '.mp4');
+        const jsonLdMatches = html.matchAll(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
+        for (const match of jsonLdMatches) {
+          try {
+            const data = JSON.parse(match[1]);
+            if (data['@type'] === 'VideoObject' || data.contentUrl) {
+              if (data.contentUrl && data.contentUrl.endsWith('.mp4')) {
+                directVideoUrl = data.contentUrl;
+                break;
+              }
             }
-          }
+          } catch {}
+        }
+      }
+
+      // 3. Extract from Redux / Relay initial state script
+      if (!directVideoUrl) {
+        const relayMatch = html.match(/"url":"(https:\/\/[^"]+?\.mp4)"/i);
+        if (relayMatch) {
+          directVideoUrl = relayMatch[1].replace(/\\u0026/g, '&').replace(/\\\//g, '/');
+        }
+      }
+
+      // 4. Extract og:video
+      if (!directVideoUrl) {
+        const ogVideo =
+          html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||
+          html.match(/<meta\s+name="og:video"\s+content="([^"]+)"/i) ||
+          html.match(/content="([^"]+)"\s+property="og:video"/i);
+        if (ogVideo && ogVideo[1].includes('.mp4')) {
+          directVideoUrl = ogVideo[1];
         }
       }
 
       // 5. Extract title
       let title: string | undefined;
       const ogTitle =
-        html.match(/property="og:title"[^>]+content="([^"]+)"/i) ||
-        html.match(/content="([^"]+)"[^>]+property="og:title"/i) ||
+        html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+        html.match(/<meta\s+name="title"\s+content="([^"]+)"/i) ||
         html.match(/<title>([^<]+)<\/title>/i);
       if (ogTitle) {
-        const rawTitle = ogTitle[1].replace(/\|\s*Pinterest.*$/i, '').trim();
-        if (rawTitle && !rawTitle.toLowerCase().includes('pinterest')) {
-          title = cleanAndDecodeTitle(rawTitle);
-        }
+        title = cleanAndDecodeTitle(ogTitle[1]);
       }
 
       // 6. Extract thumbnail
       let thumbnailUrl: string | undefined;
       const ogImage =
-        html.match(/property="og:image"[^>]+content="([^"]+)"/i) ||
-        html.match(/content="([^"]+)"[^>]+property="og:image"/i) ||
-        html.match(/https?:\/\/i\.pinimg\.com\/(?:originals|736x|564x)\/[^\s"'\\]+\.(?:jpg|jpeg|png|webp)/i);
+        html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
+        html.match(/<meta\s+name="og:image"\s+content="([^"]+)"/i) ||
+        html.match(/content="([^"]+)"\s+property="og:image"/i) ||
+        html.match(/"image_cover_url":\s*"([^"]+)"/i) ||
+        html.match(/"thumbnail_url":\s*"([^"]+)"/i);
       if (ogImage) {
-        const found = (ogImage[1] || ogImage[0]).replace(/&amp;/g, '&').replace(/\\/g, '');
+        const found = ogImage[1].replace(/&amp;/g, '&').replace(/\\\//g, '/');
         if (
           !found.includes('facebook_share_image') &&
           !found.includes('default_avatar') &&
@@ -226,8 +224,9 @@ export class PinterestAdapter extends MediaProvider {
       }
 
       return { title, author, thumbnailUrl, directVideoUrl };
-    } catch (err: any) {
-      logger.warn('Pinterest scrape warning', { msg: err.message, url });
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('Pinterest scrape warning', { msg: error.message, url });
     }
 
     return {};
@@ -266,8 +265,9 @@ export class PinterestAdapter extends MediaProvider {
             }
           }
         }
-      } catch (err: any) {
-        logger.info('Pinterest yt-dlp info fallback', { msg: err.message });
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.info('Pinterest yt-dlp info fallback note:', { msg: error.message });
       }
     }
 
@@ -278,21 +278,15 @@ export class PinterestAdapter extends MediaProvider {
     }
 
     const cleanTitle = title || `Pinterest Video (${pinId})`;
+    const proxiedThumb = thumbnailUrl
+      ? `/api/thumbnail?url=${encodeURIComponent(thumbnailUrl)}`
+      : undefined;
 
     const formats: MediaFormat[] = [
       {
         id: 'hd',
         format: 'mp4',
-        quality: '1080p HD (High Definition)',
-        resolution: '1080x1920',
-        hasAudio: true,
-        hasVideo: true,
-        downloadUrl: directVideo,
-      },
-      {
-        id: '720p',
-        format: 'mp4',
-        quality: '720p HD (Standard HD)',
+        quality: '720p HD (High Definition)',
         resolution: '720x1280',
         hasAudio: true,
         hasVideo: true,
@@ -321,9 +315,8 @@ export class PinterestAdapter extends MediaProvider {
       id: pinId,
       platform: 'pinterest',
       title: cleanTitle,
-      description: cleanTitle,
       author,
-      thumbnailUrl,
+      thumbnailUrl: proxiedThumb,
       sourceUrl: resolvedUrl,
       formats,
       requiresProviderSetup: false,
@@ -342,10 +335,8 @@ export class PinterestAdapter extends MediaProvider {
 
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
-    const cleanTitle = (media.title || 'Pinterest_Video')
-      .replace(/[/\\?%*:|"<>]/g, '_')
-      .trim();
-    const cacheKey = `pin_${media.id}_${formatId}`;
+    const ext = isMp3 ? 'mp3' : 'mp4';
+    const cleanTitle = sanitizeFilename(media.title || 'Pinterest_Video', ext);
 
     // 1. Direct video URL if available
     const format = media.formats.find((f) => f.id === formatId);
@@ -361,7 +352,7 @@ export class PinterestAdapter extends MediaProvider {
     if (directUrl && directUrl.startsWith('http')) {
       const proxyPath = `/api/download/file?url=${encodeURIComponent(
         directUrl
-      )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+      )}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
       return {
         success: true,
         downloadUrl: proxyPath,
@@ -376,20 +367,19 @@ export class PinterestAdapter extends MediaProvider {
         if (streamUrl && streamUrl.startsWith('http')) {
           const proxyPath = `/api/download/file?url=${encodeURIComponent(
             streamUrl
-          )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+          )}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
           return {
             success: true,
             downloadUrl: proxyPath,
             message: 'Direct stream prepared successfully.',
           };
         }
-      } catch (err: any) {
-        logger.warn('Pinterest yt-dlp getStreamUrl warning', { msg: err.message });
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.warn('Pinterest yt-dlp getStreamUrl warning', { msg: error.message });
       }
-    }
 
-    // 3. Fallback to yt-dlp downloadMedia
-    if (ytDlpRunner.isAvailable()) {
+      // 3. Fallback to yt-dlp downloadMedia
       try {
         const localPath = await ytDlpRunner.downloadMedia(media, formatId);
         if (localPath) {
@@ -399,8 +389,9 @@ export class PinterestAdapter extends MediaProvider {
             message: 'Direct media file prepared successfully.',
           };
         }
-      } catch (err: any) {
-        logger.warn('Pinterest yt-dlp downloadMedia error', { msg: err.message });
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.warn('Pinterest yt-dlp downloadMedia error', { msg: error.message });
       }
     }
 

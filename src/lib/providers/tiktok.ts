@@ -1,6 +1,7 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { logger } from '../logger';
+import { sanitizeFilename } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
 
 interface CacheEntry {
@@ -28,6 +29,23 @@ function setInCache(key: string, data: MediaMetadata) {
     const firstKey = mediaCache.keys().next().value;
     if (firstKey) mediaCache.delete(firstKey);
   }
+}
+
+interface TikWMData {
+  id?: string | number;
+  title?: string;
+  cover?: string;
+  origin_cover?: string;
+  duration?: number;
+  play?: string;
+  hdplay?: string;
+  music?: string;
+  author?: {
+    id?: string;
+    unique_id?: string;
+    nickname?: string;
+    avatar?: string;
+  };
 }
 
 export class TikTokAdapter extends MediaProvider {
@@ -154,8 +172,9 @@ export class TikTokAdapter extends MediaProvider {
         musicUrl,
         duration,
       };
-    } catch (err: any) {
-      logger.warn('TikTok Universal Data extraction error', err.message);
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('TikTok Universal Data extraction error', { msg: error.message });
       return null;
     }
   }
@@ -167,8 +186,9 @@ export class TikTokAdapter extends MediaProvider {
     if (!ytDlpRunner.isAvailable()) return null;
     try {
       return await ytDlpRunner.getMediaInfo(url);
-    } catch (err: any) {
-      logger.warn('TikTok yt-dlp extraction warning', err.message);
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('TikTok yt-dlp extraction warning', { msg: error.message });
       return null;
     }
   }
@@ -176,7 +196,7 @@ export class TikTokAdapter extends MediaProvider {
   /**
    * Tier 3: TikWM public API fallback
    */
-  private async fetchTikWM(url: string, rawUrl?: string): Promise<any | null> {
+  private async fetchTikWM(url: string, rawUrl?: string): Promise<TikWMData | null> {
     const urlsToTry = [url];
     if (rawUrl && rawUrl !== url) urlsToTry.push(rawUrl);
 
@@ -193,7 +213,7 @@ export class TikTokAdapter extends MediaProvider {
         if (res.ok) {
           const data = await res.json();
           if (data.code === 0 && data.data) {
-            return data.data;
+            return data.data as TikWMData;
           }
         }
       } catch {}
@@ -369,13 +389,12 @@ export class TikTokAdapter extends MediaProvider {
 
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
-    const cleanTitle = (media.title || 'TikTok_Video')
-      .replace(/[/\\?%*:|"<>]/g, '_')
-      .trim();
+    const ext = isMp3 ? 'mp3' : 'mp4';
+    const cleanTitle = sanitizeFilename(media.title || 'TikTok_Video', ext);
 
     const wrapProxy = (rawUrl: string) => {
-      if (rawUrl.startsWith('/api/download/file')) return rawUrl;
-      return `/api/download/file?url=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+      if (rawUrl.startsWith('/api/download/file') || rawUrl.startsWith('/api/download/serve')) return rawUrl;
+      return `/api/download/file?url=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
     };
 
     // 1. Direct return if format already has prepared download URL
@@ -419,7 +438,7 @@ export class TikTokAdapter extends MediaProvider {
     // 4. Fallback to TikWM (Tier 3)
     const tikwmData = await this.fetchTikWM(resolvedUrl, media.sourceUrl);
     if (tikwmData) {
-      const dlUrl = isMp3 ? tikwmData.music : (tikwmData.hdplay || tikwmData.play);
+      const dlUrl = isMp3 ? (tikwmData.music as string) : ((tikwmData.hdplay as string) || (tikwmData.play as string));
       if (dlUrl) {
         if (format) format.downloadUrl = dlUrl;
         return {
@@ -437,12 +456,13 @@ export class TikTokAdapter extends MediaProvider {
         if (streamUrl) {
           return {
             success: true,
-            downloadUrl: streamUrl,
+            downloadUrl: wrapProxy(streamUrl),
             message: 'Direct media stream prepared successfully.',
           };
         }
-      } catch (err: any) {
-        logger.warn('TikTok yt-dlp stream extraction failed', err.message);
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.warn('TikTok yt-dlp stream extraction failed', { msg: error.message });
       }
     }
 

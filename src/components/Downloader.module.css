@@ -563,37 +563,28 @@
     padding: 8px 0 24px 0;
   }
 
-  .downloaderCard {
-    border-radius: var(--radius-lg);
-    flex-wrap: wrap;
-    padding: 14px 16px;
-    gap: 8px;
-    box-shadow: 0 8px 24px -4px rgba(37, 99, 235, 0.12),
-                0 0 30px rgba(236, 72, 153, 0.06);
-  }
-
-  .linkIcon {
-    display: none;
+  .inputCapsule {
+    height: 50px;
+    padding: 4px 12px 4px 16px;
+    gap: 10px;
   }
 
   .urlInput {
-    font-size: 0.95rem;
-    padding: 10px 0;
+    font-size: 0.92rem;
     width: 100%;
   }
 
   .downloadBtn {
     width: 100%;
-    margin-top: 4px;
-    padding: 12px 24px;
-    font-size: 1rem;
-    border-radius: var(--radius-md);
+    height: 50px;
+    font-size: 1.02rem;
+    border-radius: var(--radius-full);
   }
 
   .clearBtn,
   .pasteBtn {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
   }
 
   .errorAlert {
@@ -606,29 +597,66 @@
     flex-direction: column;
     align-items: flex-start;
   }
-
-  .loadingStageBar {
-    margin-top: 10px;
-    padding: 6px 14px;
-  }
-
-  .stageText {
-    font-size: 0.8rem;
-  }
 }
 
-@media (max-width: 420px) {
-  .downloaderCard {
-    padding: 12px 12px;
+@media (max-width: 480px) {
+  .modeTabsCapsule {
+    width: 100%;
+    justify-content: center;
+    max-width: 350px;
   }
 
-  .downloadBtn {
-    padding: 11px 20px;
-    font-size: 0.95rem;
+  .modeTab {
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    gap: 4px;
+  }
+
+  .modeBadgePill {
+    padding: 2px 7px;
+    font-size: 0.62rem;
+  }
+
+  .inputCapsule {
+    height: 48px;
+    padding: 4px 10px 4px 14px;
   }
 
   .urlInput {
     font-size: 0.88rem;
+  }
+
+  .downloadBtn {
+    height: 48px;
+    font-size: 0.98rem;
+    border-radius: var(--radius-full);
+  }
+}
+
+@media (max-width: 360px) {
+  .modeTab {
+    padding: 5px 8px;
+    font-size: 0.74rem;
+    gap: 4px;
+  }
+
+  .modeBadgePill {
+    display: none;
+  }
+
+  .inputCapsule {
+    padding: 4px 6px 4px 10px;
+    height: 46px;
+  }
+
+  .urlInput {
+    font-size: 0.82rem;
+  }
+
+  .downloadBtn {
+    height: 46px;
+    font-size: 0.92rem;
+    border-radius: var(--radius-full);
   }
 }
 
@@ -713,83 +741,122 @@
   color: var(--text-secondary);
 }
 
-/* Sleek Download Started Banner — Compact & Non-Intrusive */
-.downloadCompleteCard {
+/* Premium International SaaS Download Completion Notification */
+.completionBanner {
   background: var(--bg-surface);
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  box-shadow: 0 6px 20px -4px rgba(16, 185, 129, 0.12);
-  border-radius: 16px;
-  padding: 14px 18px;
-  margin-top: 16px;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.12), 0 2px 6px rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  margin-top: 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   animation: fadeIn 0.25s ease-out;
   flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-:global([data-theme='dark']) .downloadCompleteCard {
-  background: rgba(15, 23, 42, 0.7);
-  border-color: rgba(16, 185, 129, 0.35);
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35);
+:global([data-theme='dark']) .completionBanner {
+  background: rgba(15, 23, 42, 0.85);
+  border-color: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.45);
 }
 
-.completeHeader {
+.completionMain {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.completionStatusRow {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 240px;
+  gap: 8px;
 }
 
-.completeHeaderIcon {
-  color: #10b981;
+.completionCheckIcon {
+  color: #ffffff;
+  background: #10b981;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(16, 185, 129, 0.14);
   flex-shrink: 0;
 }
 
-.completeTextGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.completionStatusTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #059669;
+  letter-spacing: 0.01em;
 }
 
-.completeTitle {
-  font-size: 0.92rem;
-  font-weight: 700;
+:global([data-theme='dark']) .completionStatusTitle {
+  color: #34d399;
+}
+
+.completionDismissBtn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+}
+
+.completionDismissBtn:hover {
+  background: var(--bg-subtle);
   color: var(--text-primary);
 }
 
-.completeSubtext {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+.completionFilename {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
   line-height: 1.35;
-  margin: 0;
-  max-width: 440px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 440px;
 }
 
-.completeSubtext strong {
-  color: var(--text-primary);
-}
-
-.completeActions {
+.completionMetaRow {
   display: flex;
-  gap: 8px;
   align-items: center;
-  flex-shrink: 0;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
-.actionBtnPrimary {
+.completionMetaItem {
+  color: var(--text-secondary);
+}
+
+.completionMetaDot {
+  color: var(--text-muted);
+}
+
+.completionActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.completionBtnPrimary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -802,15 +869,15 @@
   border: none;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
 }
 
-.actionBtnPrimary:hover {
+.completionBtnPrimary:hover {
   background: var(--brand-blue-hover);
   transform: translateY(-1px);
 }
 
-.actionBtnSecondary {
+.completionBtnSecondary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -822,254 +889,32 @@
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
 }
 
-.actionBtnSecondary:hover {
+.completionBtnSecondary:hover {
   background: var(--bg-subtle-hover);
   border-color: var(--brand-blue-border);
 }
 
-/* ==========================================================================
-   MODE SWITCHER TABS (Single vs Batch)
-   ========================================================================== */
-.modeTabsWrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 22px;
-}
-
-.modeTab {
+.completionBtnGhost {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 22px;
-  border-radius: var(--radius-full);
-  font-size: 0.95rem;
-  font-weight: 600;
+  gap: 6px;
+  background: transparent;
   color: var(--text-secondary);
-  background: var(--bg-surface);
-  border: 1.5px solid var(--border-light);
-  cursor: pointer;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: var(--shadow-sm);
-}
-
-.modeTab:hover {
-  color: var(--text-primary);
-  border-color: var(--brand-blue-border);
-  transform: translateY(-1px);
-}
-
-.modeTabActive {
-  background: var(--brand-blue);
-  color: #ffffff !important;
-  border-color: var(--brand-blue);
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
-}
-
-.modeTabActive:hover {
-  background: var(--brand-blue-hover);
-  border-color: var(--brand-blue-hover);
-}
-
-.modeBadge {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  padding: 3px 8px;
+  border: 1px solid transparent;
+  padding: 8px 12px;
   border-radius: var(--radius-full);
-  background: rgba(238, 242, 255, 0.95);
-  color: var(--brand-blue);
-  border: 1px solid rgba(199, 210, 254, 0.8);
-}
-
-.modeTabActive .modeBadge {
-  background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.35);
-}
-
-/* ==========================================================================
-   SLEEK DYNAMIC ISLAND FLOATING NOTIFICATION TOAST
-   ========================================================================== */
-.downloadToast {
-  position: fixed;
-  top: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 99999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
-  max-width: 92vw;
-  animation: toastEntrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.toastPill {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 14px 6px 10px;
-  background: rgba(15, 23, 42, 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(59, 130, 246, 0.35);
-  border-radius: var(--radius-full);
-  box-shadow: 0 12px 32px -6px rgba(0, 0, 0, 0.45),
-              0 0 20px rgba(37, 99, 235, 0.2);
-  color: #ffffff;
-  max-width: min(440px, 92vw);
-}
-
-:global([data-theme='light']) .toastPill {
-  background: rgba(15, 23, 42, 0.94);
-  color: #ffffff;
-  border-color: rgba(59, 130, 246, 0.4);
-  box-shadow: 0 14px 35px -8px rgba(15, 23, 42, 0.3),
-              0 0 22px rgba(37, 99, 235, 0.22);
-}
-
-.toastIconWrapper {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #2563eb, #06b6d4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  flex-shrink: 0;
-}
-
-.toastDownloadIcon {
-  animation: iconBounce 1.4s ease-in-out infinite;
-}
-
-.toastInfo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  flex: 1;
-}
-
-.toastTag {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(37, 99, 235, 0.35);
-  color: #93c5fd;
-  line-height: 1.2;
-  flex-shrink: 0;
-}
-
-.toastTitle {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #f8fafc;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 220px;
-}
-
-.toastActivePulse {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 8px #10b981;
-  flex-shrink: 0;
-  animation: activeDotPulse 1.2s ease-in-out infinite alternate;
-}
-
-.toastCloseBtn {
-  background: transparent;
-  border: none;
-  color: #94a3b8;
   cursor: pointer;
-  padding: 3px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
+  transition: all 0.18s ease;
 }
 
-.toastCloseBtn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-}
-
-@keyframes toastEntrance {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -24px) scale(0.96);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, 0) scale(1);
-  }
-}
-
-@keyframes toastGlowPulse {
-  0% {
-    opacity: 0.55;
-    transform: scale(0.98);
-  }
-  100% {
-    opacity: 0.85;
-    transform: scale(1.02);
-  }
-}
-
-@keyframes pulseIconBorder {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(1.25);
-    opacity: 0;
-  }
-}
-
-@keyframes iconBounce {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(2px);
-  }
-}
-
-@keyframes activeDotPulse {
-  0% {
-    opacity: 0.6;
-    transform: scale(0.9);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-}
-
-@keyframes toastMiniProgress {
-  0% {
-    left: 0%;
-  }
-  100% {
-    left: 55%;
-  }
+.completionBtnGhost:hover {
+  color: var(--text-primary);
+  background: var(--bg-subtle);
 }
 
 /* ==========================================================================
@@ -1685,5 +1530,62 @@
   }
 }
 
+@media (max-width: 480px) {
+  .downloaderSection {
+    padding: 6px 0 24px 0;
+  }
 
+  .downloaderContainer {
+    width: 100%;
+    padding: 0;
+  }
 
+  .modeTabsWrapper {
+    margin-bottom: 12px;
+    width: 100%;
+  }
+
+  .modeTabsCapsule {
+    width: 100%;
+    max-width: 350px;
+    justify-content: space-between;
+    padding: 3px;
+  }
+
+  .modeTab {
+    padding: 7px 10px;
+    font-size: 0.82rem;
+    flex: 1;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .modeBadgePill {
+    padding: 2px 6px;
+    font-size: 0.65rem;
+    margin-right: 2px;
+  }
+
+  .downloaderForm {
+    gap: 10px;
+    width: 100%;
+  }
+
+  .inputCapsule {
+    height: 50px;
+    padding: 5px 10px 5px 16px;
+    gap: 8px;
+    border-radius: var(--radius-full);
+  }
+
+  .urlInput {
+    font-size: 0.94rem;
+    padding: 6px 0;
+  }
+
+  .downloadBtn {
+    height: 50px;
+    font-size: 1.02rem;
+    border-radius: var(--radius-full);
+  }
+}

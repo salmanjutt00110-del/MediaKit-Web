@@ -1,14 +1,16 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
 import { MediaProvider, ProviderDownloadResult } from './base';
 import { ytDlpRunner } from '../ytdlp';
+import { sanitizeFilename } from '../string-utils';
+import { logger } from '../logger';
 
-// In-memory stream cache to make repeat and pre-warmed downloads instantaneous
+// In-memory stream cache to make repeat downloads instantaneous
 const youtubeStreamCache = new Map<string, { url: string; expiry: number }>();
 
-// In-memory media info cache to make subsequent format downloads instant
+// In-memory media info cache
 const youtubeMediaInfoCache = new Map<string, { info: MediaMetadata; expiry: number }>();
 
-// In-flight conversion promise map to de-duplicate simultaneous prewarm and user requests
+// In-flight conversion promise map to de-duplicate simultaneous requests
 const inFlightConversions = new Map<string, Promise<ProviderDownloadResult>>();
 
 export class YouTubeAdapter extends MediaProvider {
@@ -54,7 +56,7 @@ export class YouTubeAdapter extends MediaProvider {
       return cached.info;
     }
 
-    // 1. Primary Engine: yt-dlp local extractor
+    // 1. Primary Engine: yt-dlp native extractor
     if (ytDlpRunner.isAvailable()) {
       try {
         const info = await ytDlpRunner.getMediaInfo(url);
@@ -63,14 +65,16 @@ export class YouTubeAdapter extends MediaProvider {
           expiry: Date.now() + 15 * 60 * 1000,
         });
         return info;
-      } catch (err: any) {
-        if (err.code === 'PRIVATE_CONTENT' || err.code === 'UNAVAILABLE_CONTENT') {
+      } catch (err: unknown) {
+        const error = err as { code?: string; message?: string };
+        if (error.code === 'PRIVATE_CONTENT' || error.code === 'UNAVAILABLE_CONTENT') {
           throw err;
         }
+        logger.warn('YouTube yt-dlp getMediaInfo failed, falling back to oembed', { msg: error.message });
       }
     }
 
-    // 2. Serverless / Vercel Fallback: Extract authentic metadata via YouTube oEmbed API
+    // 2. Serverless Fallback: Extract authentic metadata via YouTube oEmbed API
     let realTitle = videoId !== 'unknown' ? `YouTube Video (${videoId})` : 'YouTube Media';
     let realAuthor: string | undefined = undefined;
     let thumbnailUrl =
@@ -85,40 +89,23 @@ export class YouTubeAdapter extends MediaProvider {
         const oembedData = await oembedRes.json();
         if (oembedData.title) realTitle = oembedData.title;
         if (oembedData.author_name) realAuthor = oembedData.author_name;
-        // Prefer maxresdefault for 16:9 HD without black letterbox bars
         thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
       }
     } catch {}
 
-    const fallbackFormats: MediaFormat[] = [
-      {
-        id: '1080p',
-        format: 'mp4',
-        quality: '1080p',
-        resolution: '1920x1080',
-        hasAudio: true,
-        hasVideo: true,
-      },
+    const dynamicFormats: MediaFormat[] = [
       {
         id: '720p',
         format: 'mp4',
-        quality: '720p',
+        quality: '720p HD (Standard HD)',
         resolution: '1280x720',
-        hasAudio: true,
-        hasVideo: true,
-      },
-      {
-        id: '480p',
-        format: 'mp4',
-        quality: '480p',
-        resolution: '854x480',
         hasAudio: true,
         hasVideo: true,
       },
       {
         id: '360p',
         format: 'mp4',
-        quality: '360p',
+        quality: '360p (Fast Download)',
         resolution: '640x360',
         hasAudio: true,
         hasVideo: true,
@@ -126,23 +113,24 @@ export class YouTubeAdapter extends MediaProvider {
       {
         id: 'mp3',
         format: 'mp3',
-        quality: '192 kbps',
-        fileSize: '4.5 MB',
+        quality: 'High Quality Audio (MP3)',
         hasAudio: true,
         hasVideo: false,
       },
     ];
 
-    return {
+    const result: MediaMetadata = {
       id: videoId,
       platform: 'youtube',
       title: realTitle,
       author: realAuthor,
       sourceUrl: url,
       thumbnailUrl,
-      formats: fallbackFormats,
+      formats: dynamicFormats,
       requiresProviderSetup: false,
     };
+
+    return result;
   }
 
   getDownloadOptions(media: MediaMetadata): MediaFormat[] {
@@ -153,33 +141,7 @@ export class YouTubeAdapter extends MediaProvider {
     const videoId = this.extractVideoId(media.sourceUrl) || media.id;
     const cacheKey = `${videoId}_${formatId}`;
 
-    // 0. If format already has a direct downloadUrl from getMediaInfo, return it immediately!
-    const matchingFormat = media.formats?.find((f) => 
-      f.id === formatId || 
-      f.quality === formatId || 
-      (formatId.includes('360') && (f.id === '18' || f.quality?.includes('360'))) ||
-      (formatId.includes('720') && (f.id === '22' || f.quality?.includes('720'))) ||
-      (formatId.toLowerCase().includes('mp3') && (f.format === 'mp3' || f.id.includes('mp3')))
-    );
-    if (matchingFormat?.downloadUrl && (matchingFormat.downloadUrl.startsWith('http://') || matchingFormat.downloadUrl.startsWith('https://') || matchingFormat.downloadUrl.startsWith('/api/'))) {
-      const isMp3 =
-        formatId.toLowerCase().includes('mp3') ||
-        formatId.toLowerCase().includes('audio') ||
-        matchingFormat.format === 'mp3';
-      const cleanTitle = (media.title || 'YouTube_Video')
-        .replace(/[/\\?%*:|"<>]/g, '_')
-        .trim();
-      const safeUrl = `/api/download/file?url=${encodeURIComponent(
-        matchingFormat.downloadUrl
-      )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
-      return {
-        success: true,
-        downloadUrl: safeUrl,
-        message: 'Instant stream retrieved from media info.',
-      };
-    }
-
-    // Instant return if stream was pre-warmed or previously fetched
+    // Instant return if stream was pre-warmed or previously generated
     const cached = youtubeStreamCache.get(cacheKey);
     if (cached && cached.expiry > Date.now()) {
       return {
@@ -189,38 +151,30 @@ export class YouTubeAdapter extends MediaProvider {
       };
     }
 
-    // 1. If yt-dlp is available (e.g. Localhost), try direct stream first!
+    // 1. Primary Engine: Full-Fidelity Merged Download via yt-dlp + FFmpeg
     if (ytDlpRunner.isAvailable()) {
       try {
-        const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
-        if (streamUrl && streamUrl.startsWith('http')) {
-          const isMp3 =
-            formatId.toLowerCase().includes('mp3') ||
-            formatId.toLowerCase().includes('audio');
-          const cleanTitle = (media.title || 'YouTube_Video')
-            .replace(/[/\\?%*:|"<>]/g, '_')
-            .trim();
-          const safeUrl = `/api/download/file?url=${encodeURIComponent(
-            streamUrl
-          )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
-
+        const serveUrl = await ytDlpRunner.downloadMedia(media, formatId);
+        if (serveUrl && (serveUrl.startsWith('/api/download/') || serveUrl.startsWith('http'))) {
           youtubeStreamCache.set(cacheKey, {
-            url: safeUrl,
-            expiry: Date.now() + 2 * 60 * 60 * 1000,
+            url: serveUrl,
+            expiry: Date.now() + 20 * 60 * 1000,
           });
 
           return {
             success: true,
-            downloadUrl: safeUrl,
-            message: 'Direct media stream prepared successfully.',
+            downloadUrl: serveUrl,
+            message: 'Media successfully processed and ready for download.',
           };
         }
-      } catch (streamErr: any) {
-        console.warn('yt-dlp getStreamUrl failed:', streamErr.message);
+      } catch (dlErr: unknown) {
+        const err = dlErr as Error;
+        logger.error('yt-dlp downloadMedia failed with error:', { msg: err.message });
+        throw err;
       }
     }
 
-    // 2. Cloud Conversion Engine (loader.to) - Handles ALL formats on Vercel / Serverless: 1080p, 720p, 480p, 360p, MP3
+    // 3. Cloud Conversion Engine (fallback for serverless / Vercel cloud environments without local FFmpeg)
     if (inFlightConversions.has(cacheKey)) {
       try {
         return await inFlightConversions.get(cacheKey)!;
@@ -245,19 +199,17 @@ export class YouTubeAdapter extends MediaProvider {
           {
             headers: {
               'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
               Referer: 'https://loader.to/',
             },
             signal: AbortSignal.timeout(10000),
           }
         );
 
-        const cleanTitle = (media.title || 'YouTube_Video')
-          .replace(/[/\\?%*:|"<>]/g, '_')
-          .trim();
+        const cleanTitle = sanitizeFilename(media.title || 'YouTube_Video', isMp3 ? 'mp3' : 'mp4');
 
         const wrapSafeUrl = (rawUrl: string) => {
-          if (rawUrl.startsWith('/api/download/file')) return rawUrl;
+          if (rawUrl.startsWith('/api/download/file') || rawUrl.startsWith('/api/download/serve')) return rawUrl;
           return `/api/download/file?url=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
         };
 
@@ -279,14 +231,14 @@ export class YouTubeAdapter extends MediaProvider {
           const progressUrl =
             init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-          // Quick poll: max 6 attempts (1s intervals) to avoid stalling
-          for (let attempt = 0; attempt < 6; attempt++) {
-            await new Promise((r) => setTimeout(r, 1000));
+          // Polling up to 15 attempts (1.2s intervals)
+          for (let attempt = 0; attempt < 15; attempt++) {
+            await new Promise((r) => setTimeout(r, 1200));
 
             try {
               const pRes = await fetch(progressUrl, {
                 headers: { 'User-Agent': 'Mozilla/5.0' },
-                signal: AbortSignal.timeout(3000),
+                signal: AbortSignal.timeout(4000),
               });
               const pData = await pRes.json();
 
@@ -309,26 +261,16 @@ export class YouTubeAdapter extends MediaProvider {
             } catch {}
           }
         }
-
-        // Fast fallback: If any format has a stream URL, use that
-        const anyFmt = media.formats?.find((f) => f.downloadUrl && f.downloadUrl.startsWith('http'));
-        if (anyFmt?.downloadUrl) {
-          const safe = wrapSafeUrl(anyFmt.downloadUrl);
-          return {
-            success: true,
-            downloadUrl: safe,
-            message: 'Direct media stream prepared successfully.',
-          };
-        }
-      } catch (e: any) {
-        console.warn('Cloud conversion failed:', e.message);
+      } catch (e: unknown) {
+        const err = e as Error;
+        logger.warn('Cloud conversion failed:', { msg: err.message });
       } finally {
         inFlightConversions.delete(cacheKey);
       }
 
       return {
         success: false,
-        message: 'Unable to prepare download stream for this format. Please try another quality tier.',
+        message: 'Unable to process YouTube download stream. Please verify the link or try another format.',
       };
     })();
 
@@ -336,4 +278,3 @@ export class YouTubeAdapter extends MediaProvider {
     return await conversionPromise;
   }
 }
-

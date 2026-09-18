@@ -83,13 +83,8 @@ export default function DownloadResult({
 
   const displayTitle = cleanAndDecodeTitle(media.title);
 
-  // Thumbnail states
-  const [imgSrc, setImgSrc] = useState<string | undefined>(undefined);
-  const [imgError, setImgError] = useState(false);
-  const [isImgLoading, setIsImgLoading] = useState(true);
-  const [hasTriedProxy, setHasTriedProxy] = useState(false);
-
-  useEffect(() => {
+  // Thumbnail states with React 19 safety
+  const initialThumb = React.useMemo(() => {
     const rawThumb =
       media.thumbnailUrl &&
       !media.thumbnailUrl.includes('facebook_share_image') &&
@@ -97,32 +92,37 @@ export default function DownloadResult({
         ? media.thumbnailUrl
         : undefined;
 
-    if (rawThumb) {
-      // For Pinterest & Instagram, route through /api/thumbnail immediately to bypass hotlink/CORS protection
-      if (media.platform === 'pinterest' || media.platform === 'instagram') {
-        setImgSrc(`/api/thumbnail?url=${encodeURIComponent(rawThumb)}`);
-      } else {
-        setImgSrc(rawThumb);
-      }
-      setImgError(false);
-      setIsImgLoading(true);
-    } else {
-      setImgSrc(undefined);
-      setImgError(true);
-      setIsImgLoading(false);
+    if (!rawThumb) return undefined;
+    if (media.platform === 'pinterest' || media.platform === 'instagram') {
+      return `/api/thumbnail?url=${encodeURIComponent(rawThumb)}`;
     }
-    setHasTriedProxy(false);
-  }, [media.id, media.sourceUrl, media.thumbnailUrl, media.platform]);
+    return rawThumb;
+  }, [media.thumbnailUrl, media.platform]);
 
-  // Safety timer to ensure skeleton never gets stuck
+  const [imgSrc, setImgSrc] = useState<string | undefined>(initialThumb);
+  const [imgError, setImgError] = useState(!initialThumb);
+  const [isImgLoading, setIsImgLoading] = useState(!!initialThumb);
+  const [hasTriedProxy, setHasTriedProxy] = useState(false);
+
+  // Dynamic aspect ratio calculation
+  const isInitialPortrait =
+    media.platform === 'tiktok' ||
+    media.sourceUrl?.includes('/reel') ||
+    media.sourceUrl?.includes('/shorts/') ||
+    media.sourceUrl?.includes('/pin/');
+
+  const [aspectClass, setAspectClass] = useState<string>(
+    isInitialPortrait ? styles.aspectPortrait : styles.aspectLandscape
+  );
+
+  // Fallback safety timer for skeleton
   useEffect(() => {
     if (!imgSrc || imgError) {
-      setIsImgLoading(false);
       return;
     }
     const timer = setTimeout(() => {
       setIsImgLoading(false);
-    }, 3500);
+    }, 2500);
     return () => clearTimeout(timer);
   }, [imgSrc, imgError]);
 
@@ -130,9 +130,25 @@ export default function DownloadResult({
     if (!hasTriedProxy && media.thumbnailUrl && !media.thumbnailUrl.startsWith('/api/thumbnail')) {
       setHasTriedProxy(true);
       setImgSrc(`/api/thumbnail?url=${encodeURIComponent(media.thumbnailUrl)}`);
+      setIsImgLoading(true);
     } else {
       setImgError(true);
       setIsImgLoading(false);
+    }
+  };
+
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    setIsImgLoading(false);
+    const { naturalWidth, naturalHeight } = e.currentTarget;
+    if (naturalWidth && naturalHeight) {
+      const ratio = naturalWidth / naturalHeight;
+      if (ratio < 0.75) {
+        setAspectClass(styles.aspectPortrait);
+      } else if (ratio >= 0.75 && ratio <= 1.25) {
+        setAspectClass(styles.aspectSquare);
+      } else {
+        setAspectClass(styles.aspectLandscape);
+      }
     }
   };
 
@@ -140,8 +156,8 @@ export default function DownloadResult({
     <div className={styles.resultCard} role="region" aria-label="Media Download Information">
       {/* Media Details Banner */}
       <div className={styles.resultGrid}>
-        {/* Thumbnail Preview */}
-        <div className={styles.thumbnailWrapper}>
+        {/* Thumbnail Preview Container */}
+        <div className={`${styles.thumbnailWrapper} ${aspectClass}`}>
           {isImgLoading && !imgError && <div className={styles.thumbnailSkeleton} />}
           {imgSrc && !imgError ? (
             <Image
@@ -152,19 +168,15 @@ export default function DownloadResult({
               referrerPolicy="no-referrer"
               className={styles.thumbnailImg}
               style={{ opacity: isImgLoading ? 0 : 1 }}
-              onLoad={() => setIsImgLoading(false)}
+              onLoad={handleImageLoad}
               onError={handleImageError}
             />
           ) : (
-            <div className={`${styles.fallbackThumbnail} ${styles[`fallback_${media.platform}`] || ''}`}>
+            <div className={styles.fallbackThumbnail}>
               <div className={styles.fallbackIcon}>
-                {media.platform === 'tiktok' && <TikTokIcon size={34} color="#ffffff" />}
-                {media.platform === 'youtube' && <YouTubeIcon size={34} color="#ffffff" />}
-                {media.platform === 'facebook' && <FacebookIcon size={34} color="#ffffff" />}
-                {media.platform === 'instagram' && <InstagramIcon size={34} color="#ffffff" />}
-                {media.platform === 'pinterest' && <PinterestIcon size={34} color="#ffffff" />}
+                <Film size={28} />
               </div>
-              <span className={styles.fallbackText}>{media.platform} video</span>
+              <span className={styles.fallbackText}>Preview unavailable</span>
             </div>
           )}
         </div>
@@ -177,10 +189,15 @@ export default function DownloadResult({
           </div>
 
           <div className={styles.metaRow}>
-            {media.author && (
+            {media.author ? (
               <span className={styles.metaItem}>
                 <User size={13} color="#64748B" />
                 <span>{media.author}</span>
+              </span>
+            ) : (
+              <span className={styles.metaItem}>
+                <User size={13} color="#64748B" />
+                <span>Information unavailable</span>
               </span>
             )}
             {media.duration && (
@@ -226,6 +243,9 @@ export default function DownloadResult({
                       <div className={styles.formatInfo}>
                         <span className={styles.qualityLabel}>{fmt.quality}</span>
                         <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
+                        <span className={styles.fileSizeLabel}>
+                          {fmt.fileSize || 'Size unavailable'}
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -260,6 +280,9 @@ export default function DownloadResult({
                       <div className={styles.formatInfo}>
                         <span className={styles.qualityLabel}>{fmt.quality}</span>
                         <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
+                        <span className={styles.fileSizeLabel}>
+                          {fmt.fileSize || 'Size unavailable'}
+                        </span>
                       </div>
                       <button
                         type="button"
@@ -293,6 +316,9 @@ export default function DownloadResult({
                           {fmt.quality} ({fmt.format.toUpperCase()})
                         </span>
                         <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
+                        <span className={styles.fileSizeLabel}>
+                          {fmt.fileSize || 'Size unavailable'}
+                        </span>
                       </div>
                       <button
                         type="button"

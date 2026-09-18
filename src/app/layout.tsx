@@ -33,12 +33,12 @@ export const metadata: Metadata = {
     'hd video downloader',
     'batch video downloader',
   ],
-  authors: [{ name: 'MediaKit Team', url: 'https://mediakit.app' }],
+  authors: [{ name: 'MediaKit Team', url: 'https://mediakit.website' }],
   creator: 'MediaKit',
   publisher: 'MediaKit',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://mediakit.website'),
   alternates: {
-    canonical: '/',
+    canonical: 'https://mediakit.website/',
   },
   icons: {
     icon: [
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     title: 'MediaKit — Best Free Video Downloader | YouTube, TikTok, Facebook, Instagram',
     description:
       'Fast, free, and watermark-free online media downloader for YouTube, TikTok, Facebook, Instagram, and Pinterest in 1080p HD and 320kbps MP3.',
-    url: '/',
+    url: 'https://mediakit.website/',
     siteName: 'MediaKit',
     images: [
       {
@@ -90,9 +90,9 @@ const jsonLdSchema = {
   '@graph': [
     {
       '@type': 'WebApplication',
-      '@id': 'https://mediakit.app/#webapp',
+      '@id': 'https://mediakit.website/#webapp',
       name: 'MediaKit',
-      url: 'https://mediakit.app',
+      url: 'https://mediakit.website',
       applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Windows, macOS, Linux, Android, iOS',
       browserRequirements: 'Requires JavaScript and HTML5 support',
@@ -112,13 +112,6 @@ const jsonLdSchema = {
         'Pinterest video and pin downloader',
         'Batch multi-link downloader',
       ],
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.9',
-        ratingCount: '18450',
-        bestRating: '5',
-        worstRating: '1',
-      },
     },
     {
       '@type': 'HowTo',

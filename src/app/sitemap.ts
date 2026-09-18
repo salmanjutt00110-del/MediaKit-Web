@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mediakit.app';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mediakit.website';
   const now = new Date();
 
   return [
@@ -12,49 +12,79 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/#downloader`,
+      url: `${baseUrl}/youtube-video-downloader`,
       lastModified: now,
       changeFrequency: 'daily',
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/#platforms`,
+      url: `${baseUrl}/youtube-shorts-downloader`,
       lastModified: now,
-      changeFrequency: 'weekly',
+      changeFrequency: 'daily',
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/#how-it-works`,
+      url: `${baseUrl}/tiktok-video-downloader`,
       lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
+      changeFrequency: 'daily',
+      priority: 0.9,
     },
     {
-      url: `${baseUrl}/#features`,
+      url: `${baseUrl}/instagram-video-downloader`,
       lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.8,
+      changeFrequency: 'daily',
+      priority: 0.9,
     },
     {
-      url: `${baseUrl}/#reviews`,
+      url: `${baseUrl}/instagram-reels-downloader`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/facebook-video-downloader`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/facebook-reels-downloader`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/pinterest-video-downloader`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/youtube-mp3`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/video-downloader`,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/faq`,
       lastModified: now,
       changeFrequency: 'weekly',
-      priority: 0.7,
-    },
-    {
-      url: `${baseUrl}/#faq`,
-      lastModified: now,
-      changeFrequency: 'weekly',
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/#legal`,
+      url: `${baseUrl}/terms`,
       lastModified: now,
       changeFrequency: 'monthly',
-      priority: 0.5,
+      priority: 0.6,
     },
     {
-      url: `${baseUrl}/#contact`,
+      url: `${baseUrl}/privacy`,
       lastModified: now,
       changeFrequency: 'monthly',
       priority: 0.6,

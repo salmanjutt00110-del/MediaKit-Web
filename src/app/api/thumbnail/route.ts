@@ -1,28 +1,8 @@
 import { NextRequest } from 'next/server';
 import { logger } from '@/lib/logger';
+import { sanitizeAsciiFilename, sanitizeFilename, isSafeUrl } from '@/lib/string-utils';
 
 export const dynamic = 'force-dynamic';
-
-function isSafeUrl(rawUrl: string): boolean {
-  try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
-    const host = parsed.hostname.toLowerCase();
-    if (
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host === '0.0.0.0' ||
-      host === '::1' ||
-      host.endsWith('.local') ||
-      host.endsWith('.internal')
-    ) {
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,32 +10,44 @@ export async function GET(request: NextRequest) {
     const targetUrl = searchParams.get('url');
 
     if (!targetUrl || !isSafeUrl(targetUrl)) {
-      return new Response('Valid URL parameter is required', { status: 400 });
+      return new Response('Valid and allowed URL parameter is required', { status: 400 });
     }
 
-    // Fetch upstream thumbnail with clean headers without client-side domain referrer
+    // Upstream headers customized to legitimate CDN providers
     const upstreamHeaders: Record<string, string> = {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Fetch-Dest': 'image',
+      'Sec-Fetch-Mode': 'no-cors',
+      'Sec-Fetch-Site': 'cross-site',
     };
 
     if (targetUrl.includes('pinimg.com') || targetUrl.includes('pinterest.com')) {
       upstreamHeaders['Referer'] = 'https://www.pinterest.com/';
       upstreamHeaders['Origin'] = 'https://www.pinterest.com';
-    } else if (targetUrl.includes('instagram.com') || targetUrl.includes('cdninstagram.com')) {
+    } else if (
+      targetUrl.includes('instagram.com') ||
+      targetUrl.includes('cdninstagram.com') ||
+      targetUrl.includes('fbcdn.net') ||
+      targetUrl.includes('facebook.com')
+    ) {
       upstreamHeaders['Referer'] = 'https://www.instagram.com/';
       upstreamHeaders['Origin'] = 'https://www.instagram.com';
+    } else if (targetUrl.includes('ytimg.com') || targetUrl.includes('youtube.com')) {
+      upstreamHeaders['Referer'] = 'https://www.youtube.com/';
+    } else if (targetUrl.includes('tiktokcdn') || targetUrl.includes('tiktok.com')) {
+      upstreamHeaders['Referer'] = 'https://www.tiktok.com/';
     }
 
     const res = await fetch(targetUrl, {
       headers: upstreamHeaders,
-      signal: AbortSignal.timeout(6000),
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!res.ok || !res.body) {
-      logger.warn('Thumbnail upstream error', { status: res.status, url: targetUrl.slice(0, 80) });
+      logger.warn('Thumbnail upstream fetch failed', { status: res.status, url: targetUrl.slice(0, 80) });
       return new Response('Failed to load thumbnail image', { status: res.status || 502 });
     }
 
@@ -67,8 +59,10 @@ export async function GET(request: NextRequest) {
 
     const isDownload = searchParams.get('download') === '1' || searchParams.get('download') === 'true';
     if (isDownload) {
-      const filename = searchParams.get('filename') || 'thumbnail.jpg';
-      headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      const rawFilename = searchParams.get('filename') || 'thumbnail';
+      const safeAscii = sanitizeAsciiFilename(rawFilename, 'jpg');
+      const safeUtf8 = sanitizeFilename(rawFilename, 'jpg');
+      headers.set('Content-Disposition', `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(safeUtf8)}`);
     }
 
     const contentLength = res.headers.get('content-length');
@@ -80,8 +74,9 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers,
     });
-  } catch (err: any) {
-    logger.warn('Error in /api/thumbnail proxy', err.message);
+  } catch (err: unknown) {
+    const error = err as Error;
+    logger.warn('Error in /api/thumbnail proxy:', { msg: error.message });
     return new Response('Thumbnail fetch failed', { status: 500 });
   }
 }

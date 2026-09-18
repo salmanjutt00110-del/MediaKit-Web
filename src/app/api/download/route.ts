@@ -124,21 +124,26 @@ export async function POST(request: NextRequest) {
         downloadUrl: finalDownloadUrl,
       },
     });
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error('Error in /api/download', err);
+    const error = err as { code?: string; message?: string };
+    const code = error.code || 'DOWNLOAD_ERROR';
+    const message = error.message || 'Unable to process download request. Please try again.';
+
     return NextResponse.json(
       {
         success: false,
         error: {
-          code: 'DOWNLOAD_ERROR',
-          type: 'download_error',
-          message: 'Unable to process download request. Please try again.',
+          code,
+          type: code.toLowerCase(),
+          message,
         },
       },
-      { status: 500 }
+      { status: code === 'PRIVATE_CONTENT' || code === 'UNAVAILABLE_CONTENT' ? 403 : 500 }
     );
   }
 }
+
 
 // GET endpoint to directly trigger browser download
 export async function GET(request: NextRequest) {
