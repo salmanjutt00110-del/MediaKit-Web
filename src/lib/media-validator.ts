@@ -125,7 +125,7 @@ export function probeMediaFile(filePath: string, timeoutMs: number = 10000): Pro
 /**
  * Validates playback/decoding of a media file by having FFmpeg decode audio and video streams.
  */
-export function verifyDecoding(filePath: string, sampleDurationSeconds: number = 15, timeoutMs: number = 15000): Promise<boolean> {
+export function verifyDecoding(filePath: string, sampleDurationSeconds: number = 3, timeoutMs: number = 8000): Promise<boolean> {
   return new Promise((resolve) => {
     const ffmpeg = getFfmpegPath();
     if (!ffmpeg || !fs.existsSync(filePath)) {
@@ -274,7 +274,7 @@ export async function validateMediaFile(
   // 8. Decoding / Playback Verification
   let decodingVerified = true;
   if (options.checkDecoding !== false) {
-    decodingVerified = await verifyDecoding(filePath, 15, 12000);
+    decodingVerified = await verifyDecoding(filePath, 3, 8000);
     if (!decodingVerified) {
       return {
         isValid: false,

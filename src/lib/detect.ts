@@ -100,6 +100,17 @@ export function normalizeUrl(rawUrl: string): { normalizedUrl: string; isValid: 
     parsed.pathname = parsed.pathname.slice(0, -1);
   }
 
+  // Canonicalize YouTube video links (strip mix/playlist clutter like &list=RD... &index=...)
+  if (hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be') {
+    if (parsed.searchParams.has('v')) {
+      const vid = parsed.searchParams.get('v');
+      parsed.pathname = '/watch';
+      parsed.search = `?v=${vid}`;
+    } else if (hostname === 'youtu.be') {
+      parsed.search = '';
+    }
+  }
+
   return { normalizedUrl: parsed.toString(), isValid: true };
 }
 

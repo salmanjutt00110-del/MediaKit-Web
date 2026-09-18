@@ -271,60 +271,21 @@ export default function Downloader() {
       setCompletedInfo(null);
       setDownloadProgress({ percent: 0, receivedMB: '0 MB', totalMB: '', active: false });
 
-      setLoadingStage('checking_link');
-      await new Promise((r) => setTimeout(r, 100));
-
-      setLoadingStage('detecting_platform');
-      const detectResponse = await fetch('/api/detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl }),
-      });
-
-      const detectData = await detectResponse.json();
-
-      if (!detectResponse.ok || !detectData.valid) {
-        const errCode = (detectData?.errorCode as ErrorType) || 'INVALID_URL';
-        if (errCode === 'UNSUPPORTED_PLATFORM') {
-          setError({
-            type: 'UNSUPPORTED_PLATFORM',
-            code: 'UNSUPPORTED_PLATFORM',
-            title: "Platform Isn't Supported",
-            message: "Sorry, this platform isn't supported yet. Try a YouTube, TikTok, Facebook, Instagram, or Pinterest link.",
-            retryable: false,
-          });
-        } else if (errCode === 'RATE_LIMITED') {
-          setError({
-            type: 'RATE_LIMITED',
-            code: 'RATE_LIMITED',
-            title: 'Rate Limit',
-            message: 'Too many requests. Please try again later.',
-            retryable: true,
-          });
-        } else {
-          setError({
-            type: 'INVALID_URL',
-            code: 'INVALID_URL',
-            title: 'Invalid Link',
-            message: "That link doesn't look valid.",
-            retryable: false,
-          });
-        }
-        setState('error');
-        setLoadingStage('idle');
-        isProcessingRef.current = false;
-        return;
+      // Immediate Client-Side Platform Detection (0ms)
+      const detectResult = detectPlatform(targetUrl);
+      if (detectResult.valid && detectResult.platform !== 'unknown') {
+        setDetection(detectResult);
       }
 
       setLoadingStage('fetching_media');
-      const normalizedUrl = detectData.normalizedUrl || targetUrl;
+      const normalizedUrl = detectResult.valid ? detectResult.normalizedUrl : targetUrl;
 
       const mediaResponse = await fetch('/api/media-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: normalizedUrl,
-          platform: detectData.platform,
+          platform: detectResult.valid && detectResult.platform !== 'unknown' ? detectResult.platform : undefined,
         }),
       });
 
@@ -339,6 +300,8 @@ export default function Downloader() {
             ? 'Content Unavailable'
             : errCode === 'RATE_LIMITED'
             ? 'Rate Limit'
+            : errCode === 'UNSUPPORTED_PLATFORM'
+            ? "Platform Isn't Supported"
             : 'Unable to Process';
 
         const errMsg =
@@ -348,23 +311,22 @@ export default function Downloader() {
             ? 'This content is not available or has been removed.'
             : errCode === 'RATE_LIMITED'
             ? 'Too many requests. Please try again later.'
-            : "We couldn't process this link right now. Please check the URL and try again.";
+            : errCode === 'UNSUPPORTED_PLATFORM'
+            ? "Sorry, this platform isn't supported yet. Try a YouTube, TikTok, Facebook, Instagram, or Pinterest link."
+            : mediaData?.error?.message || "We couldn't process this link right now. Please check the URL and try again.";
 
         setError({
           type: errCode,
           code: errCode,
           title: errTitle,
           message: errMsg,
-          retryable: true,
+          retryable: errCode !== 'UNSUPPORTED_PLATFORM' && errCode !== 'PRIVATE_CONTENT',
         });
         setState('error');
         setLoadingStage('idle');
         isProcessingRef.current = false;
         return;
       }
-
-      setLoadingStage('preparing_downloads');
-      await new Promise((r) => setTimeout(r, 120));
 
       setLoadingStage('ready');
       setMediaInfo(mediaData.data);
@@ -391,6 +353,23 @@ export default function Downloader() {
     const proxiedUrl = finalDlUrl.startsWith('/api/download/file') || finalDlUrl.startsWith('/api/download/serve')
       ? finalDlUrl
       : `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
+
+    // Fast-path: For local endpoints (/api/download/serve and /api/download/file),
+    // trigger direct browser download immediately with zero RAM buffering!
+    if (proxiedUrl.startsWith('/api/download/serve') || proxiedUrl.startsWith('/api/download/file')) {
+      const dlAnchor = document.createElement('a');
+      dlAnchor.href = proxiedUrl;
+      dlAnchor.setAttribute('download', filename);
+      dlAnchor.style.display = 'none';
+      document.body.appendChild(dlAnchor);
+      dlAnchor.click();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(dlAnchor);
+        } catch {}
+      }, 2000);
+      return proxiedUrl;
+    }
 
     try {
       // 1. Client-Side Blob Fetch with Real-Time Progress
@@ -484,8 +463,6 @@ export default function Downloader() {
     const currentMedia = customMedia || mediaInfo;
     if (!currentMedia) return false;
 
-    let progressTimer: NodeJS.Timeout | null = null;
-
     try {
       const targetFormat = currentMedia.formats?.find((f) => f.id === formatId) || currentMedia.formats?.[0];
       const isAudio =
@@ -539,73 +516,99 @@ export default function Downloader() {
         return true;
       }
 
-      // STREAM PATH: Call /api/download with real state progression
+      // STREAM PATH: Call /api/download with real-time SSE progress
       if (!customMedia) {
         setDownloadingFormatId(formatId);
         setState('downloading');
         setError(null);
         setCompletedInfo(null);
         setDownloadProgress({
-          percent: 15,
-          receivedMB: 'Preparing...',
+          percent: 5,
+          receivedMB: 'Connecting to media server...',
           totalMB: '',
           active: true,
           formatTitle: targetFormat?.quality || formatId,
         });
-
-        // Authentic progression
-        let currentP = 15;
-        progressTimer = setInterval(() => {
-          if (currentP < 75) {
-            currentP += 10;
-            const stageLabel =
-              currentP <= 25
-                ? 'Preparing...'
-                : currentP <= 50
-                ? 'Fetching media...'
-                : 'Processing...';
-            setDownloadProgress((prev) => ({
-              ...prev,
-              percent: currentP,
-              receivedMB: stageLabel,
-            }));
-          }
-        }, 500);
       }
 
       const response = await fetch('/api/download', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
         body: JSON.stringify({
           url: currentMedia.sourceUrl,
           formatId,
         }),
       });
 
-      if (progressTimer) clearInterval(progressTimer);
+      let rawDlUrl: string | null = null;
+      let downloadData: any = null;
 
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
 
-      if (!response.ok || !data.success || !data.data?.downloadUrl) {
-        const errCode = (data?.error?.code as ErrorType) || 'DOWNLOAD_ERROR';
-        if (!customMedia) {
-          setError({
-            type: errCode,
-            code: errCode,
-            title: 'Download Notice',
-            message:
-              data?.error?.message ||
-              'Unable to process this download stream right now. Please try another quality tier.',
-            retryable: true,
-          });
-          setState('ready');
-          setDownloadingFormatId(null);
-          setDownloadProgress((prev) => ({ ...prev, active: false }));
+      if (contentType.includes('text/event-stream') && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+
+          for (const part of parts) {
+            const trimmed = part.trim();
+            if (!trimmed.startsWith('data:')) continue;
+            try {
+              const payload = JSON.parse(trimmed.replace(/^data:\s*/, ''));
+              if (payload.type === 'progress') {
+                if (!customMedia) {
+                  setDownloadProgress((prev) => ({
+                    ...prev,
+                    percent: payload.percent,
+                    receivedMB: payload.stage,
+                    totalMB: payload.total || prev.totalMB,
+                  }));
+                }
+              } else if (payload.type === 'complete') {
+                downloadData = payload.data;
+                rawDlUrl = payload.data?.downloadUrl;
+              } else if (payload.type === 'error') {
+                throw new Error(payload.message || 'Unable to complete download.');
+              }
+            } catch (pErr: any) {
+              if (pErr.message && !pErr.message.includes('JSON')) {
+                throw pErr;
+              }
+            }
+          }
         }
-        return false;
+      } else {
+        const data = await response.json();
+        if (!response.ok || !data.success || !data.data?.downloadUrl) {
+          throw new Error(data?.error?.message || 'Download failed. Please try another quality.');
+        }
+        downloadData = data.data;
+        rawDlUrl = data.data.downloadUrl;
       }
 
-      const rawDlUrl = data.data.downloadUrl;
+      if (!rawDlUrl) {
+        throw new Error('Download could not be prepared. Please try again.');
+      }
+
+      if (!customMedia) {
+        setDownloadProgress((prev) => ({
+          ...prev,
+          percent: 98,
+          receivedMB: 'Saving file to Downloads...',
+        }));
+      }
+
       const safeDlUrl = await triggerNativeDownload(rawDlUrl, filename);
 
       if (!customMedia) {
@@ -621,7 +624,7 @@ export default function Downloader() {
           filename,
           ext: ext.toUpperCase(),
           quality: targetFormat?.quality || 'HD',
-          fileSize: targetFormat?.fileSize || 'Size unavailable',
+          fileSize: targetFormat?.fileSize || downloadData?.fileSize || 'Size unavailable',
           formatId,
           downloadUrl: safeDlUrl,
         });
@@ -629,14 +632,14 @@ export default function Downloader() {
       }
 
       return true;
-    } catch {
-      if (progressTimer) clearInterval(progressTimer);
+    } catch (err: any) {
       if (!customMedia) {
+        const msg = err?.message || 'A network error occurred while downloading. Please try again.';
         setError({
-          type: 'NETWORK_ERROR',
-          code: 'NETWORK_ERROR',
-          title: 'Download Interrupted',
-          message: 'A network error occurred while downloading. Please try again.',
+          type: 'DOWNLOAD_ERROR',
+          code: 'DOWNLOAD_ERROR',
+          title: 'Download Notice',
+          message: msg,
           retryable: true,
         });
         setState('ready');
@@ -644,8 +647,6 @@ export default function Downloader() {
         setDownloadProgress((prev) => ({ ...prev, active: false }));
       }
       return false;
-    } finally {
-      if (progressTimer) clearInterval(progressTimer);
     }
   };
 
@@ -1094,7 +1095,7 @@ export default function Downloader() {
                         ? `${downloadProgress.receivedMB} / ${downloadProgress.totalMB}`
                         : downloadProgress.receivedMB}
                     </span>
-                    <span>Please keep this page open while downloading</span>
+                    <span>High-Speed Direct Stream • Ready in moments</span>
                   </div>
                 </div>
               )}

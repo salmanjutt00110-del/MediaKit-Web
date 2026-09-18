@@ -523,6 +523,6 @@ export class InstagramAdapter extends MediaProvider {
       }
     }
 
-    throw new Error('Unable to extract Instagram video stream. Meta requires public posts or active browser cookies (place cookies.txt into the bin folder for unrestricted downloads).');
+    throw new Error('Unable to download this Instagram video. Instagram restricts access to most content. For unrestricted downloads, place a cookies.txt file from your Instagram session into the bin/ folder. Public posts may work without cookies.');
   }
 }

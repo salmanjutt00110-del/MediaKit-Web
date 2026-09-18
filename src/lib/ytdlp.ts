@@ -1,13 +1,18 @@
-import { execFile, spawnSync } from 'child_process';
+import { execFile, spawn, spawnSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import crypto from 'crypto';
 import { MediaFormat, MediaMetadata, PlatformType } from './types';
 import { sanitizeFilename, cleanAndDecodeTitle } from './string-utils';
-import { validateMediaFile } from './media-validator';
+import { validateMediaFile, probeMediaFile } from './media-validator';
+import { logger } from './logger';
 
 const isWin = process.platform === 'win32';
+
+// In-memory map of validated cached file heights: cacheToken -> actualHeight
+// Avoids running FFmpeg probe on every cache hit (was causing multi-second latency)
+const validatedCacheHeights = new Map<string, number>();
 
 export function getCookiesPath(): string | null {
   const candidates = [
@@ -200,10 +205,14 @@ export const ytDlpRunner = {
               ];
 
               for (const tier of tiers) {
-                // Find highest matching video format for this height tier
-                const matchingFmt = rawFormats.find((f) => f.height === tier.height && f.vcodec && f.vcodec !== 'none');
-                // Also check if any format reaches this height
-                const hasTier = matchingFmt || rawFormats.some((f) => f.height && f.height >= tier.height);
+                // Prefer h264 (avc1) format for size estimate — matches what downloadMedia actually selects
+                const h264Fmt = rawFormats.find((f) =>
+                  f.height === tier.height && f.vcodec && f.vcodec.startsWith('avc1') && (f.filesize || f.filesize_approx));
+                // Fallback to any video format at this height
+                const anyFmt = rawFormats.find((f) => f.height === tier.height && f.vcodec && f.vcodec !== 'none');
+                const matchingFmt = h264Fmt || anyFmt;
+                // Check if any format reaches this height
+                const hasTier = matchingFmt || rawFormats.some((f) => f.height && f.height >= tier.height && f.vcodec && f.vcodec !== 'none');
 
                 if (hasTier && !seenQualities.has(tier.id)) {
                   seenQualities.add(tier.id);
@@ -397,7 +406,11 @@ export const ytDlpRunner = {
    * Downloads, converts, and merges authentic media file (MP3 audio or merged HD MP4).
    * Saves to ephemeral temp storage and returns the local secure serve URL.
    */
-  async downloadMedia(media: MediaMetadata, formatId: string): Promise<string> {
+  async downloadMedia(
+    media: MediaMetadata,
+    formatId: string,
+    onProgress?: (progress: { percent: number; stage: string; speed?: string; total?: string }) => void
+  ): Promise<string> {
     const videoId = media.id;
     const format = media.formats?.find((f) => f.id === formatId);
     const isMp3 =
@@ -418,12 +431,50 @@ export const ytDlpRunner = {
     const cacheToken = `${cleanId}_${cleanFormat}`;
     const cachedFilePath = path.join(storageDir, `${cacheToken}.${targetExt}`);
 
-    // Return instant cached file if already processed
+    // Return instant cached file if already processed AND matches requested quality
     if (fs.existsSync(cachedFilePath)) {
       const stats = fs.statSync(cachedFilePath);
       if (stats.size > 1024) {
-        const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
-        return `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`;
+        if (!isMp3) {
+          const requestedHeight = parseInt(formatId.replace(/[^0-9]/g, ''), 10) || 720;
+          const knownHeight = validatedCacheHeights.get(cacheToken);
+
+          if (knownHeight !== undefined) {
+            // Fast path: already validated in-memory, no FFmpeg probe needed
+            if (knownHeight > 0 && requestedHeight > 0 && knownHeight < requestedHeight * 0.65) {
+              validatedCacheHeights.delete(cacheToken);
+              try { fs.unlinkSync(cachedFilePath); } catch {}
+            } else {
+              const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
+              onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
+              return `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`;
+            }
+          } else {
+            // First access since server start: probe once, then remember result
+            try {
+              const cachedProbe = await probeMediaFile(cachedFilePath, 8000);
+              const actualHeight = cachedProbe.resolution ? parseInt(cachedProbe.resolution.split('x')[1], 10) : 0;
+              validatedCacheHeights.set(cacheToken, actualHeight);
+              if (actualHeight > 0 && requestedHeight > 0 && actualHeight < requestedHeight * 0.65) {
+                logger.warn('Cached file resolution mismatch, re-downloading', {
+                  cached: cachedProbe.resolution, requested: `${requestedHeight}p`, token: cacheToken,
+                });
+                validatedCacheHeights.delete(cacheToken);
+                try { fs.unlinkSync(cachedFilePath); } catch {}
+              } else {
+                const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
+                onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
+                return `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`;
+              }
+            } catch {
+              try { fs.unlinkSync(cachedFilePath); } catch {}
+            }
+          }
+        } else {
+          const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
+          onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
+          return `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`;
+        }
       }
     }
 
@@ -446,6 +497,11 @@ export const ytDlpRunner = {
         'node',
         '--no-playlist',
         '--no-part',
+        '--newline',
+        '--retries',
+        '3',
+        '--fragment-retries',
+        '3',
         '--windows-filenames',
       ];
 
@@ -466,7 +522,7 @@ export const ytDlpRunner = {
           '--audio-quality',
           '0',
           '--concurrent-fragments',
-          '5',
+          '12',
           '-o',
           tempOutputFile,
           media.sourceUrl
@@ -479,24 +535,34 @@ export const ytDlpRunner = {
         else if (formatId.includes('720')) height = 720;
         else if (formatId.includes('480')) height = 480;
         else if (formatId.includes('360')) height = 360;
+        else if (formatId.includes('240')) height = 240;
+        else if (formatId.includes('144')) height = 144;
 
-        const formatArg = `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${height}]+bestaudio/best[height<=${height}]/best`;
+        // Prefer h264 (avc1) to guarantee remux-only merge (no transcode).
+        // AV1/VP9 formats require transcoding to MP4 which can lose resolution.
+        // The chain: exact h264 mp4 → any h264 → any codec mp4 → any codec any ext → combined progressive
+        const formatArg = [
+          `bestvideo[height<=${height}][vcodec^=avc1]+bestaudio[ext=m4a]`,
+          `bestvideo[height<=${height}][vcodec^=avc1]+bestaudio`,
+          `bestvideo[height<=${height}][ext=mp4]+bestaudio[ext=m4a]`,
+          `bestvideo[height<=${height}]+bestaudio`,
+          `best[height<=${height}]`,
+          `best`,
+        ].join('/');
+
+        logger.info('yt-dlp format selection', { formatId, height, formatArg: formatArg.slice(0, 120) });
+
         args.push(
           '-f',
           formatArg,
           '--merge-output-format',
           'mp4',
           '--concurrent-fragments',
-          '5',
+          '12',
           '-o',
           tempOutputFile,
           media.sourceUrl
         );
-      }
-
-      const isYouTube = media.sourceUrl.includes('youtube.com') || media.sourceUrl.includes('youtu.be');
-      if (isYouTube) {
-        args.push('--extractor-args', 'youtube:player_client=android,web');
       }
 
       const runner = getYtDlpCommand();
@@ -504,57 +570,147 @@ export const ytDlpRunner = {
         return reject(new Error('yt-dlp engine executable not found.'));
       }
 
-      execFile(
-        runner.cmd,
-        [...runner.prefixArgs, ...args],
-        { timeout: 240000 },
-        async (error, _stdout, stderr) => {
-          // Check if file was produced despite non-zero exit or minor warning
-          if (fs.existsSync(tempOutputFile)) {
-            try {
-              // Parse expected duration in seconds from media metadata (e.g. "16:45" or "01:15:30")
-              let expectedDurationSeconds: number | undefined;
-              if (media.duration) {
-                const parts = media.duration.split(':').map(Number);
-                if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-                  expectedDurationSeconds = parts[0] * 60 + parts[1];
-                } else if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-                  expectedDurationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-                }
-              }
+      onProgress?.({ percent: 8, stage: 'Connecting to media server...' });
 
-              // Server-side FFmpeg integrity, stream & playback verification
-              const validation = await validateMediaFile(tempOutputFile, {
-                expectedDurationSeconds,
-                isAudioOnly: isMp3,
-                checkDecoding: true,
-                timeoutMs: 15000,
-              });
+      const child = spawn(runner.cmd, [...runner.prefixArgs, ...args]);
+      let isAudioStream = false;
+      let stderrOutput = '';
 
-              if (!validation.isValid) {
-                try { fs.unlinkSync(tempOutputFile); } catch {}
-                return reject(new Error(`Download validation failed: ${validation.error}`));
-              }
+      child.stdout.on('data', (chunk) => {
+        const text = chunk.toString();
+        const lines = text.split(/[\r\n]+/);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
 
-              fs.copyFileSync(tempOutputFile, cachedFilePath);
-              try { fs.unlinkSync(tempOutputFile); } catch {}
-              const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
-              return resolve(`/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`);
-            } catch (e: unknown) {
-              try { if (fs.existsSync(tempOutputFile)) fs.unlinkSync(tempOutputFile); } catch {}
-              const err = e as Error;
-              return reject(new Error(`Failed to process validated media file: ${err.message}`));
+          // Transition to audio stream
+          if (trimmed.includes('Destination:') && (trimmed.includes('f140') || trimmed.includes('.m4a') || trimmed.includes('.opus') || trimmed.includes('audio'))) {
+            isAudioStream = true;
+          }
+
+          // Progress match: [download]  50.6% of   31.47MiB at    2.20MiB/s ETA 00:07
+          const dlMatch = trimmed.match(/\[download\]\s+([0-9.]+)%\s+of\s+~?([0-9.]+[A-Za-z]+)\s+at\s+([0-9.]+[A-Za-z]+\/s)/);
+          if (dlMatch) {
+            const rawPct = parseFloat(dlMatch[1]);
+            const totalSize = dlMatch[2];
+            const speed = dlMatch[3];
+
+            let overallPct: number;
+            let stage: string;
+            if (isMp3) {
+              overallPct = Math.min(88, Math.round(5 + (rawPct * 0.83)));
+              stage = `Downloading audio: ${rawPct.toFixed(0)}% (${speed})`;
+            } else if (!isAudioStream) {
+              overallPct = Math.min(75, Math.round(5 + (rawPct * 0.70)));
+              stage = `Downloading video: ${rawPct.toFixed(0)}% (${speed})`;
+            } else {
+              overallPct = Math.min(90, Math.round(75 + (rawPct * 0.15)));
+              stage = `Downloading audio: ${rawPct.toFixed(0)}% (${speed})`;
             }
-          }
 
-          if (error) {
-            const rawMsg = stderr ? stderr.split('\n')[0] : error.message;
-            return reject(new Error(`Download failed: ${rawMsg}`));
+            onProgress?.({
+              percent: overallPct,
+              stage,
+              speed,
+              total: totalSize,
+            });
+          } else if (trimmed.includes('[Merger]') || trimmed.includes('Merging formats')) {
+            onProgress?.({
+              percent: 92,
+              stage: 'Merging audio and video streams...',
+            });
           }
-
-          reject(new Error('Download completed but target file was not generated.'));
         }
-      );
+      });
+
+      child.stderr.on('data', (chunk) => {
+        stderrOutput += chunk.toString();
+      });
+
+      child.on('error', (err) => {
+        reject(new Error(`Failed to start yt-dlp engine: ${err.message}`));
+      });
+
+      child.on('close', async (exitCode) => {
+        if (fs.existsSync(tempOutputFile)) {
+          try {
+            onProgress?.({
+              percent: 95,
+              stage: 'Verifying file integrity and playback...',
+            });
+
+            // Parse expected duration in seconds from media metadata (e.g. "16:45" or "01:15:30")
+            let expectedDurationSeconds: number | undefined;
+            if (media.duration) {
+              const parts = media.duration.split(':').map(Number);
+              if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                expectedDurationSeconds = parts[0] * 60 + parts[1];
+              } else if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+                expectedDurationSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+              }
+            }
+
+            // Server-side FFmpeg integrity, stream & playback verification
+            const validation = await validateMediaFile(tempOutputFile, {
+              expectedDurationSeconds,
+              isAudioOnly: isMp3,
+              checkDecoding: true,
+              timeoutMs: 15000,
+            });
+
+            if (!validation.isValid) {
+              try { fs.unlinkSync(tempOutputFile); } catch {}
+              return reject(new Error(`Download validation failed: ${validation.error}`));
+            }
+
+            // Resolution validation: log if downloaded quality is below requested
+            if (!isMp3 && validation.probe.resolution) {
+              const requestedHeight = parseInt(formatId.replace(/[^0-9]/g, ''), 10) || 0;
+              const actualHeight = parseInt(validation.probe.resolution.split('x')[1], 10) || 0;
+              if (requestedHeight > 0 && actualHeight > 0 && actualHeight < requestedHeight * 0.65) {
+                logger.warn('Resolution mismatch after download', {
+                  requested: `${requestedHeight}p`, actual: validation.probe.resolution,
+                  formatId, videoId,
+                });
+              }
+            }
+
+            // Store validated height so future cache hits skip FFmpeg probe entirely
+            if (!isMp3 && validation.probe.resolution) {
+              const validatedH = parseInt(validation.probe.resolution.split('x')[1], 10) || 0;
+              if (validatedH > 0) validatedCacheHeights.set(cacheToken, validatedH);
+            }
+
+            logger.info('Download validated', {
+              videoId, formatId,
+              fileSize: validation.fileSizeFormatted,
+              resolution: validation.probe.resolution || 'N/A',
+              duration: validation.probe.durationSeconds + 's',
+              codec: validation.probe.videoCodec || validation.probe.audioCodec || 'N/A',
+            });
+
+            fs.copyFileSync(tempOutputFile, cachedFilePath);
+            try { fs.unlinkSync(tempOutputFile); } catch {}
+            const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
+            onProgress?.({
+              percent: 100,
+              stage: 'Complete! Preparing download...',
+            });
+            return resolve(`/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`);
+          } catch (e: unknown) {
+            try { if (fs.existsSync(tempOutputFile)) fs.unlinkSync(tempOutputFile); } catch {}
+            const err = e as Error;
+            return reject(new Error(`Failed to process validated media file: ${err.message}`));
+          }
+        }
+
+        if (exitCode !== 0) {
+          const rawMsg = stderrOutput ? stderrOutput.split('\n')[0] : `Process exited with code ${exitCode}`;
+          return reject(new Error(`Download failed: ${rawMsg}`));
+        }
+
+        reject(new Error('Download completed but target file was not generated.'));
+      });
     });
   },
 
@@ -581,13 +737,13 @@ export const ytDlpRunner = {
         if (isMp3) {
           formatArg = 'bestaudio/ba/140/251';
         } else if (formatId.includes('1080')) {
-          formatArg = 'bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
+          formatArg = 'bestvideo[height<=1080][vcodec^=avc1]+bestaudio/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best';
         } else if (formatId.includes('720')) {
-          formatArg = 'bestvideo[height<=720]+bestaudio/best[height<=720]/best';
+          formatArg = 'bestvideo[height<=720][vcodec^=avc1]+bestaudio/bestvideo[height<=720]+bestaudio/best[height<=720]/best';
         } else if (formatId.includes('480')) {
-          formatArg = 'bestvideo[height<=480]+bestaudio/best[height<=480]/best';
+          formatArg = 'bestvideo[height<=480][vcodec^=avc1]+bestaudio/bestvideo[height<=480]+bestaudio/best[height<=480]/best';
         } else {
-          formatArg = 'bestvideo[height<=360]+bestaudio/best[height<=360]/best';
+          formatArg = 'bestvideo[height<=360][vcodec^=avc1]+bestaudio/bestvideo[height<=360]+bestaudio/best[height<=360]/best';
         }
       } else {
         formatArg = isMp3 ? 'ba/bestaudio' : 'b/best';

@@ -98,6 +98,75 @@ export async function POST(request: NextRequest) {
       url: detection.normalizedUrl,
     });
 
+    const isEventStream = request.headers.get('accept')?.includes('text/event-stream');
+
+    if (isEventStream) {
+      const stream = new ReadableStream({
+        async start(controller) {
+          const encoder = new TextEncoder();
+          const sendEvent = (payload: any) => {
+            try {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+            } catch {}
+          };
+
+          try {
+            sendEvent({ type: 'progress', percent: 5, stage: 'Connecting to media server...' });
+
+            const mediaInfo = await provider.getMediaInfo(detection.normalizedUrl);
+            sendEvent({ type: 'progress', percent: 8, stage: 'Stream metadata resolved...' });
+
+            const downloadResult = await provider.download(
+              mediaInfo,
+              formatId,
+              (prog) => {
+                sendEvent({
+                  type: 'progress',
+                  percent: prog.percent,
+                  stage: prog.stage,
+                  speed: prog.speed,
+                  total: prog.total,
+                });
+              }
+            );
+
+            if (!downloadResult.success) {
+              sendEvent({
+                type: 'error',
+                message: downloadResult.message || 'Unable to process download request.',
+              });
+            } else {
+              sendEvent({
+                type: 'complete',
+                percent: 100,
+                stage: 'Download ready!',
+                data: {
+                  ...downloadResult,
+                  downloadUrl: downloadResult.downloadUrl,
+                },
+              });
+            }
+          } catch (err: any) {
+            logger.error('Error in SSE download stream', err);
+            sendEvent({
+              type: 'error',
+              message: err?.message || 'Download error. Please try again.',
+            });
+          } finally {
+            try { controller.close(); } catch {}
+          }
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
+
     const mediaInfo = await provider.getMediaInfo(detection.normalizedUrl);
     const downloadResult = await provider.download(mediaInfo, formatId);
 

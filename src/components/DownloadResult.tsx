@@ -93,6 +93,8 @@ export default function DownloadResult({
         : undefined;
 
     if (!rawThumb) return undefined;
+    // Don't double-wrap URLs already proxied through /api/thumbnail
+    if (rawThumb.startsWith('/api/thumbnail')) return rawThumb;
     if (media.platform === 'pinterest' || media.platform === 'instagram') {
       return `/api/thumbnail?url=${encodeURIComponent(rawThumb)}`;
     }

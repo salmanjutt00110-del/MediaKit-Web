@@ -7,6 +7,13 @@ export interface ProviderDownloadResult {
   suggestedFilename?: string;
 }
 
+export type DownloadProgressCallback = (progress: {
+  percent: number;
+  stage: string;
+  speed?: string;
+  total?: string;
+}) => void;
+
 export abstract class MediaProvider {
   abstract readonly platform: PlatformType;
   abstract readonly displayName: string;
@@ -36,7 +43,11 @@ export abstract class MediaProvider {
   /**
    * Handles authorized/supported download processing for a given format.
    */
-  abstract download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult>;
+  abstract download(
+    media: MediaMetadata,
+    formatId: string,
+    onProgress?: DownloadProgressCallback
+  ): Promise<ProviderDownloadResult>;
 
   /**
    * Helper to verify if required server-side credentials exist.
