@@ -193,70 +193,54 @@
 
 @media (max-width: 768px) {
   .heroSection {
-    padding-top: 16px;
-    padding-bottom: 4px;
+    padding-top: 14px;
+    padding-bottom: 0px;
   }
 
   .heroGrid {
-    gap: 12px;
+    gap: 8px;
   }
 
   .heroContent {
-    gap: 10px;
+    gap: 8px;
+    padding: 0 4px;
   }
 
   .heroHeading {
-    font-size: clamp(2rem, 8vw, 2.75rem);
-    line-height: 1.1;
+    font-size: clamp(1.75rem, 7.5vw, 2.3rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
   }
 
   .supportingText {
-    font-size: 0.98rem;
-    max-width: 92%;
+    font-size: 0.92rem;
+    max-width: 95%;
+    line-height: 1.4;
   }
 
   .secondaryText {
-    font-size: 0.85rem;
+    display: none; /* Keep mobile screen clean and focused */
   }
 
   .heroBadge {
-    font-size: 0.65rem;
-    padding: 5px 12px;
+    font-size: 0.62rem;
+    padding: 4px 10px;
+    margin-bottom: 2px;
   }
 
+  /* Hide bulky 3D illustration on mobile phones to put the Downloader above fold */
   .visualWrapper {
-    min-height: auto;
-    justify-content: center;
-  }
-
-  .stageContainer {
-    width: 270px;
-    height: 270px;
-  }
-
-  .artworkImg {
-    width: 250px;
-    height: 250px;
+    display: none;
   }
 }
 
 @media (max-width: 420px) {
   .heroHeading {
-    font-size: 1.95rem;
+    font-size: 1.65rem;
   }
 
   .supportingText {
-    font-size: 0.88rem;
-  }
-
-  .stageContainer {
-    width: 230px;
-    height: 230px;
-  }
-
-  .artworkImg {
-    width: 210px;
-    height: 210px;
+    font-size: 0.85rem;
   }
 }
 

@@ -953,7 +953,8 @@ export default function Downloader() {
                     aria-label="Paste from clipboard"
                     title="Paste link from clipboard"
                   >
-                    <ClipboardPaste size={16} />
+                    <ClipboardPaste size={14} />
+                    <span className={styles.pasteBtnText}>Paste</span>
                   </button>
                 )}
               </div>
