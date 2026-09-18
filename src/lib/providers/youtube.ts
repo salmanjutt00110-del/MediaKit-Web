@@ -12,6 +12,7 @@ const youtubeMediaInfoCache = new Map<string, { info: MediaMetadata; expiry: num
 
 // In-flight conversion promises to deduplicate and share background pre-warming
 const inFlightConversions = new Map<string, Promise<string | null>>();
+const inFlightProgressListeners = new Map<string, Set<DownloadProgressCallback>>();
 
 export class YouTubeAdapter extends MediaProvider {
   readonly platform: PlatformType = 'youtube';
@@ -51,7 +52,12 @@ export class YouTubeAdapter extends MediaProvider {
    * Background pre-warm: starts preparing the CDN stream ahead of time
    * so that when the user clicks "Download", the file link is already 100% ready.
    */
-  prewarmStream(videoId: string, title: string, format: string): Promise<string | null> {
+  prewarmStream(
+    videoId: string,
+    title: string,
+    format: string,
+    onProgress?: DownloadProgressCallback
+  ): Promise<string | null> {
     const isMp3 = format === 'mp3';
     const cleanTitle = sanitizeFilename(title || 'YouTube_Video', isMp3 ? 'mp3' : 'mp4');
     const wrapSafeUrl = (rawUrl: string) => {
@@ -60,19 +66,39 @@ export class YouTubeAdapter extends MediaProvider {
     };
     const cacheKey = `${videoId}_${format === 'mp3' ? 'mp3' : `${format}p`}`;
 
+    // Attach listener if provided
+    if (onProgress) {
+      if (!inFlightProgressListeners.has(cacheKey)) {
+        inFlightProgressListeners.set(cacheKey, new Set());
+      }
+      inFlightProgressListeners.get(cacheKey)!.add(onProgress);
+    }
+
+    const emitProgress = (percent: number, stage: string) => {
+      const listeners = inFlightProgressListeners.get(cacheKey);
+      if (listeners) {
+        for (const cb of listeners) {
+          try { cb({ percent, stage }); } catch {}
+        }
+      }
+    };
+
     // Check existing cache
     const existing = youtubeStreamCache.get(cacheKey);
     if (existing && existing.expiry > Date.now()) {
+      emitProgress(100, 'Retrieved from instant cache ✓');
       return Promise.resolve(existing.url);
     }
 
     // Check if conversion is already in-flight
     if (inFlightConversions.has(cacheKey)) {
+      emitProgress(45, 'Connecting to ongoing stream...');
       return inFlightConversions.get(cacheKey)!;
     }
 
     const conversionPromise = (async (): Promise<string | null> => {
       try {
+        emitProgress(20, 'Connecting to high-speed cloud stream...');
         const targetUrl = `https://www.youtube.com/watch?v=${videoId}`;
         const initRes = await fetch(
           `https://loader.to/ajax/download.php?button=1&start=1&end=1&format=${format}&url=${encodeURIComponent(targetUrl)}`,
@@ -90,13 +116,22 @@ export class YouTubeAdapter extends MediaProvider {
         if (init.download_url) {
           const safe = wrapSafeUrl(init.download_url);
           youtubeStreamCache.set(cacheKey, { url: safe, expiry: Date.now() + 3 * 3600 * 1000 });
+          emitProgress(100, 'Stream ready! Starting download...');
           return safe;
         }
         if (init.id) {
           const progressUrl = init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
-          // Fast polling: check every 380ms for up to 25 attempts (~9.5s max)
-          for (let attempt = 0; attempt < 25; attempt++) {
-            await new Promise((r) => setTimeout(r, 380));
+          // Active polling with live SSE progress updates up to 30 attempts (~12s max)
+          for (let attempt = 0; attempt < 30; attempt++) {
+            await new Promise((r) => setTimeout(r, 400));
+            const progressPercent = Math.min(94, 25 + Math.round(((attempt + 1) / 26) * 69));
+            const stage = attempt < 4
+              ? 'Connecting to CDN stream...'
+              : attempt < 15
+              ? `Generating media stream (${progressPercent}%)...`
+              : 'Optimizing high-speed stream...';
+            emitProgress(progressPercent, stage);
+
             try {
               const pRes = await fetch(progressUrl, {
                 headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -108,9 +143,13 @@ export class YouTubeAdapter extends MediaProvider {
                   const safe = wrapSafeUrl(pData.download_url);
                   youtubeStreamCache.set(cacheKey, { url: safe, expiry: Date.now() + 3 * 3600 * 1000 });
                   logger.info('High-speed stream pre-warm complete', { videoId, format });
+                  emitProgress(100, 'Stream ready! Starting download...');
                   return safe;
                 }
-                if (pData.text === 'Failed' || pData.success === -1) break;
+                if (pData.text === 'Failed' || pData.success === -1) {
+                  logger.warn('Cloud conversion returned failed', { pData });
+                  break;
+                }
               }
             } catch {}
           }
@@ -119,6 +158,7 @@ export class YouTubeAdapter extends MediaProvider {
         logger.warn('Pre-warm conversion error', { videoId, format, msg: err.message });
       } finally {
         inFlightConversions.delete(cacheKey);
+        inFlightProgressListeners.delete(cacheKey);
       }
       return null;
     })();
@@ -284,7 +324,13 @@ export class YouTubeAdapter extends MediaProvider {
 
     // 2. Check if background pre-warming is currently completing
     if (inFlightConversions.has(cacheKey)) {
-      onProgress?.({ percent: 75, stage: 'Finalizing high-speed stream...' });
+      if (onProgress) {
+        if (!inFlightProgressListeners.has(cacheKey)) {
+          inFlightProgressListeners.set(cacheKey, new Set());
+        }
+        inFlightProgressListeners.get(cacheKey)!.add(onProgress);
+      }
+      onProgress?.({ percent: 45, stage: 'Connecting to ongoing stream...' });
       const readyUrl = await inFlightConversions.get(cacheKey);
       if (readyUrl) {
         onProgress?.({ percent: 100, stage: 'Stream ready! Starting download...' });
@@ -298,13 +344,12 @@ export class YouTubeAdapter extends MediaProvider {
 
     // 3. Primary High-Speed Engine: Fast Direct Cloud Stream
     try {
-      onProgress?.({ percent: 25, stage: 'Connecting to media server...' });
       const isMp3 =
         formatId.toLowerCase().includes('mp3') ||
         formatId.toLowerCase().includes('audio');
       const format = isMp3 ? 'mp3' : formatId.replace(/[^0-9]/g, '') || '720';
 
-      const directUrl = await this.prewarmStream(videoId, media.title || 'video', format);
+      const directUrl = await this.prewarmStream(videoId, media.title || 'video', format, onProgress);
       if (directUrl) {
         onProgress?.({ percent: 100, stage: 'Stream ready! Starting download...' });
         return {
@@ -322,6 +367,7 @@ export class YouTubeAdapter extends MediaProvider {
     // 4. Robust Fallback Engine: Full-Fidelity Multi-Threaded Download via yt-dlp (12 concurrent fragments)
     if (ytDlpRunner.isAvailable()) {
       try {
+        onProgress?.({ percent: 30, stage: 'Connecting to dedicated media server...' });
         const serveUrl = await ytDlpRunner.downloadMedia(media, formatId, onProgress);
         if (serveUrl && (serveUrl.startsWith('/api/download/') || serveUrl.startsWith('http'))) {
           youtubeStreamCache.set(cacheKey, {

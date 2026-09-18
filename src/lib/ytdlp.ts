@@ -498,6 +498,8 @@ export const ytDlpRunner = {
         '--no-playlist',
         '--no-part',
         '--newline',
+        '--socket-timeout',
+        '15',
         '--retries',
         '3',
         '--fragment-retries',

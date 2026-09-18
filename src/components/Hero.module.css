@@ -158,11 +158,42 @@
   pointer-events: none;
 }
 
+/* 3D Floating Pinterest Badge */
+.floatingPinterestBadge {
+  position: absolute;
+  bottom: 56px;
+  left: 18px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #e60023 0%, #ad081b 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 24px -4px rgba(230, 0, 35, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.25) inset;
+  z-index: 5;
+  animation: floatPinterest 4s ease-in-out infinite;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floatingPinterestBadge:hover {
+  transform: scale(1.08) translateY(-2px);
+}
+
+@keyframes floatPinterest {
+  0%, 100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(2deg);
+  }
+}
+
 @media (max-width: 1040px) {
   .heroGrid {
     grid-template-columns: 1fr;
     text-align: center;
-    gap: 28px;
+    gap: 20px;
   }
 
   .heroContent {
@@ -175,13 +206,13 @@
   }
 
   .stageContainer {
-    width: 360px;
-    height: 360px;
+    width: 340px;
+    height: 340px;
   }
 
   .artworkImg {
-    width: 340px;
-    height: 340px;
+    width: 320px;
+    height: 320px;
   }
 
   .annotationOneLink,
@@ -193,54 +224,118 @@
 
 @media (max-width: 768px) {
   .heroSection {
-    padding-top: 14px;
-    padding-bottom: 0px;
+    padding-top: 18px;
+    padding-bottom: 8px;
   }
 
   .heroGrid {
-    gap: 8px;
+    gap: 14px;
+    grid-template-columns: 1fr;
   }
 
   .heroContent {
     gap: 8px;
-    padding: 0 4px;
+    padding: 0 6px;
   }
 
   .heroHeading {
-    font-size: clamp(1.75rem, 7.5vw, 2.3rem);
+    font-size: clamp(1.85rem, 8vw, 2.4rem);
     line-height: 1.15;
     letter-spacing: -0.02em;
   }
 
   .supportingText {
-    font-size: 0.92rem;
+    font-size: 0.94rem;
     max-width: 95%;
     line-height: 1.4;
   }
 
   .secondaryText {
-    display: none; /* Keep mobile screen clean and focused */
+    display: none;
   }
 
   .heroBadge {
-    font-size: 0.62rem;
-    padding: 4px 10px;
+    font-size: 0.65rem;
+    padding: 4px 12px;
     margin-bottom: 2px;
   }
 
-  /* Hide bulky 3D illustration on mobile phones to put the Downloader above fold */
+  /* 3D Composition Artwork on Mobile — Beautiful, Centered & Perfectly Proportioned */
   .visualWrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: auto;
+    width: 100%;
+    margin-top: 6px;
+  }
+
+  .stageContainer {
+    width: 270px;
+    height: 270px;
+  }
+
+  .artworkImg {
+    width: 250px;
+    height: 250px;
+  }
+
+  .floatingPinterestBadge {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    bottom: 38px;
+    left: 12px;
+  }
+
+  .annotationOneLink {
+    display: block;
+    top: 6px;
+    right: 4px;
+    font-size: 1.15rem;
+  }
+
+  .annotationOneLink span {
+    font-size: 0.95rem;
+  }
+
+  .annotationSaveWhat {
+    display: block;
+    bottom: 8px;
+    right: 6px;
+    font-size: 1.1rem;
+  }
+
+  .verticalPillsColumn {
     display: none;
   }
 }
 
 @media (max-width: 420px) {
   .heroHeading {
-    font-size: 1.65rem;
+    font-size: 1.7rem;
   }
 
   .supportingText {
-    font-size: 0.85rem;
+    font-size: 0.86rem;
+  }
+
+  .stageContainer {
+    width: 240px;
+    height: 240px;
+  }
+
+  .artworkImg {
+    width: 220px;
+    height: 220px;
+  }
+
+  .floatingPinterestBadge {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    bottom: 30px;
+    left: 8px;
   }
 }
 

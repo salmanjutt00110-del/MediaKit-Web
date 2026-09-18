@@ -1,7 +1,6 @@
-'use client';
-
 import React from 'react';
 import Image from 'next/image';
+import { PinterestIcon } from './PlatformIcons';
 import styles from './Hero.module.css';
 
 export default function Hero() {
@@ -28,7 +27,7 @@ export default function Hero() {
           </p>
         </div>
 
-        {/* RIGHT COLUMN: 3D Artwork from Reference 2 */}
+        {/* RIGHT COLUMN: 3D Artwork Composition (Visible on Desktop & Mobile) */}
         <div className={styles.visualWrapper}>
           <div className={styles.stageContainer}>
             <Image
@@ -47,6 +46,11 @@ export default function Hero() {
               className={`${styles.artworkImg} ${styles.artworkDark}`}
               priority
             />
+
+            {/* 3D Floating Pinterest Badge (Completes the 5 platforms: YT, TikTok, Insta, FB, Pinterest) */}
+            <div className={styles.floatingPinterestBadge} title="Pinterest Video Downloader Supported">
+              <PinterestIcon size={26} color="#ffffff" />
+            </div>
 
             {/* Handwritten Annotations */}
             <div className={styles.annotationOneLink}>
