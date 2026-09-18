@@ -369,13 +369,21 @@ export class TikTokAdapter extends MediaProvider {
 
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
+    const cleanTitle = (media.title || 'TikTok_Video')
+      .replace(/[/\\?%*:|"<>]/g, '_')
+      .trim();
+
+    const wrapProxy = (rawUrl: string) => {
+      if (rawUrl.startsWith('/api/download/file')) return rawUrl;
+      return `/api/download/file?url=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+    };
 
     // 1. Direct return if format already has prepared download URL
     const format = media.formats.find((f) => f.id === formatId);
     if (format && format.downloadUrl) {
       return {
         success: true,
-        downloadUrl: format.downloadUrl,
+        downloadUrl: wrapProxy(format.downloadUrl),
         message: 'Direct media download prepared successfully.',
       };
     }
@@ -387,7 +395,7 @@ export class TikTokAdapter extends MediaProvider {
       if (cachedFormat && cachedFormat.downloadUrl) {
         return {
           success: true,
-          downloadUrl: cachedFormat.downloadUrl,
+          downloadUrl: wrapProxy(cachedFormat.downloadUrl),
           message: 'Direct media download prepared successfully.',
         };
       }
@@ -402,7 +410,7 @@ export class TikTokAdapter extends MediaProvider {
         if (format) format.downloadUrl = dlUrl;
         return {
           success: true,
-          downloadUrl: dlUrl,
+          downloadUrl: wrapProxy(dlUrl),
           message: 'Direct media download prepared successfully.',
         };
       }
@@ -416,7 +424,7 @@ export class TikTokAdapter extends MediaProvider {
         if (format) format.downloadUrl = dlUrl;
         return {
           success: true,
-          downloadUrl: dlUrl,
+          downloadUrl: wrapProxy(dlUrl),
           message: 'Direct media download prepared successfully.',
         };
       }

@@ -18,19 +18,43 @@ export function getCookiesPath(): string | null {
   return null;
 }
 
-function getExecutablePath(): string | null {
+interface YtDlpCommand {
+  cmd: string;
+  prefixArgs: string[];
+}
+
+let cachedCommand: YtDlpCommand | null = null;
+
+function getYtDlpCommand(): YtDlpCommand | null {
+  if (cachedCommand) return cachedCommand;
+
+  // 1. Check native python with yt_dlp module (fastest, zero PyInstaller unpack delay)
+  try {
+    const { spawnSync } = require('child_process');
+    const check = spawnSync('python', ['-m', 'yt_dlp', '--version'], { timeout: 3000 });
+    if (check.status === 0) {
+      cachedCommand = { cmd: 'python', prefixArgs: ['-m', 'yt_dlp'] };
+      return cachedCommand;
+    }
+  } catch {}
+
+  // 2. Windows standalone binary
   if (isWin) {
     const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
-    return fs.existsSync(winPath) ? winPath : null;
+    if (fs.existsSync(winPath)) {
+      cachedCommand = { cmd: winPath, prefixArgs: [] };
+      return cachedCommand;
+    }
   }
 
-  // Linux / Vercel Serverless environment
+  // 3. Linux / Vercel Serverless environment
   const tmpBinary = '/tmp/yt-dlp';
   if (fs.existsSync(tmpBinary)) {
     try {
       fs.chmodSync(tmpBinary, 0o755);
     } catch {}
-    return tmpBinary;
+    cachedCommand = { cmd: tmpBinary, prefixArgs: [] };
+    return cachedCommand;
   }
 
   // Source binary bundled in deployment
@@ -39,12 +63,14 @@ function getExecutablePath(): string | null {
     try {
       fs.copyFileSync(bundledPath, tmpBinary);
       fs.chmodSync(tmpBinary, 0o755);
-      return tmpBinary;
+      cachedCommand = { cmd: tmpBinary, prefixArgs: [] };
+      return cachedCommand;
     } catch {
       try {
         fs.chmodSync(bundledPath, 0o755);
       } catch {}
-      return bundledPath;
+      cachedCommand = { cmd: bundledPath, prefixArgs: [] };
+      return cachedCommand;
     }
   }
 
@@ -91,16 +117,16 @@ function formatBytes(bytes?: number): string | undefined {
 
 export const ytDlpRunner = {
   isAvailable(): boolean {
-    return !!getExecutablePath();
+    return !!getYtDlpCommand();
   },
 
   /**
    * Fetches authentic media metadata and available formats for any supported URL.
    */
   async getMediaInfo(targetUrl: string): Promise<MediaMetadata> {
-    const executable = getExecutablePath();
-    if (!executable) {
-      throw new Error('yt-dlp engine executable not found in bin directory.');
+    const runner = getYtDlpCommand();
+    if (!runner) {
+      throw new Error('yt-dlp engine executable not found.');
     }
 
     return new Promise((resolve, reject) => {
@@ -123,8 +149,8 @@ export const ytDlpRunner = {
       args.push(targetUrl);
 
       execFile(
-        /*turbopackIgnore: true*/ executable,
-        args,
+        /*turbopackIgnore: true*/ runner.cmd,
+        [...runner.prefixArgs, ...args],
         { maxBuffer: 25 * 1024 * 1024, timeout: 20000 },
         (error, stdout, stderr) => {
           if (error) {
@@ -489,12 +515,12 @@ export const ytDlpRunner = {
         args.push('--extractor-args', 'youtube:player_client=android,web');
       }
 
-      const executable = getExecutablePath();
-      if (!executable) {
+      const runner = getYtDlpCommand();
+      if (!runner) {
         return reject(new Error('yt-dlp executable not available.'));
       }
 
-      execFile(/*turbopackIgnore: true*/ executable, args, { timeout: 45000 }, (error, stdout, stderr) => {
+      execFile(/*turbopackIgnore: true*/ runner.cmd, [...runner.prefixArgs, ...args], { timeout: 45000 }, (error, stdout, stderr) => {
         if (error) {
           // If the file was produced despite error code
           if (fs.existsSync(tempOutputFile)) {
@@ -544,16 +570,14 @@ export const ytDlpRunner = {
       const args: string[] = ['-g', '--no-playlist'];
 
       if (isYouTube) {
+        args.push('--js-runtimes', `node:${process.execPath}`);
         if (isMp3) {
           formatArg = '140/251/ba/bestaudio';
         } else if (formatId.includes('1080')) {
-          args.push('--js-runtimes', `node:${process.execPath}`);
           formatArg = '137/bestvideo[height<=1080]/22/18/b/best';
         } else if (formatId.includes('720')) {
-          args.push('--js-runtimes', `node:${process.execPath}`);
           formatArg = '22/136/398/bestvideo[height<=720]/18/b/best';
         } else if (formatId.includes('480')) {
-          args.push('--js-runtimes', `node:${process.execPath}`);
           formatArg = '135/397/bestvideo[height<=480]/18/b/best';
         } else {
           args.push('--extractor-args', 'youtube:player_client=android');
@@ -572,14 +596,14 @@ export const ytDlpRunner = {
 
       args.push(targetUrl);
 
-      const executable = getExecutablePath();
-      if (!executable) {
+      const runner = getYtDlpCommand();
+      if (!runner) {
         return reject(new Error('yt-dlp executable not available.'));
       }
 
       execFile(
-        /*turbopackIgnore: true*/ executable,
-        args,
+        /*turbopackIgnore: true*/ runner.cmd,
+        [...runner.prefixArgs, ...args],
         { timeout: 18000 },
         (error, stdout, stderr) => {
           if (error) {

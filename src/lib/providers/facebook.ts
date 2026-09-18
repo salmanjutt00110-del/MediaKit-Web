@@ -162,6 +162,47 @@ export class FacebookAdapter extends MediaProvider {
     return {};
   }
 
+  private async extractGetMyFB(url: string): Promise<{ hdUrl?: string; sdUrl?: string; title?: string; thumb?: string } | null> {
+    try {
+      const formData = new URLSearchParams();
+      formData.append('id', url);
+      formData.append('locale', 'en');
+
+      const res = await fetch('https://getmyfb.com/process', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'x-requested-with': 'XMLHttpRequest',
+          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'referer': 'https://getmyfb.com/',
+        },
+        body: formData.toString(),
+        signal: AbortSignal.timeout(6500),
+      });
+
+      if (!res.ok) return null;
+      const html = await res.text();
+      const links = [...html.matchAll(/href="([^"]+)"/g)]
+        .map((m) => m[1])
+        .filter((l) => l.includes('ssscdn.io') || l.includes('getmyfb'));
+
+      const thumbMatch = html.match(/<img[^>]+src="([^"]+)"/i);
+      const titleMatch = html.match(/<h5[^>]*>([^<]+)<\/h5>/i) || html.match(/<p[^>]*class="[^"]*caption[^"]*"[^>]*>([^<]+)<\/p>/i);
+
+      if (links.length > 0) {
+        return {
+          hdUrl: links[0],
+          sdUrl: links[1] || links[0],
+          thumb: thumbMatch ? thumbMatch[1] : undefined,
+          title: titleMatch ? cleanAndDecodeTitle(titleMatch[1].trim()) : undefined,
+        };
+      }
+    } catch (err: any) {
+      logger.warn('GetMyFB extraction warning', { msg: err.message });
+    }
+    return null;
+  }
+
   async getMediaInfo(rawUrl: string): Promise<MediaMetadata> {
     const resolvedUrl = await this.resolveCanonicalUrl(rawUrl);
     const videoId = this.extractVideoId(resolvedUrl) || this.extractVideoId(rawUrl) || 'facebook-media';
@@ -170,13 +211,15 @@ export class FacebookAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(videoId);
     if (cached) return cached;
 
-    // Scrape metadata
-    const scraped = await this.scrapeFacebookPage(resolvedUrl);
+    // Run GetMyFB and page scraper in parallel
+    const [getmyfbData, scraped] = await Promise.all([
+      this.extractGetMyFB(resolvedUrl).catch(() => null),
+      this.scrapeFacebookPage(resolvedUrl).catch(() => ({} as { title?: string; thumbnailUrl?: string; hdUrl?: string; sdUrl?: string })),
+    ]);
 
-    // If scraping didn't get direct video stream, fallback to native SnapSave
-    let fbThumb = scraped.thumbnailUrl;
-    let fbHd = scraped.hdUrl;
-    let fbSd = scraped.sdUrl;
+    let fbThumb = getmyfbData?.thumb || scraped.thumbnailUrl;
+    let fbHd = getmyfbData?.hdUrl || scraped.hdUrl;
+    let fbSd = getmyfbData?.sdUrl || scraped.sdUrl;
 
     if (!fbHd && !fbSd) {
       try {
@@ -191,7 +234,7 @@ export class FacebookAdapter extends MediaProvider {
       } catch {}
     }
 
-    const title = scraped.title || `Facebook Video (${videoId})`;
+    const title = getmyfbData?.title || scraped.title || `Facebook Video (${videoId})`;
     // Wrap with thumbnail proxy to avoid cross-origin and CDN referrer blocks
     const thumbnailUrl = fbThumb
       ? `/api/thumbnail?url=${encodeURIComponent(fbThumb)}`
@@ -260,12 +303,27 @@ export class FacebookAdapter extends MediaProvider {
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
 
+    const cleanTitle = (media.title || 'facebook-media')
+      .replace(/[/\\?%*:|"<>]/g, '_')
+      .trim();
+
+    const wrapProxy = (rawUrl: string) => {
+      if (rawUrl.startsWith('/api/download/file')) return rawUrl;
+      return `/api/download/file?url=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+    };
+
     // 1. Direct return if format already has prepared download URL
     const format = media.formats.find((f) => f.id === formatId);
-    if (format && format.downloadUrl) {
+    let directUrl = format?.downloadUrl;
+    if (!directUrl) {
+      const anyFmtWithUrl = media.formats.find((f) => f.downloadUrl && f.downloadUrl.startsWith('http'));
+      if (anyFmtWithUrl) directUrl = anyFmtWithUrl.downloadUrl;
+    }
+
+    if (directUrl && directUrl.startsWith('http')) {
       return {
         success: true,
-        downloadUrl: format.downloadUrl,
+        downloadUrl: wrapProxy(directUrl),
         message: 'Direct media download prepared successfully.',
       };
     }
@@ -361,9 +419,6 @@ export class FacebookAdapter extends MediaProvider {
     } catch {}
 
     // 4. Clean stream proxy fallback
-    const cleanTitle = (media.title || 'facebook-media')
-      .replace(/[/\\?%*:|"<>]/g, '_')
-      .trim();
     const proxyPath = `/api/download/file?url=${encodeURIComponent(
       media.sourceUrl
     )}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;

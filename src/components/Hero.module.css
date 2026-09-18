@@ -62,44 +62,7 @@
   margin-top: -6px;
 }
 
-/* 4 Feature indicators row */
-.featuresRow {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-  width: 100%;
-  margin-top: 8px;
-}
 
-.featureItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.featureIcon {
-  color: var(--brand-blue);
-  flex-shrink: 0;
-}
-
-.featureTextBox {
-  display: flex;
-  flex-direction: column;
-}
-
-.featureTitle {
-  font-size: 0.825rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.2;
-}
-
-.featureSub {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  line-height: 1.2;
-}
 
 /* RIGHT COLUMN: 3D Artwork Composition */
 .visualWrapper {
@@ -211,10 +174,6 @@
     margin-right: auto;
   }
 
-  .featuresRow {
-    justify-content: center;
-  }
-
   .stageContainer {
     width: 360px;
     height: 360px;
@@ -234,26 +193,26 @@
 
 @media (max-width: 768px) {
   .heroSection {
-    padding-top: 20px;
-    padding-bottom: 8px;
+    padding-top: 16px;
+    padding-bottom: 4px;
   }
 
   .heroGrid {
-    gap: 16px;
-  }
-
-  .heroContent {
     gap: 12px;
   }
 
+  .heroContent {
+    gap: 10px;
+  }
+
   .heroHeading {
-    font-size: clamp(2rem, 8vw, 2.8rem);
+    font-size: clamp(2rem, 8vw, 2.75rem);
     line-height: 1.1;
   }
 
   .supportingText {
-    font-size: 1rem;
-    max-width: 90%;
+    font-size: 0.98rem;
+    max-width: 92%;
   }
 
   .secondaryText {
@@ -271,64 +230,33 @@
   }
 
   .stageContainer {
-    width: 280px;
-    height: 280px;
+    width: 270px;
+    height: 270px;
   }
 
   .artworkImg {
-    width: 260px;
-    height: 260px;
-  }
-
-  .featuresRow {
-    gap: 10px;
-    margin-top: 4px;
-  }
-
-  .featureItem {
-    gap: 6px;
-  }
-
-  .featureTitle {
-    font-size: 0.75rem;
-  }
-
-  .featureSub {
-    font-size: 0.625rem;
-  }
-
-  .featureIcon {
-    width: 18px;
-    height: 18px;
+    width: 250px;
+    height: 250px;
   }
 }
 
 @media (max-width: 420px) {
   .heroHeading {
-    font-size: 2rem;
+    font-size: 1.95rem;
   }
 
   .supportingText {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
   }
 
   .stageContainer {
-    width: 240px;
-    height: 240px;
+    width: 230px;
+    height: 230px;
   }
 
   .artworkImg {
-    width: 220px;
-    height: 220px;
-  }
-
-  .featuresRow {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .featureItem {
-    justify-content: flex-start;
+    width: 210px;
+    height: 210px;
   }
 }
+

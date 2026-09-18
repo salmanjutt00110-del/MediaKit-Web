@@ -2,7 +2,6 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { Zap, ShieldCheck, Infinity as InfinityIcon, Lock } from 'lucide-react';
 import styles from './Hero.module.css';
 
 export default function Hero() {
@@ -27,41 +26,6 @@ export default function Hero() {
           <p className={styles.secondaryText}>
             No selection needed. Fast. Simple. Free.
           </p>
-
-          {/* 4 Feature Indicators Row */}
-          <div className={styles.featuresRow}>
-            <div className={styles.featureItem}>
-              <Zap size={18} className={styles.featureIcon} />
-              <div className={styles.featureTextBox}>
-                <span className={styles.featureTitle}>Auto Detect</span>
-                <span className={styles.featureSub}>Any Platform</span>
-              </div>
-            </div>
-
-            <div className={styles.featureItem}>
-              <ShieldCheck size={18} className={styles.featureIcon} />
-              <div className={styles.featureTextBox}>
-                <span className={styles.featureTitle}>100% Free</span>
-                <span className={styles.featureSub}>No Registration</span>
-              </div>
-            </div>
-
-            <div className={styles.featureItem}>
-              <InfinityIcon size={18} className={styles.featureIcon} />
-              <div className={styles.featureTextBox}>
-                <span className={styles.featureTitle}>High Speed</span>
-                <span className={styles.featureSub}>Unlimited Downloads</span>
-              </div>
-            </div>
-
-            <div className={styles.featureItem}>
-              <Lock size={18} className={styles.featureIcon} />
-              <div className={styles.featureTextBox}>
-                <span className={styles.featureTitle}>Safe &amp; Private</span>
-                <span className={styles.featureSub}>Your Data Is Secure</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* RIGHT COLUMN: 3D Artwork from Reference 2 */}

@@ -103,10 +103,13 @@ export async function GET(request: NextRequest) {
     } else if (targetUrl.includes('pinimg.com') || targetUrl.includes('pinterest.com')) {
       upstreamHeaders['Referer'] = 'https://www.pinterest.com/';
       upstreamHeaders['Origin'] = 'https://www.pinterest.com';
+    } else if (targetUrl.includes('ssscdn.io') || targetUrl.includes('getmyfb')) {
+      upstreamHeaders['Referer'] = 'https://getmyfb.com/';
     }
 
     const upstreamRes = await fetch(targetUrl, {
       headers: upstreamHeaders,
+      redirect: 'follow',
     });
 
     if (!upstreamRes.ok && upstreamRes.status !== 206) {
@@ -138,7 +141,9 @@ export async function GET(request: NextRequest) {
     const utf8Filename = buildSafeFilename(title, ext);
 
     const headers = new Headers();
-    headers.set('Content-Type', contentType);
+    // Use application/octet-stream to prevent mobile browsers from playing video inline or in new tab
+    headers.set('Content-Type', 'application/octet-stream');
+    headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('Accept-Ranges', 'bytes');
     headers.set(
       'Content-Disposition',
@@ -199,10 +204,12 @@ export async function HEAD(request: NextRequest) {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       },
+      redirect: 'follow',
     });
 
     const headers = new Headers();
-    headers.set('Content-Type', upstreamRes.headers.get('content-type') || (ext === 'mp3' ? 'audio/mpeg' : 'video/mp4'));
+    headers.set('Content-Type', 'application/octet-stream');
+    headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('Accept-Ranges', 'bytes');
     const contentLength = upstreamRes.headers.get('content-length');
     if (contentLength) {

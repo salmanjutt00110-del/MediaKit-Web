@@ -188,6 +188,47 @@ export class InstagramAdapter extends MediaProvider {
     return {};
   }
 
+  private async extractGetMyFB(url: string): Promise<{ hdUrl?: string; sdUrl?: string; title?: string; thumb?: string } | null> {
+    try {
+      const formData = new URLSearchParams();
+      formData.append('id', url);
+      formData.append('locale', 'en');
+
+      const res = await fetch('https://getmyfb.com/process', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'x-requested-with': 'XMLHttpRequest',
+          'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'referer': 'https://getmyfb.com/',
+        },
+        body: formData.toString(),
+        signal: AbortSignal.timeout(6500),
+      });
+
+      if (!res.ok) return null;
+      const html = await res.text();
+      const links = [...html.matchAll(/href="([^"]+)"/g)]
+        .map((m) => m[1])
+        .filter((l) => l.includes('ssscdn.io') || l.includes('getmyfb'));
+
+      const thumbMatch = html.match(/<img[^>]+src="([^"]+)"/i);
+      const titleMatch = html.match(/<h5[^>]*>([^<]+)<\/h5>/i) || html.match(/<p[^>]*class="[^"]*caption[^"]*"[^>]*>([^<]+)<\/p>/i);
+
+      if (links.length > 0) {
+        return {
+          hdUrl: links[0],
+          sdUrl: links[1] || links[0],
+          thumb: thumbMatch ? thumbMatch[1] : undefined,
+          title: titleMatch ? cleanAndDecodeTitle(titleMatch[1].trim()) : undefined,
+        };
+      }
+    } catch (err: any) {
+      logger.warn('Instagram GetMyFB extraction warning', { msg: err.message });
+    }
+    return null;
+  }
+
   async getMediaInfo(rawUrl: string): Promise<MediaMetadata> {
     const resolvedUrl = await this.resolveCanonicalUrl(rawUrl);
     const shortcode = this.extractShortcode(resolvedUrl) || this.extractShortcode(rawUrl) || 'ig-media';
@@ -196,19 +237,63 @@ export class InstagramAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(shortcode);
     if (cached) return cached;
 
-    // 0. Primary Engine: yt-dlp extractor (extracts Reels, Posts, Stories directly in 2 seconds)
-    if (ytDlpRunner.isAvailable()) {
-      try {
-        const info = await ytDlpRunner.getMediaInfo(resolvedUrl);
-        if (info && info.formats && info.formats.length > 0) {
-          setCachedMedia(resolvedUrl, info);
-          setCachedMedia(rawUrl, info);
-          setCachedMedia(shortcode, info);
-          return info;
-        }
-      } catch (err: any) {
-        logger.warn('Instagram yt-dlp info attempt failed', { msg: err.message });
-      }
+    // 0. High-Speed API Extractor (GetMyFB multi-platform)
+    const getmyfb = await this.extractGetMyFB(resolvedUrl).catch(() => null);
+    if (getmyfb && (getmyfb.hdUrl || getmyfb.sdUrl)) {
+      const bestUrl = getmyfb.hdUrl || getmyfb.sdUrl!;
+      const formats: MediaFormat[] = [
+        {
+          id: 'hd',
+          format: 'mp4',
+          quality: '1080p HD (High Definition)',
+          resolution: '1080x1920',
+          hasAudio: true,
+          hasVideo: true,
+          downloadUrl: getmyfb.hdUrl || bestUrl,
+        },
+        {
+          id: '720p',
+          format: 'mp4',
+          quality: '720p HD (Standard HD)',
+          resolution: '720x1280',
+          hasAudio: true,
+          hasVideo: true,
+          downloadUrl: bestUrl,
+        },
+        {
+          id: 'sd',
+          format: 'mp4',
+          quality: 'SD Quality (Fast Download)',
+          resolution: '480x854',
+          hasAudio: true,
+          hasVideo: true,
+          downloadUrl: getmyfb.sdUrl || bestUrl,
+        },
+        {
+          id: 'mp3',
+          format: 'mp3',
+          quality: 'Original Audio (MP3)',
+          hasAudio: true,
+          hasVideo: false,
+          downloadUrl: bestUrl,
+        },
+      ];
+
+      const result: MediaMetadata = {
+        id: shortcode,
+        platform: 'instagram',
+        title: getmyfb.title || `Instagram Reel (${shortcode})`,
+        author: 'Instagram Creator',
+        thumbnailUrl: getmyfb.thumb ? `/api/thumbnail?url=${encodeURIComponent(getmyfb.thumb)}` : undefined,
+        sourceUrl: resolvedUrl,
+        formats,
+        requiresProviderSetup: false,
+      };
+
+      setCachedMedia(resolvedUrl, result);
+      setCachedMedia(rawUrl, result);
+      setCachedMedia(shortcode, result);
+      return result;
     }
 
     // 1. High-Performance Serverless Extractor: snapsave (extracts real HD video & thumbnail in <2s)
@@ -368,18 +453,26 @@ export class InstagramAdapter extends MediaProvider {
     let directUrl = format?.downloadUrl;
 
     if (!directUrl) {
-      // Re-scrape with full timeout in case first pass was incomplete
-      const shortcode = this.extractShortcode(media.sourceUrl) || media.id;
-      const freshMeta = await this.scrapeInstagramMetadata(shortcode, media.sourceUrl);
-      if (freshMeta.directVideoUrl) {
-        directUrl = freshMeta.directVideoUrl;
+      const anyFmtWithUrl = media.formats.find((f) => f.downloadUrl && f.downloadUrl.startsWith('http'));
+      if (anyFmtWithUrl) {
+        directUrl = anyFmtWithUrl.downloadUrl;
+      } else {
+        // Re-scrape with full timeout in case first pass was incomplete
+        const shortcode = this.extractShortcode(media.sourceUrl) || media.id;
+        const freshMeta = await this.scrapeInstagramMetadata(shortcode, media.sourceUrl);
+        if (freshMeta.directVideoUrl) {
+          directUrl = freshMeta.directVideoUrl;
+        }
       }
     }
 
     if (directUrl && directUrl.startsWith('http')) {
+      const safeUrl = directUrl.startsWith('/api/download/file')
+        ? directUrl
+        : `/api/download/file?url=${encodeURIComponent(directUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
       return {
         success: true,
-        downloadUrl: directUrl,
+        downloadUrl: safeUrl,
         message: 'Direct media download prepared successfully.',
       };
     }

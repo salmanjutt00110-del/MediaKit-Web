@@ -17,6 +17,11 @@ import {
   FileVideo,
   Music,
   CheckCircle2,
+  Zap,
+  Infinity as InfinityIcon,
+  ShieldCheck,
+  Lock,
+  BookOpen,
 } from 'lucide-react';
 import { detectPlatform, getPlatformDisplayName } from '@/lib/detect';
 import {
@@ -392,15 +397,85 @@ export default function Downloader() {
     }
   };
 
+  // Native direct file download trigger to Downloads folder (no new tabs, no player)
+  const triggerNativeDownload = async (finalDlUrl: string, filename: string): Promise<string> => {
+    const safeTitle = filename.replace(/\.[^/.]+$/, '');
+    const ext = filename.split('.').pop() || 'mp4';
+    const proxiedUrl = finalDlUrl.startsWith('/api/download/file')
+      ? finalDlUrl
+      : `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
+
+    try {
+      // 1. Client-Side Blob Fetch with Real-Time Progress
+      const response = await fetch(proxiedUrl);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const reader = response.body?.getReader();
+      const contentLength = Number(response.headers.get('Content-Length')) || 0;
+
+      let received = 0;
+      const chunks: Uint8Array[] = [];
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          received += value.length;
+          if (contentLength > 0) {
+            const pct = Math.min(99, Math.round((received / contentLength) * 100));
+            setDownloadProgress((prev) => ({
+              ...prev,
+              percent: Math.max(prev.percent, pct),
+              receivedMB: `${(received / (1024 * 1024)).toFixed(1)} MB / ${(contentLength / (1024 * 1024)).toFixed(1)} MB (${pct}%)`,
+            }));
+          }
+        }
+      }
+
+      const blob = new Blob(chunks as any[], { type: 'application/octet-stream' });
+      const blobUrl = window.URL.createObjectURL(blob);
+      const dlAnchor = document.createElement('a');
+      dlAnchor.href = blobUrl;
+      dlAnchor.setAttribute('download', filename);
+      dlAnchor.style.display = 'none';
+      document.body.appendChild(dlAnchor);
+      dlAnchor.click();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(dlAnchor);
+        } catch {}
+      }, 2000);
+
+      return blobUrl;
+    } catch (err) {
+      console.warn('Direct stream fallback to attachment trigger:', err);
+      // Fallback: Same-origin direct download link (content-disposition attachment)
+      const dlAnchor = document.createElement('a');
+      dlAnchor.href = proxiedUrl;
+      dlAnchor.setAttribute('download', filename);
+      dlAnchor.style.display = 'none';
+      document.body.appendChild(dlAnchor);
+      dlAnchor.click();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(dlAnchor);
+        } catch {}
+      }, 1000);
+
+      return proxiedUrl;
+    }
+  };
+
   // Download Trigger Handler
   const handleDownloadFormat = async (formatId: string, customMedia?: MediaMetadata) => {
     const currentMedia = customMedia || mediaInfo;
-    if (!currentMedia) return;
+    if (!currentMedia) return false;
 
     let progressTimer: NodeJS.Timeout | null = null;
 
     try {
-      const targetFormat = currentMedia.formats?.find((f) => f.id === formatId);
+      const targetFormat = currentMedia.formats?.find((f) => f.id === formatId) || currentMedia.formats?.[0];
       const isAudio =
         formatId.toLowerCase().includes('mp3') ||
         formatId.toLowerCase().includes('audio') ||
@@ -412,65 +487,67 @@ export default function Downloader() {
         .trim();
       const filename = `${safeTitle}.${ext}`;
 
+      // FAST PATH: If direct download URL already exists on format (SnapSave, TikWM, GetMyFB, etc.)
+      if (targetFormat?.downloadUrl && (targetFormat.downloadUrl.startsWith('http://') || targetFormat.downloadUrl.startsWith('https://') || targetFormat.downloadUrl.startsWith('/api/'))) {
+        if (!customMedia) {
+          setDownloadingFormatId(formatId);
+          setState('downloading');
+          setError(null);
+          setDownloadProgress({
+            percent: 15,
+            receivedMB: 'Fetching media stream...',
+            totalMB: '',
+            active: true,
+            formatTitle: targetFormat?.quality || formatId,
+          });
+        }
+
+        const safeDlUrl = await triggerNativeDownload(targetFormat.downloadUrl, filename);
+        setDownloadToast({ title: safeTitle, ext });
+
+        if (!customMedia) {
+          setDownloadProgress({
+            percent: 100,
+            receivedMB: 'Download complete! Saved to your Downloads.',
+            totalMB: '',
+            active: false,
+          });
+          setState('completed');
+          setCompletedInfo({ title: safeTitle, ext, formatId, downloadUrl: safeDlUrl });
+          setDownloadingFormatId(null);
+        }
+
+        return true;
+      }
+
+      // STREAM PATH: Call /api/download with smooth, non-stalling progress
       if (!customMedia) {
         setDownloadingFormatId(formatId);
         setState('downloading');
         setError(null);
         setCompletedInfo(null);
         setDownloadProgress({
-          percent: 15,
+          percent: 25,
           receivedMB: 'Connecting to media server...',
           totalMB: '',
           active: true,
           formatTitle: targetFormat?.quality || formatId,
         });
 
-        // Smoothly advance progress bar while server processes conversion/stream
+        // Smooth progression
+        let currentP = 25;
         progressTimer = setInterval(() => {
-          setDownloadProgress((prev) => {
-            if (!prev.active || prev.percent >= 92) return prev;
-            const nextPercent = prev.percent + Math.floor(Math.random() * 8) + 4;
-            let statusText = 'Connecting to media stream...';
-            if (nextPercent > 35) statusText = 'Fetching high quality media chunks...';
-            if (nextPercent > 60) statusText = 'Merging video & audio tracks...';
-            if (nextPercent > 80) statusText = 'Finalizing file stream...';
-            return {
+          if (currentP < 85) {
+            currentP += 12;
+            setDownloadProgress((prev) => ({
               ...prev,
-              percent: Math.min(nextPercent, 94),
-              receivedMB: statusText,
-            };
-          });
-        }, 800);
+              percent: currentP,
+              receivedMB: currentP > 50 ? 'Preparing download...' : 'Fetching media chunks...',
+            }));
+          }
+        }, 350);
       }
 
-      // INSTANT SPEED FLOW:
-      // If direct download URL is already provided by provider (e.g. TikTok, Instagram, Facebook),
-      // launch the browser download immediately with zero lag!
-      if (targetFormat?.downloadUrl && (targetFormat.downloadUrl.startsWith('http://') || targetFormat.downloadUrl.startsWith('https://') || targetFormat.downloadUrl.startsWith('/api/'))) {
-        if (progressTimer) clearInterval(progressTimer);
-        const finalDlUrl = targetFormat.downloadUrl;
-
-        const dlAnchor = document.createElement('a');
-        dlAnchor.href = finalDlUrl;
-        dlAnchor.setAttribute('download', filename);
-        document.body.appendChild(dlAnchor);
-        dlAnchor.click();
-        setTimeout(() => {
-          try {
-            document.body.removeChild(dlAnchor);
-          } catch {}
-        }, 1000);
-
-        setDownloadToast({ title: safeTitle, ext });
-
-        if (!customMedia) {
-          setState('completed');
-          setCompletedInfo({ title: safeTitle, ext, formatId, downloadUrl: finalDlUrl });
-        }
-        return true;
-      }
-
-      // Fast-path API stream: trigger background streaming download
       const response = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -493,7 +570,7 @@ export default function Downloader() {
             title: 'Download Notice',
             message:
               data?.error?.message ||
-              'Unable to process this download stream right now. Please try again in a moment.',
+              'Unable to process this download stream right now. Please try another quality tier.',
             retryable: true,
           });
           setState('ready');
@@ -504,56 +581,21 @@ export default function Downloader() {
       }
 
       const rawDlUrl = data.data.downloadUrl;
-
-      // Update progress to 100% complete
-      setDownloadProgress((prev) => ({
-        ...prev,
-        percent: 100,
-        receivedMB: 'Download ready! Starting download...',
-      }));
-
-      // Native browser background download - Channel 1: Hidden iframe (bypasses async popup blockers)
-      try {
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = rawDlUrl;
-        document.body.appendChild(iframe);
-        setTimeout(() => {
-          try {
-            document.body.removeChild(iframe);
-          } catch {}
-        }, 30000);
-      } catch {}
-
-      // Channel 2: Anchor click
-      try {
-        const dlAnchor = document.createElement('a');
-        dlAnchor.href = rawDlUrl;
-        dlAnchor.setAttribute('download', filename);
-        document.body.appendChild(dlAnchor);
-        dlAnchor.click();
-        setTimeout(() => {
-          try {
-            document.body.removeChild(dlAnchor);
-          } catch {}
-        }, 1000);
-      } catch {}
-
-      // Trigger floating top premium toast notification immediately
-      setDownloadToast({
-        title: safeTitle,
-        ext,
-      });
+      const safeDlUrl = await triggerNativeDownload(rawDlUrl, filename);
+      setDownloadToast({ title: safeTitle, ext });
 
       if (!customMedia) {
-        setState('completed');
-        setCompletedInfo({
-          title: safeTitle,
-          ext,
-          formatId,
-          downloadUrl: rawDlUrl,
+        setDownloadProgress({
+          percent: 100,
+          receivedMB: 'Download ready! Saved to your Downloads.',
+          totalMB: '',
+          active: false,
         });
+        setState('completed');
+        setCompletedInfo({ title: safeTitle, ext, formatId, downloadUrl: safeDlUrl });
+        setDownloadingFormatId(null);
       }
+
       return true;
     } catch {
       if (progressTimer) clearInterval(progressTimer);
@@ -566,14 +608,12 @@ export default function Downloader() {
           retryable: true,
         });
         setState('ready');
+        setDownloadingFormatId(null);
+        setDownloadProgress((prev) => ({ ...prev, active: false }));
       }
       return false;
     } finally {
       if (progressTimer) clearInterval(progressTimer);
-      if (!customMedia) {
-        setDownloadingFormatId(null);
-        setDownloadProgress((prev) => ({ ...prev, active: false }));
-      }
     }
   };
 
@@ -845,101 +885,149 @@ export default function Downloader() {
 
       <div className="app-container">
         <div className={styles.downloaderContainer}>
-          {/* Mode Switcher Tabs */}
+          {/* Mode Switcher Tabs (Single Video | Batch Download | 25 MAX) */}
           <div className={styles.modeTabsWrapper}>
-            <button
-              type="button"
-              onClick={() => setActiveTab('single')}
-              className={`${styles.modeTab} ${activeTab === 'single' ? styles.modeTabActive : ''}`}
-            >
-              <LinkIcon size={16} />
-              <span>Single Video</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('batch')}
-              className={`${styles.modeTab} ${activeTab === 'batch' ? styles.modeTabActive : ''}`}
-            >
-              <Layers size={16} />
-              <span>Batch Download</span>
-              <span className={styles.modeBadge}>25 Max</span>
-            </button>
+            <div className={styles.modeTabsCapsule}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('single')}
+                className={`${styles.modeTab} ${activeTab === 'single' ? styles.modeTabActive : ''}`}
+              >
+                <LinkIcon size={14} />
+                <span>Single Video</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('batch')}
+                className={`${styles.modeTab} ${activeTab === 'batch' ? styles.modeTabActive : ''}`}
+              >
+                <BookOpen size={14} />
+                <span>Batch Download</span>
+              </button>
+              <div className={styles.modeBadgePill}>
+                <span>25 MAX</span>
+              </div>
+            </div>
           </div>
 
-          {/* TAB 1: SINGLE DOWNLOADER */}
+          {/* TAB 1: SINGLE DOWNLOADER FORM */}
+          {activeTab === 'single' && (
+            <form onSubmit={handleSubmit} noValidate className={styles.downloaderForm}>
+              {/* Input Capsule */}
+              <div
+                className={`${styles.inputCapsule} ${
+                  isFocused ? styles.inputCapsuleFocus : ''
+                }`}
+              >
+                <div className={styles.linkIcon}>
+                  <LinkIcon size={20} color="#2563EB" />
+                </div>
+
+                <input
+                  ref={inputRef}
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData('text');
+                    if (text) handlePasteEvent(text);
+                  }}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  placeholder="Paste YouTube, TikTok, Facebook, Insta..."
+                  className={styles.urlInput}
+                  aria-label="Paste media link"
+                  autoComplete="off"
+                  spellCheck={false}
+                  disabled={state === 'processing'}
+                />
+
+                {url ? (
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    className={styles.clearBtn}
+                    aria-label="Clear link"
+                    title="Clear input"
+                  >
+                    <X size={15} />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleClipboardClick}
+                    className={styles.pasteBtn}
+                    aria-label="Paste from clipboard"
+                    title="Paste link from clipboard"
+                  >
+                    <ClipboardPaste size={16} />
+                  </button>
+                )}
+              </div>
+
+              {/* Prominent Full-Width Blue Download Button */}
+              <button
+                type="submit"
+                className={styles.downloadBtn}
+                disabled={state === 'processing' || !url.trim()}
+                aria-label="Download media"
+              >
+                {state === 'processing' ? (
+                  <>
+                    <div className={styles.loadingSpinner} />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownToLine size={20} />
+                    <span>Download</span>
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* 4 Feature Indicators Strip */}
+          <div className={styles.featuresStrip}>
+            <div className={styles.featureCol}>
+              <Zap size={18} className={styles.featureIcon} />
+              <div className={styles.featureText}>
+                <strong>Auto Detect</strong>
+                <span>Any Platform</span>
+              </div>
+            </div>
+            <div className={styles.featureDivider} />
+
+            <div className={styles.featureCol}>
+              <InfinityIcon size={18} className={styles.featureIcon} />
+              <div className={styles.featureText}>
+                <strong>High Speed</strong>
+                <span>Unlimited Downloads</span>
+              </div>
+            </div>
+            <div className={styles.featureDivider} />
+
+            <div className={styles.featureCol}>
+              <ShieldCheck size={18} className={styles.featureIcon} />
+              <div className={styles.featureText}>
+                <strong>100% Free</strong>
+                <span>No Registration</span>
+              </div>
+            </div>
+            <div className={styles.featureDivider} />
+
+            <div className={styles.featureCol}>
+              <Lock size={18} className={styles.featureIcon} />
+              <div className={styles.featureText}>
+                <strong>Safe &amp; Private</strong>
+                <span>Your Data Is Secure</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Single Downloader Feedback & Results */}
           {activeTab === 'single' && (
             <>
-              <form onSubmit={handleSubmit} noValidate>
-                <div
-                  className={`${styles.downloaderCard} ${
-                    isFocused ? styles.downloaderCardFocus : ''
-                  }`}
-                >
-                  <div className={styles.linkIcon}>
-                    <LinkIcon size={22} />
-                  </div>
-
-                  <input
-                    ref={inputRef}
-                    type="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    onPaste={(e) => {
-                      const text = e.clipboardData.getData('text');
-                      if (text) handlePasteEvent(text);
-                    }}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
-                    placeholder="Paste YouTube, TikTok, Facebook, Instagram, or Pinterest link..."
-                    className={styles.urlInput}
-                    aria-label="Paste media link"
-                    autoComplete="off"
-                    spellCheck={false}
-                    disabled={state === 'processing'}
-                  />
-
-                  {url ? (
-                    <button
-                      type="button"
-                      onClick={handleClear}
-                      className={styles.clearBtn}
-                      aria-label="Clear link"
-                      title="Clear input"
-                    >
-                      <X size={15} />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleClipboardClick}
-                      className={styles.pasteBtn}
-                      aria-label="Paste from clipboard"
-                      title="Paste link from clipboard"
-                    >
-                      <ClipboardPaste size={18} />
-                    </button>
-                  )}
-
-                  <button
-                    type="submit"
-                    className={styles.downloadBtn}
-                    disabled={state === 'processing' || !url.trim()}
-                    aria-label="Download media"
-                  >
-                    {state === 'processing' ? (
-                      <>
-                        <div className={styles.loadingSpinner} />
-                        <span>Processing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download size={18} />
-                        <span>Download</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
 
               {/* Terminal Loader (From Uiverse.io by jeremyssocial - styled for MediaKit) */}
               {state === 'processing' && (
@@ -1035,16 +1123,19 @@ export default function Downloader() {
                   </div>
                   <div className={styles.completeActions}>
                     {completedInfo.downloadUrl && (
-                      <a
-                        href={completedInfo.downloadUrl}
-                        download={`${completedInfo.title}.${completedInfo.ext}`}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (completedInfo.downloadUrl) {
+                            triggerNativeDownload(completedInfo.downloadUrl, `${completedInfo.title}.${completedInfo.ext}`);
+                          }
+                        }}
                         className={styles.actionBtnPrimary}
-                        style={{ textDecoration: 'none' }}
                         title="Save file directly to device"
                       >
                         <Download size={13} />
                         <span>Save File</span>
-                      </a>
+                      </button>
                     )}
                     <button
                       type="button"

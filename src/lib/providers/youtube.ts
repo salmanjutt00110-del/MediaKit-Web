@@ -252,16 +252,26 @@ export class YouTubeAdapter extends MediaProvider {
           }
         );
 
+        const cleanTitle = (media.title || 'YouTube_Video')
+          .replace(/[/\\?%*:|"<>]/g, '_')
+          .trim();
+
+        const wrapSafeUrl = (rawUrl: string) => {
+          if (rawUrl.startsWith('/api/download/file')) return rawUrl;
+          return `/api/download/file?url=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${isMp3 ? 'mp3' : 'mp4'}`;
+        };
+
         const init = await initRes.json();
         if (init.id) {
           if (init.download_url) {
+            const safe = wrapSafeUrl(init.download_url);
             youtubeStreamCache.set(cacheKey, {
-              url: init.download_url,
+              url: safe,
               expiry: Date.now() + 3 * 60 * 60 * 1000,
             });
             return {
               success: true,
-              downloadUrl: init.download_url,
+              downloadUrl: safe,
               message: 'Direct media file prepared successfully.',
             };
           }
@@ -269,14 +279,14 @@ export class YouTubeAdapter extends MediaProvider {
           const progressUrl =
             init.progress_url || `https://lto2.affadaffa.com/api/progress?id=${init.id}`;
 
-          // Poll up to 45 attempts (1 second intervals) for smooth completion of HD & MP3 conversions
-          for (let attempt = 0; attempt < 45; attempt++) {
+          // Quick poll: max 6 attempts (1s intervals) to avoid stalling
+          for (let attempt = 0; attempt < 6; attempt++) {
             await new Promise((r) => setTimeout(r, 1000));
 
             try {
               const pRes = await fetch(progressUrl, {
                 headers: { 'User-Agent': 'Mozilla/5.0' },
-                signal: AbortSignal.timeout(4000),
+                signal: AbortSignal.timeout(3000),
               });
               const pData = await pRes.json();
 
@@ -285,18 +295,30 @@ export class YouTubeAdapter extends MediaProvider {
               }
 
               if (pData.success === 1 && pData.download_url) {
+                const safe = wrapSafeUrl(pData.download_url);
                 youtubeStreamCache.set(cacheKey, {
-                  url: pData.download_url,
+                  url: safe,
                   expiry: Date.now() + 3 * 60 * 60 * 1000,
                 });
                 return {
                   success: true,
-                  downloadUrl: pData.download_url,
+                  downloadUrl: safe,
                   message: 'Direct media file prepared successfully.',
                 };
               }
             } catch {}
           }
+        }
+
+        // Fast fallback: If any format has a stream URL, use that
+        const anyFmt = media.formats?.find((f) => f.downloadUrl && f.downloadUrl.startsWith('http'));
+        if (anyFmt?.downloadUrl) {
+          const safe = wrapSafeUrl(anyFmt.downloadUrl);
+          return {
+            success: true,
+            downloadUrl: safe,
+            message: 'Direct media stream prepared successfully.',
+          };
         }
       } catch (e: any) {
         console.warn('Cloud conversion failed:', e.message);
