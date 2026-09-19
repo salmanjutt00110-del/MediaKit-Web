@@ -4,7 +4,6 @@ import { logger } from '../logger';
 import { cleanAndDecodeTitle, sanitizeFilename, probeUrlSize } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
 import { extractSnapSave } from '../snapsave-native';
-import { igdl } from 'btch-downloader';
 
 interface IgCacheEntry {
   data: MediaMetadata;
@@ -240,63 +239,9 @@ export class InstagramAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(shortcode);
     if (cached) return cached;
 
-    // 1. Tier 1: Fast Direct Web Extractor via igdl + Embed Scraper in parallel (<2 seconds)
+    // 1. Tier 1: Fast Direct Web Extractor via Embed Scraper & oEmbed (<3 seconds)
     try {
-      const [igdlData, meta] = await Promise.all([
-        igdl(resolvedUrl).catch(() => null),
-        this.scrapeInstagramMetadata(shortcode, resolvedUrl).catch(() => ({} as {
-          title?: string;
-          author?: string;
-          thumbnailUrl?: string;
-          directVideoUrl?: string;
-        })),
-      ]);
-
-      if (igdlData && igdlData.status && Array.isArray(igdlData.result) && igdlData.result.length > 0) {
-        const validItems = igdlData.result.filter((r) => r && r.url && r.url.startsWith('http'));
-        if (validItems.length > 0) {
-          const bestItem = validItems[0];
-          const formats: MediaFormat[] = [
-            {
-              id: 'hd',
-              format: 'mp4',
-              quality: 'HD Video (High Definition)',
-              resolution: '720x1280',
-              hasAudio: true,
-              hasVideo: true,
-              downloadUrl: bestItem.url,
-            },
-            {
-              id: 'mp3',
-              format: 'mp3',
-              quality: 'Original Audio (MP3)',
-              hasAudio: true,
-              hasVideo: false,
-              downloadUrl: bestItem.url,
-            },
-          ];
-
-          const finalThumb = bestItem.thumbnail || meta.thumbnailUrl;
-          const finalTitle = meta.title || `Instagram Reel (${shortcode})`;
-          const finalAuthor = meta.author || 'Instagram Creator';
-
-          const result: MediaMetadata = {
-            id: shortcode,
-            platform: 'instagram',
-            title: finalTitle,
-            author: finalAuthor,
-            thumbnailUrl: finalThumb ? `/api/thumbnail?url=${encodeURIComponent(finalThumb)}` : undefined,
-            sourceUrl: resolvedUrl,
-            formats,
-            requiresProviderSetup: false,
-          };
-
-          setCachedMedia(resolvedUrl, result);
-          setCachedMedia(rawUrl, result);
-          setCachedMedia(shortcode, result);
-          return result;
-        }
-      }
+      const meta = await this.scrapeInstagramMetadata(shortcode, resolvedUrl);
 
       // If direct video url was scraped from embed
       if (meta.directVideoUrl) {

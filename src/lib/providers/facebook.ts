@@ -53,7 +53,8 @@ export class FacebookAdapter extends MediaProvider {
     try {
       const match =
         url.match(/\/videos\/(?:[a-zA-Z0-9._-]+\/)?(\d+)/i) ||
-        url.match(/\/reel\/(\d+)/i) ||
+        url.match(/\/reel\/([a-zA-Z0-9_-]+)/i) ||
+        url.match(/\/share\/(?:r|v)\/([a-zA-Z0-9_-]+)/i) ||
         url.match(/[?&]v=(\d+)/i) ||
         url.match(/\/watch\/?\?v=(\d+)/i) ||
         url.match(/fb\.watch\/([A-Za-z0-9_-]+)/i);
@@ -409,50 +410,6 @@ export class FacebookAdapter extends MediaProvider {
         downloadUrl: wrapProxy(directUrl),
         message: 'Direct media download prepared successfully.',
       };
-    }
-
-    // 3. Try yt-dlp local downloader
-    if (ytDlpRunner.isAvailable()) {
-      try {
-        const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
-        if (streamUrl && streamUrl.startsWith('http')) {
-          const safeUrl = wrapProxy(streamUrl);
-          fbStreamCache.set(cacheKey, {
-            url: safeUrl,
-            expiry: Date.now() + 2 * 60 * 60 * 1000,
-          });
-          return {
-            success: true,
-            downloadUrl: safeUrl,
-            message: 'Direct media stream prepared successfully.',
-          };
-        }
-      } catch (err: unknown) {
-        const error = err as Error;
-        logger.warn('Facebook yt-dlp stream failed, trying downloadMedia', { msg: error.message });
-      }
-
-      try {
-        const localResult = await ytDlpRunner.downloadMedia(media, formatId);
-        if (localResult && localResult.serveUrl) {
-          fbStreamCache.set(cacheKey, {
-            url: localResult.serveUrl,
-            expiry: Date.now() + 20 * 60 * 1000,
-          });
-          return {
-            success: true,
-            downloadUrl: localResult.serveUrl,
-            fileSizeBytes: localResult.fileSizeBytes,
-            fileSizeFormatted: localResult.fileSizeFormatted,
-            resolution: localResult.resolution,
-            duration: localResult.duration,
-            message: 'Direct media file prepared and validated successfully.',
-          };
-        }
-      } catch (err: unknown) {
-        const error = err as Error;
-        logger.warn('Facebook yt-dlp download attempt', { msg: error.message });
-      }
     }
 
     throw new Error('Unable to extract Facebook video stream. Please ensure the post is public and contains a valid video.');

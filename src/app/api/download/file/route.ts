@@ -221,11 +221,12 @@ export async function GET(request: NextRequest) {
       return new Response(upstreamRes.body, { status: 206, headers });
     }
 
-    // Direct buffer response ensures zero stream stalling on modern Node runtimes
-    const arrayBuffer = await upstreamRes.arrayBuffer();
-    headers.set('Content-Length', arrayBuffer.byteLength.toString());
+    // Direct streaming response gives instantaneous download start in browser
+    if (contentLength) {
+      headers.set('Content-Length', contentLength);
+    }
 
-    return new Response(arrayBuffer, {
+    return new Response(upstreamRes.body, {
       status: 200,
       headers,
     });

@@ -83,65 +83,12 @@ export class YouTubeAdapter extends MediaProvider {
         if (error.code === 'PRIVATE_CONTENT' || error.code === 'UNAVAILABLE_CONTENT') {
           throw err;
         }
-        logger.warn('YouTube yt-dlp getMediaInfo failed, attempting fallback', { msg: error.message });
+        logger.error('YouTube yt-dlp getMediaInfo failed', { msg: error.message, canonicalUrl });
+        throw new Error(error.message || 'Unable to retrieve YouTube video information. Please verify the URL and try again.');
       }
     }
 
-    // 3. Fallback to oEmbed for basic info if yt-dlp failed unexpectedly
-    try {
-      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(canonicalUrl)}&format=json`;
-      const res = await fetch(oembedUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(4000),
-      });
-
-      if (res.ok) {
-        const oembed = await res.json();
-        const rawTitle = oembed.title || 'YouTube Video';
-        const author = oembed.author_name;
-
-        const fallbackFormats: MediaFormat[] = [
-          {
-            id: '720p',
-            format: 'mp4',
-            quality: '720p HD',
-            resolution: '1280x720',
-            hasAudio: true,
-            hasVideo: true,
-          },
-          {
-            id: '360p',
-            format: 'mp4',
-            quality: '360p SD',
-            resolution: '640x360',
-            hasAudio: true,
-            hasVideo: true,
-          },
-          {
-            id: 'mp3',
-            format: 'mp3',
-            quality: 'High Quality Audio (MP3)',
-            hasAudio: true,
-            hasVideo: false,
-          },
-        ];
-
-        const result: MediaMetadata = {
-          id: videoId,
-          platform: 'youtube',
-          title: rawTitle,
-          author,
-          sourceUrl: canonicalUrl,
-          thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-          formats: fallbackFormats,
-          requiresProviderSetup: false,
-        };
-
-        return result;
-      }
-    } catch {}
-
-    throw new Error('Unable to retrieve YouTube video information. Please verify the URL and try again.');
+    throw new Error('YouTube engine is currently unavailable. Please try again later.');
   }
 
   getDownloadOptions(media: MediaMetadata): MediaFormat[] {

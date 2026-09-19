@@ -91,35 +91,41 @@ export async function POST(request: NextRequest) {
           error: {
             code: 'UNSUPPORTED_PLATFORM',
             type: 'unsupported_url',
-            message: 'MediaKit currently supports YouTube, TikTok, Facebook, and Instagram.',
+            message: 'MediaKit currently supports YouTube, TikTok, Facebook, Instagram, and Pinterest.',
           },
         },
         { status: 400 }
       );
     }
 
-    // 5. Fetch Media Info from Provider
+    // 5. Fetch Media Info from Provider with server-side timeout (15s max)
     logger.info('Fetching media information', {
       platform: detection.platform,
       url: detection.normalizedUrl,
     });
 
-    const mediaInfo = await provider.getMediaInfo(detection.normalizedUrl);
+    const mediaInfo = await Promise.race([
+      provider.getMediaInfo(detection.normalizedUrl),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Media request timed out. Please check the URL and try again.')), 15000)
+      ),
+    ]);
 
     return NextResponse.json({
       success: true,
       platform: mediaInfo.platform,
       data: mediaInfo,
     });
-  } catch (err) {
-    logger.error('Error in /api/media-info', err);
+  } catch (err: unknown) {
+    const error = err as Error;
+    logger.error('Error in /api/media-info', error);
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'PROVIDER_ERROR',
           type: 'provider_error',
-          message: 'Unable to process media information at this time. Please try again.',
+          message: error?.message || 'Unable to process media information at this time. Please try again.',
         },
       },
       { status: 500 }

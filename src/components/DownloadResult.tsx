@@ -9,10 +9,12 @@ import {
   Check,
   Film,
   Music,
+  Sparkles,
 } from 'lucide-react';
 import { MediaFormat, MediaMetadata, PlatformType } from '@/lib/types';
 import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon, PinterestIcon } from './PlatformIcons';
 import { cleanAndDecodeTitle } from '@/lib/string-utils';
+import { getHighestVideoFormat } from './Downloader';
 import styles from './DownloadResult.module.css';
 
 interface DownloadResultProps {
@@ -81,6 +83,7 @@ export default function DownloadResult({
     (f) => f.format !== 'mp4' && f.format !== 'mp3'
   );
 
+  const highestVideoFormat = getHighestVideoFormat(availableFormats);
   const displayTitle = cleanAndDecodeTitle(media.title);
 
   // Thumbnail states with React 19 safety
@@ -144,12 +147,14 @@ export default function DownloadResult({
     const { naturalWidth, naturalHeight } = e.currentTarget;
     if (naturalWidth && naturalHeight) {
       const ratio = naturalWidth / naturalHeight;
-      if (ratio < 0.75) {
-        setAspectClass(styles.aspectPortrait);
-      } else if (ratio >= 0.75 && ratio <= 1.25) {
-        setAspectClass(styles.aspectSquare);
+      if (ratio <= 0.65) {
+        setAspectClass(styles.aspectPortrait); // 9:16
+      } else if (ratio > 0.65 && ratio < 0.88) {
+        setAspectClass(styles.aspectVertical); // 4:5
+      } else if (ratio >= 0.88 && ratio <= 1.15) {
+        setAspectClass(styles.aspectSquare); // 1:1
       } else {
-        setAspectClass(styles.aspectLandscape);
+        setAspectClass(styles.aspectLandscape); // 16:9
       }
     }
   };
@@ -251,6 +256,40 @@ export default function DownloadResult({
             {availableFormats.length} Formats Available
           </span>
         </div>
+
+        {/* Auto HD Featured Recommendation */}
+        {highestVideoFormat && (
+          <div className={styles.autoHdCard}>
+            <div className={styles.autoHdLeft}>
+              <div className={styles.autoHdBreadcrumb}>
+                <Sparkles size={14} className={styles.sparkleIcon} />
+                <span>Smart Quality Match</span>
+              </div>
+              <div className={styles.autoHdTitle}>
+                Auto HD • {highestVideoFormat.quality}
+              </div>
+              <div className={styles.autoHdMeta}>
+                {highestVideoFormat.resolution && <span>{highestVideoFormat.resolution}</span>}
+                {highestVideoFormat.fileSize && <span>• {highestVideoFormat.fileSize}</span>}
+                <span>• Highest available quality</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={styles.autoHdBtn}
+              onClick={() => onDownloadFormat && onDownloadFormat(highestVideoFormat.id)}
+              disabled={isDownloading}
+              aria-label={`Download Auto HD ${highestVideoFormat.quality}`}
+            >
+              <Download size={16} />
+              <span>
+                {isDownloading && downloadingFormatId === highestVideoFormat.id
+                  ? 'Preparing...'
+                  : 'Download Auto HD'}
+              </span>
+            </button>
+          </div>
+        )}
 
         {availableFormats.length > 0 ? (
           <div className={styles.formatsList}>

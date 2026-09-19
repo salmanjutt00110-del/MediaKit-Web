@@ -226,18 +226,15 @@ export const ytDlpRunner = {
               ];
 
               for (const tier of tiers) {
-                // Prefer h264 (avc1) format for size estimate — matches what downloadMedia actually selects
-                const h264Fmt = rawFormats.find((f) =>
-                  f.height === tier.height && f.vcodec && f.vcodec.startsWith('avc1') && (f.filesize || f.filesize_approx));
-                // Fallback to any video format at this height
-                const anyFmt = rawFormats.find((f) => f.height === tier.height && f.vcodec && f.vcodec !== 'none');
-                const matchingFmt = h264Fmt || anyFmt;
-                // Check if any format reaches this height
-                const hasTier = matchingFmt || rawFormats.some((f) => f.height && f.height >= tier.height && f.vcodec && f.vcodec !== 'none');
+                // Find matching video format at or very close to this tier's height (within ±4px)
+                const matchingFmt = rawFormats.find(
+                  (f) => f.height && Math.abs(f.height - tier.height) <= 4 && f.vcodec && f.vcodec !== 'none'
+                );
 
-                if (hasTier && !seenQualities.has(tier.id)) {
+                if (matchingFmt && !seenQualities.has(tier.id)) {
                   seenQualities.add(tier.id);
-                  const videoBytes = matchingFmt ? (matchingFmt.filesize || matchingFmt.filesize_approx) : undefined;
+                  // Find best size estimate: prefer this format or approx
+                  const videoBytes = matchingFmt.filesize || matchingFmt.filesize_approx;
                   const totalBytes = videoBytes ? videoBytes + audioBytes : undefined;
 
                   formats.push({
@@ -592,10 +589,6 @@ export const ytDlpRunner = {
         '--windows-filenames',
       ];
 
-      if (isYouTube) {
-        args.push('--extractor-args', 'youtube:player_client=android,web');
-      }
-
       if (fs.existsSync(ffmpegPath)) {
         args.push('--ffmpeg-location', ffmpegPath);
         args.push('--postprocessor-args', 'ffmpeg:-threads 4 -preset ultrafast');
@@ -630,9 +623,7 @@ export const ytDlpRunner = {
         else if (formatId.includes('240')) height = 240;
         else if (formatId.includes('144')) height = 144;
 
-        // Prefer h264 (avc1) to guarantee remux-only merge (no transcode).
-        // AV1/VP9 formats require transcoding to MP4 which can lose resolution.
-        // Enforce lower bound (height * 0.72) so 720p won't silently degrade to 360p or 360p won't jump to 720p
+        // Prefer h264 (avc1) to guarantee remux-only merge (no transcode), with fallback to any codec at target height
         const minHeight = Math.max(144, Math.round(height * 0.72));
         const isExactId = /^\d+$/.test(formatId);
 
@@ -641,9 +632,9 @@ export const ytDlpRunner = {
           : [
               `bestvideo[height<=${height}][height>=${minHeight}][vcodec^=avc1]+bestaudio[ext=m4a]`,
               `bestvideo[height<=${height}][height>=${minHeight}]+bestaudio`,
-              `bestvideo[height<=${height}][vcodec^=avc1]+bestaudio[ext=m4a]`,
               `bestvideo[height<=${height}]+bestaudio`,
               `best[height<=${height}]`,
+              `bestvideo+bestaudio`,
               `best`,
             ].join('/');
 

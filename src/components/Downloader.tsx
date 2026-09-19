@@ -58,6 +58,32 @@ const DEMO_BATCH_LINKS = [
   'https://www.youtube.com/watch?v=0e3GPea1Tyg',
 ];
 
+export function getHighestVideoFormat(formats?: MediaFormat[]): MediaFormat | null {
+  if (!formats || formats.length === 0) return null;
+  const videoFormats = formats.filter((f) => f.hasVideo && f.format !== 'mp3');
+  if (videoFormats.length === 0) return formats[0];
+
+  const getQualityScore = (f: MediaFormat) => {
+    const id = f.id.toLowerCase();
+    if (id.includes('4k') || id.includes('2160')) return 2160;
+    if (id.includes('1440') || id.includes('2k')) return 1440;
+    if (id.includes('1080')) return 1080;
+    if (id.includes('720')) return 720;
+    if (id.includes('480')) return 480;
+    if (id.includes('360')) return 360;
+    if (id.includes('240')) return 240;
+    if (id.includes('144')) return 144;
+    const match = f.resolution?.match(/(\d+)x(\d+)/);
+    if (match) {
+      return Math.min(Number(match[1]), Number(match[2]));
+    }
+    const num = parseInt(f.quality.replace(/[^0-9]/g, ''), 10);
+    return isNaN(num) ? 0 : num;
+  };
+
+  return [...videoFormats].sort((a, b) => getQualityScore(b) - getQualityScore(a))[0];
+}
+
 export default function Downloader() {
   const [activeTab, setActiveTab] = useState<'single' | 'batch'>('single');
 
@@ -101,6 +127,17 @@ export default function Downloader() {
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
   const [isBatchDownloading, setIsBatchDownloading] = useState(false);
   const [batchDownloadProgress, setBatchDownloadProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
+
+  const [autoDownload, setAutoDownload] = useState<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('mediakit_auto_download');
+      if (saved !== null) {
+        setAutoDownload(saved === 'true');
+      }
+    } catch {}
+  }, []);
 
   const isProcessingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -168,7 +205,7 @@ export default function Downloader() {
     if (result.valid) {
       setError(null);
       setState('url_entered');
-      handleSubmit(undefined, trimmed);
+      handleSubmit(undefined, trimmed, { autoDownload });
     } else if (result.errorCode === 'UNSUPPORTED_PLATFORM') {
       setError({
         type: 'UNSUPPORTED_PLATFORM',
@@ -222,7 +259,7 @@ export default function Downloader() {
   };
 
   // Single Link Submit Flow
-  const handleSubmit = async (e?: React.FormEvent, urlOverride?: string) => {
+  const handleSubmit = async (e?: React.FormEvent, urlOverride?: string, options?: { autoDownload?: boolean }) => {
     if (e) e.preventDefault();
 
     const targetUrl = (urlOverride !== undefined ? urlOverride : url).trim();
@@ -238,13 +275,16 @@ export default function Downloader() {
     }
 
     if (mediaInfo && mediaInfo.formats && mediaInfo.formats.length > 0 && targetUrl === mediaInfo.sourceUrl) {
-      const bestFmt = mediaInfo.formats[0];
+      const bestFmt = getHighestVideoFormat(mediaInfo.formats) || mediaInfo.formats[0];
       handleDownloadFormat(bestFmt.id);
       return;
     }
 
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 14000);
 
     try {
       setState('processing');
@@ -269,7 +309,9 @@ export default function Downloader() {
           url: normalizedUrl,
           platform: detectResult.valid && detectResult.platform !== 'unknown' ? detectResult.platform : undefined,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       const mediaData = await mediaResponse.json();
 
@@ -313,12 +355,24 @@ export default function Downloader() {
       setLoadingStage('ready');
       setMediaInfo(mediaData.data);
       setState('ready');
-    } catch {
+
+      // Auto Download after Paste: automatically trigger highest available quality
+      if (options?.autoDownload && mediaData.data && mediaData.data.formats) {
+        const highestFmt = getHighestVideoFormat(mediaData.data.formats);
+        if (highestFmt) {
+          handleDownloadFormat(highestFmt.id, mediaData.data);
+        }
+      }
+    } catch (fetchErr: unknown) {
+      clearTimeout(timeoutId);
+      const isTimeout = (fetchErr as { name?: string })?.name === 'AbortError';
       setError({
         type: 'NETWORK_ERROR',
         code: 'NETWORK_ERROR',
-        title: 'Connection Issue',
-        message: "We couldn't process this link right now. Please check your internet and try again.",
+        title: isTimeout ? 'Request Timed Out' : 'Connection Issue',
+        message: isTimeout
+          ? 'The media server took too long to respond. Please verify the URL and try again.'
+          : "We couldn't process this link right now. Please check your internet and try again.",
         retryable: true,
       });
       setState('error');
@@ -877,6 +931,27 @@ export default function Downloader() {
                 )}
               </div>
 
+              {/* Auto Download after Paste Setting Toggle */}
+              <div className={styles.autoDownloadBar}>
+                <label className={styles.autoDownloadToggle}>
+                  <input
+                    type="checkbox"
+                    checked={autoDownload}
+                    onChange={(e) => {
+                      const val = e.target.checked;
+                      setAutoDownload(val);
+                      try { localStorage.setItem('mediakit_auto_download', String(val)); } catch {}
+                    }}
+                    className={styles.toggleInput}
+                  />
+                  <span className={styles.toggleSlider} />
+                  <span className={styles.toggleText}>Auto Download after Paste</span>
+                </label>
+                <span className={`${styles.autoDownloadBadge} ${autoDownload ? styles.badgeOn : styles.badgeOff}`}>
+                  {autoDownload ? 'AUTO DOWNLOAD: ON' : 'AUTO DOWNLOAD: OFF'}
+                </span>
+              </div>
+
               {/* Prominent Full-Width Blue Download Button */}
               <button
                 type="submit"
@@ -941,30 +1016,19 @@ export default function Downloader() {
           {activeTab === 'single' && (
             <>
 
-              {/* Terminal Loader (From Uiverse.io by jeremyssocial - styled for MediaKit) */}
+              {/* Modern Fast SaaS Loader Card */}
               {state === 'processing' && (
-                <div className={styles.terminalLoaderWrapper} role="status" aria-live="polite">
-                  <div className={styles.terminalLoader}>
-                    <div className={styles.terminalHeader}>
-                      <div className={styles.terminalControls}>
-                        <span className={`${styles.control} ${styles.controlClose}`} />
-                        <span className={`${styles.control} ${styles.controlMinimize}`} />
-                        <span className={`${styles.control} ${styles.controlMaximize}`} />
-                      </div>
-                      <div className={styles.terminalTitle}>mediakit-cli --fetch</div>
-                    </div>
-                    <div className={styles.terminalBody}>
-                      <span className={styles.terminalPrompt}>&gt;</span>
-                      <span className={styles.terminalText}>
-                        {loadingStage === 'fetching_media'
-                          ? 'Fetching media stream...'
-                          : loadingStage === 'preparing_downloads'
-                          ? 'Resolving quality & sizes...'
-                          : loadingStage === 'detecting_platform'
-                          ? 'Detecting video link...'
-                          : 'Analyzing media URL...'}
-                      </span>
-                    </div>
+                <div className={styles.modernLoaderCard} role="status" aria-live="polite">
+                  <div className={styles.modernSpinner} />
+                  <div className={styles.modernLoaderContent}>
+                    <span className={styles.modernLoaderTitle}>Preparing media download...</span>
+                    <span className={styles.modernLoaderSubtitle}>
+                      {loadingStage === 'fetching_media'
+                        ? 'Fetching authentic media stream & real formats...'
+                        : loadingStage === 'preparing_downloads'
+                        ? 'Resolving quality & file sizes...'
+                        : 'Detecting platform and link...'}
+                    </span>
                   </div>
                 </div>
               )}
