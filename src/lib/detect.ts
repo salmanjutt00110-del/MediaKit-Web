@@ -29,6 +29,36 @@ const TRACKING_PARAMS = new Set([
 const DANGEROUS_PROTOCOLS = ['javascript:', 'data:', 'file:', 'blob:', 'vbscript:', 'about:'];
 
 /**
+ * Extracts a URL from text if the input contains surrounding words or formatting
+ * (e.g. mobile share strings like 'Watch "video" on YouTube: https://youtu.be/xxx').
+ */
+export function extractUrlFromText(input: string): string {
+  let text = input.trim();
+
+  // Strip enclosing quotes, angle brackets, parentheses
+  text = text.replace(/^["'<(\[]+|[>"')\]]+$/g, '').trim();
+
+  // If already a clean URL without whitespace, return as is
+  if (/^https?:\/\//i.test(text) && !/\s/.test(text)) {
+    return text;
+  }
+
+  // Look for any standard http/https link or known supported domain
+  const match = text.match(
+    /(?:https?:\/\/|www\.)[^\s"'<>()[\]]+|(?:(?:m\.)?youtube\.com|youtu\.be|tiktok\.com|facebook\.com|fb\.watch|fb\.com|instagram\.com|pin\.it|pinterest\.com)\/[^\s"'<>()[\]]*/i
+  );
+
+  if (match) {
+    let extracted = match[0];
+    // Strip trailing punctuation that might belong to the sentence (e.g. "Check out https://youtu.be/xyz!")
+    extracted = extracted.replace(/[.,;:!?]+$/, '');
+    return extracted;
+  }
+
+  return text;
+}
+
+/**
  * Normalizes harmless URL differences (protocols, tracking params, trailing slashes)
  * while strictly preserving the canonical content identifiers.
  */
@@ -37,7 +67,8 @@ export function normalizeUrl(rawUrl: string): { normalizedUrl: string; isValid: 
     return { normalizedUrl: '', isValid: false, error: 'Please enter a valid link.' };
   }
 
-  const trimmed = rawUrl.trim();
+  const extracted = extractUrlFromText(rawUrl);
+  const trimmed = extracted.trim();
   if (!trimmed) {
     return { normalizedUrl: '', isValid: false, error: 'Please enter a valid link.' };
   }
@@ -100,14 +131,43 @@ export function normalizeUrl(rawUrl: string): { normalizedUrl: string; isValid: 
     parsed.pathname = parsed.pathname.slice(0, -1);
   }
 
-  // Canonicalize YouTube video links (strip mix/playlist clutter like &list=RD... &index=...)
+  // Canonicalize YouTube video links (strip mix/playlist clutter, handle shorts, live, youtu.be, m.youtube.com)
   if (hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be') {
+    // Map m.youtube.com to youtube.com for consistent routing
+    if (hostname === 'm.youtube.com') {
+      hostname = 'youtube.com';
+      parsed.hostname = 'youtube.com';
+    }
+
     if (parsed.searchParams.has('v')) {
-      const vid = parsed.searchParams.get('v');
+      const vid = parsed.searchParams.get('v')!.replace(/[/\\?%*:|"<>]/g, '').slice(0, 11);
       parsed.pathname = '/watch';
       parsed.search = `?v=${vid}`;
     } else if (hostname === 'youtu.be') {
-      parsed.search = '';
+      const vid = parsed.pathname.slice(1).replace(/[/\\?%*:|"<>]/g, '').slice(0, 11);
+      if (vid) {
+        parsed.hostname = 'youtube.com';
+        parsed.pathname = '/watch';
+        parsed.search = `?v=${vid}`;
+      }
+    } else if (parsed.pathname.startsWith('/shorts/')) {
+      const vid = parsed.pathname.replace('/shorts/', '').replace(/[/\\?%*:|"<>]/g, '').slice(0, 11);
+      if (vid) {
+        parsed.pathname = `/shorts/${vid}`;
+        parsed.search = '';
+      }
+    } else if (parsed.pathname.startsWith('/live/')) {
+      const vid = parsed.pathname.replace('/live/', '').replace(/[/\\?%*:|"<>]/g, '').slice(0, 11);
+      if (vid) {
+        parsed.pathname = '/watch';
+        parsed.search = `?v=${vid}`;
+      }
+    } else if (parsed.pathname.startsWith('/embed/')) {
+      const vid = parsed.pathname.replace('/embed/', '').replace(/[/\\?%*:|"<>]/g, '').slice(0, 11);
+      if (vid) {
+        parsed.pathname = '/watch';
+        parsed.search = `?v=${vid}`;
+      }
     }
   }
 

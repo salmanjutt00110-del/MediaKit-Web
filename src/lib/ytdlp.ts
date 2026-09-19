@@ -26,6 +26,21 @@ export function getCookiesPath(): string | null {
   return null;
 }
 
+export function getFfmpegPath(): string | null {
+  if (isWin) {
+    const winBin = path.resolve(process.cwd(), 'bin', 'ffmpeg.exe');
+    if (fs.existsSync(winBin)) return winBin;
+  }
+  const linuxBin = path.resolve(process.cwd(), 'bin', 'ffmpeg');
+  if (fs.existsSync(linuxBin)) return linuxBin;
+
+  try {
+    const check = spawnSync(isWin ? 'ffmpeg.exe' : 'ffmpeg', ['-version'], { timeout: 2000 });
+    if (check.status === 0) return isWin ? 'ffmpeg.exe' : 'ffmpeg';
+  } catch {}
+  return null;
+}
+
 interface YtDlpCommand {
   cmd: string;
   prefixArgs: string[];
@@ -189,7 +204,7 @@ export const ytDlpRunner = {
       execFile(
         runner.cmd,
         [...runner.prefixArgs, ...args],
-        { maxBuffer: 25 * 1024 * 1024, timeout: 22000 },
+        { maxBuffer: 25 * 1024 * 1024, timeout: 35000 },
         (error, stdout, stderr) => {
           if (error) {
             const rawMsg = stderr || error.message;
@@ -577,7 +592,7 @@ export const ytDlpRunner = {
     const randomSuffix = crypto.randomBytes(4).toString('hex');
     const tempOutputFile = path.join(tempDir, `${cacheToken}_${randomSuffix}.${targetExt}`);
 
-    const ffmpegPath = path.resolve(process.cwd(), 'bin', 'ffmpeg.exe');
+    const ffmpegPath = getFfmpegPath();
 
     const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
     const isYouTube = media.sourceUrl?.includes('youtube.com') || media.sourceUrl?.includes('youtu.be');
@@ -598,7 +613,7 @@ export const ytDlpRunner = {
         '--windows-filenames',
       ];
 
-      if (fs.existsSync(ffmpegPath)) {
+      if (ffmpegPath) {
         args.push('--ffmpeg-location', ffmpegPath);
         args.push('--postprocessor-args', 'ffmpeg:-threads 4 -preset ultrafast');
       }

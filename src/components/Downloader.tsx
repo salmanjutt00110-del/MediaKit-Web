@@ -23,7 +23,7 @@ import {
   Lock,
   BookOpen,
 } from 'lucide-react';
-import { detectPlatform, getPlatformDisplayName } from '@/lib/detect';
+import { detectPlatform, getPlatformDisplayName, extractUrlFromText } from '@/lib/detect';
 import {
   DetectionResult,
   DownloadState,
@@ -192,20 +192,21 @@ export default function Downloader() {
       return;
     }
 
-    setUrl(trimmed);
+    const cleanUrl = extractUrlFromText(trimmed);
+    setUrl(cleanUrl);
     setMediaInfo(null);
     setCompletedInfo(null);
     setDownloadProgress({ percent: 0, receivedMB: '0 MB', totalMB: '', active: false });
     setError(null);
     setIsDetecting(true);
-    const result = detectPlatform(trimmed);
+    const result = detectPlatform(cleanUrl);
     setDetection(result);
     setIsDetecting(false);
 
     if (result.valid) {
       setError(null);
       setState('url_entered');
-      handleSubmit(undefined, trimmed, { autoDownload });
+      handleSubmit(undefined, cleanUrl, { autoDownload });
     } else if (result.errorCode === 'UNSUPPORTED_PLATFORM') {
       setError({
         type: 'UNSUPPORTED_PLATFORM',
@@ -284,7 +285,7 @@ export default function Downloader() {
     isProcessingRef.current = true;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 14000);
+    const timeoutId = setTimeout(() => controller.abort(), 35000);
 
     try {
       setState('processing');

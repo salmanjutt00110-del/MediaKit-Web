@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     const mediaInfo = await Promise.race([
       provider.getMediaInfo(detection.normalizedUrl),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Media request timed out. Please check the URL and try again.')), 15000)
+        setTimeout(() => reject(new Error('Media request timed out. Please check the URL and try again.')), 35000)
       ),
     ]);
 
