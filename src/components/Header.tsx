@@ -97,6 +97,17 @@ export default function Header() {
             </li>
             <li className={styles.navItem}>
               <a
+                href="#reviews"
+                className={`${styles.navLink} ${
+                  activeNav === 'reviews' ? styles.navLinkActive : ''
+                }`}
+                onClick={() => setActiveNav('reviews')}
+              >
+                Reviews
+              </a>
+            </li>
+            <li className={styles.navItem}>
+              <a
                 href="#faq"
                 className={`${styles.navLink} ${
                   activeNav === 'faq' ? styles.navLinkActive : ''
@@ -182,6 +193,16 @@ export default function Header() {
             }}
           >
             How It Works
+          </a>
+          <a
+            href="#reviews"
+            className={styles.mobileNavLink}
+            onClick={() => {
+              setActiveNav('reviews');
+              setIsMobileMenuOpen(false);
+            }}
+          >
+            Reviews
           </a>
           <a
             href="#faq"

@@ -6,6 +6,7 @@ import SupportedPlatforms from '@/components/SupportedPlatforms';
 import HowItWorks from '@/components/HowItWorks';
 import Features from '@/components/Features';
 import StatsStrip from '@/components/StatsStrip';
+import ReviewsSection from '@/components/ReviewsSection';
 import FAQ from '@/components/FAQ';
 import LegalSection from '@/components/LegalSection';
 import ContactSection from '@/components/ContactSection';
@@ -43,7 +44,10 @@ export default function HomePage() {
         {/* 7. Statistics Strip (Global users, downloads, uptime) */}
         <StatsStrip />
 
-        {/* 8. Frequently Asked Questions */}
+        {/* 8. User Reviews & Community Feedback (Infinite Marquee) */}
+        <ReviewsSection />
+
+        {/* 9. Frequently Asked Questions */}
         <FAQ />
 
         {/* 10. Legal Transparency: Disclaimer & Privacy Policy */}
