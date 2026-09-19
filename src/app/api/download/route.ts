@@ -259,6 +259,13 @@ export async function GET(request: NextRequest) {
       .replace(/\s+/g, ' ')
       .trim();
 
+    if (
+      downloadResult.downloadUrl.startsWith('/api/download/serve') ||
+      downloadResult.downloadUrl.includes('/api/download/serve')
+    ) {
+      return NextResponse.redirect(new URL(downloadResult.downloadUrl, request.url).toString(), 302);
+    }
+
     const proxyPath = `/api/download/file?url=${encodeURIComponent(
       downloadResult.downloadUrl
     )}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;

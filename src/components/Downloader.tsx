@@ -128,13 +128,16 @@ export default function Downloader() {
   const [isBatchDownloading, setIsBatchDownloading] = useState(false);
   const [batchDownloadProgress, setBatchDownloadProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
 
-  const [autoDownload, setAutoDownload] = useState<boolean>(false);
+  const [autoDownload, setAutoDownload] = useState<boolean>(true);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem('mediakit_auto_download');
       if (saved !== null) {
         setAutoDownload(saved === 'true');
+      } else {
+        setAutoDownload(true);
+        localStorage.setItem('mediakit_auto_download', 'true');
       }
     } catch {}
   }, []);
@@ -357,8 +360,9 @@ export default function Downloader() {
       setMediaInfo(mediaData.data);
       setState('ready');
 
-      // Auto Download after Paste: automatically trigger highest available quality
-      if (options?.autoDownload && mediaData.data && mediaData.data.formats) {
+      // Auto Download: automatically trigger highest available quality
+      const shouldAuto = options?.autoDownload !== undefined ? options.autoDownload : autoDownload;
+      if (shouldAuto && mediaData.data && mediaData.data.formats) {
         const highestFmt = getHighestVideoFormat(mediaData.data.formats);
         if (highestFmt) {
           handleDownloadFormat(highestFmt.id, mediaData.data);
@@ -406,21 +410,29 @@ export default function Downloader() {
       receivedMB: 'Saving file to Downloads...',
     }));
 
-    try {
-      const dlAnchor = document.createElement('a');
-      dlAnchor.href = proxiedUrl;
-      dlAnchor.setAttribute('download', filename);
-      dlAnchor.style.display = 'none';
-      document.body.appendChild(dlAnchor);
-      dlAnchor.click();
+    const isMobile =
+      typeof navigator !== 'undefined' &&
+      /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
 
-      setTimeout(() => {
-        try {
-          document.body.removeChild(dlAnchor);
-        } catch {}
-      }, 3000);
-    } catch {
+    if (isMobile) {
       window.location.href = proxiedUrl;
+    } else {
+      try {
+        const dlAnchor = document.createElement('a');
+        dlAnchor.href = proxiedUrl;
+        dlAnchor.setAttribute('download', filename);
+        dlAnchor.style.display = 'none';
+        document.body.appendChild(dlAnchor);
+        dlAnchor.click();
+
+        setTimeout(() => {
+          try {
+            document.body.removeChild(dlAnchor);
+          } catch {}
+        }, 3000);
+      } catch {
+        window.location.href = proxiedUrl;
+      }
     }
 
     return { downloadUrl: proxiedUrl };
