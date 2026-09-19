@@ -86,6 +86,15 @@ function getYtDlpCommand(): YtDlpCommand | null {
     }
   }
 
+  // 4. Check system PATH for yt-dlp
+  try {
+    const check = spawnSync('yt-dlp', ['--version'], { timeout: 3000 });
+    if (check.status === 0) {
+      cachedCommand = { cmd: 'yt-dlp', prefixArgs: [] };
+      return cachedCommand;
+    }
+  } catch {}
+
   return null;
 }
 
@@ -828,7 +837,8 @@ export const ytDlpRunner = {
       const args: string[] = ['-g', '--no-playlist'];
 
       if (isYouTube) {
-        args.push('--js-runtimes', 'node');
+        const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
+        args.push('--js-runtimes', nodeRuntime);
         if (isMp3) {
           formatArg = 'bestaudio/ba/140/251';
         } else if (formatId.includes('1080')) {

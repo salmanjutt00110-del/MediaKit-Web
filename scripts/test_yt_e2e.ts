@@ -71,6 +71,19 @@ async function testYouTubeE2E() {
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(`\n--- YOUTUBE 720p TEST PASSED IN ${elapsed}s ---`);
+
+  // Test 3: Audio Extraction (MP3) for a short video
+  console.log('\n3. Testing YouTube Audio (MP3) extraction for: https://www.youtube.com/watch?v=jNQXAC9IVRw');
+  const shortInfo = await youtube.getMediaInfo('https://www.youtube.com/watch?v=jNQXAC9IVRw');
+  console.log('✓ Title:', shortInfo.title);
+  const audioResult = await youtube.download(shortInfo, 'mp3', (p) => {
+    console.log(`  [Audio Progress] ${p.percent}%: ${p.stage}`);
+  });
+  console.log('✓ Audio Result:', audioResult);
+  if (!audioResult.success || !audioResult.downloadUrl) {
+    throw new Error('Audio download failed: ' + audioResult.message);
+  }
+  console.log('--- ALL YOUTUBE TESTS PASSED ---');
 }
 
 testYouTubeE2E().catch((err) => {
