@@ -154,6 +154,28 @@ export default function DownloadResult({
     }
   };
 
+  const getFormatDownloadLink = (fmt: MediaFormat) => {
+    if (!fmt.downloadUrl) return null;
+    const safeTitle = (media.title || 'media')
+      .replace(/[/\\?%*:|"<>]/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const ext = fmt.format || (fmt.id.includes('mp3') ? 'mp3' : 'mp4');
+    if (fmt.downloadUrl.startsWith('/api/download/file') || fmt.downloadUrl.startsWith('/api/download/serve')) {
+      return fmt.downloadUrl;
+    }
+    return `/api/download/file?url=${encodeURIComponent(fmt.downloadUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
+  };
+
+  const getFormatFilename = (fmt: MediaFormat) => {
+    const safeTitle = (media.title || 'media')
+      .replace(/[/\\?%*:|"<>]/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const ext = fmt.format || (fmt.id.includes('mp3') ? 'mp3' : 'mp4');
+    return `${safeTitle}.${ext}`;
+  };
+
   return (
     <div className={styles.resultCard} role="region" aria-label="Media Download Information">
       {/* Media Details Banner */}
@@ -240,31 +262,52 @@ export default function DownloadResult({
                   <span className={styles.groupLabel}>Video Formats (MP4)</span>
                 </div>
                 <div className={styles.groupItems}>
-                  {mp4Formats.map((fmt: MediaFormat) => (
-                    <div key={fmt.id} className={styles.formatRow}>
-                      <div className={styles.formatInfo}>
-                        <span className={styles.qualityLabel}>{fmt.quality}</span>
-                        <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
-                        <span className={styles.fileSizeLabel}>
-                          {fmt.fileSize || 'Size unavailable'}
-                        </span>
+                  {mp4Formats.map((fmt: MediaFormat) => {
+                    const dlLink = getFormatDownloadLink(fmt);
+                    const filename = getFormatFilename(fmt);
+                    return (
+                      <div key={fmt.id} className={styles.formatRow}>
+                        <div className={styles.formatInfo}>
+                          <span className={styles.qualityLabel}>{fmt.quality}</span>
+                          <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
+                          <span className={styles.fileSizeLabel}>
+                            {fmt.fileSize || 'Size unavailable'}
+                          </span>
+                        </div>
+                        {dlLink ? (
+                          <a
+                            href={dlLink}
+                            download={filename}
+                            className={styles.rowDownloadBtn}
+                            onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                            aria-label={`Download MP4 ${fmt.quality}`}
+                          >
+                            <Download size={14} />
+                            <span>
+                              {isDownloading && downloadingFormatId === fmt.id
+                                ? 'Downloading...'
+                                : 'Instant Download'}
+                            </span>
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.rowDownloadBtn}
+                            onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                            disabled={isDownloading}
+                            aria-label={`Download MP4 ${fmt.quality}`}
+                          >
+                            <Download size={14} />
+                            <span>
+                              {isDownloading && downloadingFormatId === fmt.id
+                                ? 'Preparing File...'
+                                : 'Download'}
+                            </span>
+                          </button>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        className={styles.rowDownloadBtn}
-                        onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
-                        disabled={isDownloading}
-                        aria-label={`Download MP4 ${fmt.quality}`}
-                      >
-                        <Download size={14} />
-                        <span>
-                          {isDownloading && downloadingFormatId === fmt.id
-                            ? 'Preparing File...'
-                            : 'Instant Download'}
-                        </span>
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -277,63 +320,101 @@ export default function DownloadResult({
                   <span className={styles.groupLabelAudio}>Audio Only (MP3)</span>
                 </div>
                 <div className={styles.groupItems}>
-                  {mp3Formats.map((fmt: MediaFormat) => (
-                    <div key={fmt.id} className={styles.formatRow}>
-                      <div className={styles.formatInfo}>
-                        <span className={styles.qualityLabel}>{fmt.quality}</span>
-                        <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
-                        <span className={styles.fileSizeLabel}>
-                          {fmt.fileSize || 'Size unavailable'}
-                        </span>
+                  {mp3Formats.map((fmt: MediaFormat) => {
+                    const dlLink = getFormatDownloadLink(fmt);
+                    const filename = getFormatFilename(fmt);
+                    return (
+                      <div key={fmt.id} className={styles.formatRow}>
+                        <div className={styles.formatInfo}>
+                          <span className={styles.qualityLabel}>{fmt.quality}</span>
+                          <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
+                          <span className={styles.fileSizeLabel}>
+                            {fmt.fileSize || 'Size unavailable'}
+                          </span>
+                        </div>
+                        {dlLink ? (
+                          <a
+                            href={dlLink}
+                            download={filename}
+                            className={styles.rowDownloadBtnAudio}
+                            onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                            aria-label="Download MP3 Audio"
+                          >
+                            <Download size={14} />
+                            <span>
+                              {isDownloading && downloadingFormatId === fmt.id
+                                ? 'Downloading...'
+                                : 'Instant Download'}
+                            </span>
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.rowDownloadBtnAudio}
+                            onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                            disabled={isDownloading}
+                            aria-label="Download MP3 Audio"
+                          >
+                            <Download size={14} />
+                            <span>
+                              {isDownloading && downloadingFormatId === fmt.id
+                                ? 'Preparing File...'
+                                : 'Download MP3'}
+                            </span>
+                          </button>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        className={styles.rowDownloadBtnAudio}
-                        onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
-                        disabled={isDownloading}
-                        aria-label="Download MP3 Audio"
-                      >
-                        <Download size={14} />
-                        <span>
-                          {isDownloading && downloadingFormatId === fmt.id
-                            ? 'Preparing File...'
-                            : 'Instant Download'}
-                        </span>
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
 
-            {/* Other Formats */}
+            {/* Other Formats (e.g. Pinterest Original Photos) */}
             {otherFormats.length > 0 && (
               <div className={styles.formatGroup}>
-                <span className={styles.groupLabel}>Other Formats</span>
+                <span className={styles.groupLabel}>Original Image / Other Formats</span>
                 <div className={styles.groupItems}>
-                  {otherFormats.map((fmt: MediaFormat) => (
-                    <div key={fmt.id} className={styles.formatRow}>
-                      <div className={styles.formatInfo}>
-                        <span className={styles.qualityLabel}>
-                          {fmt.quality} ({fmt.format.toUpperCase()})
-                        </span>
-                        <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
-                        <span className={styles.fileSizeLabel}>
-                          {fmt.fileSize || 'Size unavailable'}
-                        </span>
+                  {otherFormats.map((fmt: MediaFormat) => {
+                    const dlLink = getFormatDownloadLink(fmt);
+                    const filename = getFormatFilename(fmt);
+                    return (
+                      <div key={fmt.id} className={styles.formatRow}>
+                        <div className={styles.formatInfo}>
+                          <span className={styles.qualityLabel}>
+                            {fmt.quality} ({fmt.format.toUpperCase()})
+                          </span>
+                          <span className={styles.formatBadgeText}>{fmt.format.toUpperCase()}</span>
+                          <span className={styles.fileSizeLabel}>
+                            {fmt.fileSize || 'Size unavailable'}
+                          </span>
+                        </div>
+                        {dlLink ? (
+                          <a
+                            href={dlLink}
+                            download={filename}
+                            className={styles.rowDownloadBtn}
+                            onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                            aria-label={`Download ${fmt.format}`}
+                          >
+                            <Download size={14} />
+                            <span>Download {fmt.format.toUpperCase()}</span>
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className={styles.rowDownloadBtn}
+                            onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                            disabled={isDownloading}
+                            aria-label={`Download ${fmt.format}`}
+                          >
+                            <Download size={14} />
+                            <span>Download</span>
+                          </button>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        className={styles.rowDownloadBtn}
-                        onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
-                        disabled={isDownloading}
-                        aria-label={`Download ${fmt.format}`}
-                      >
-                        <Download size={14} />
-                        <span>Download</span>
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

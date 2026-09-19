@@ -9,7 +9,7 @@ export interface DetectionResult {
   errorCode?: 'INVALID_URL' | 'UNSUPPORTED_PLATFORM';
 }
 
-export type MediaFormatType = 'mp4' | 'mp3' | 'webm' | 'm4a';
+export type MediaFormatType = 'mp4' | 'mp3' | 'webm' | 'm4a' | 'jpg' | 'png' | 'webp';
 
 export interface MediaFormat {
   id: string;

@@ -364,19 +364,23 @@ export default function Downloader() {
       receivedMB: 'Saving file to Downloads...',
     }));
 
-    // Direct browser anchor trigger: native OS download manager streams directly to Downloads folder
-    const dlAnchor = document.createElement('a');
-    dlAnchor.href = proxiedUrl;
-    dlAnchor.setAttribute('download', filename);
-    dlAnchor.style.display = 'none';
-    document.body.appendChild(dlAnchor);
-    dlAnchor.click();
+    try {
+      const dlAnchor = document.createElement('a');
+      dlAnchor.href = proxiedUrl;
+      dlAnchor.setAttribute('download', filename);
+      dlAnchor.target = '_blank';
+      dlAnchor.rel = 'noopener noreferrer';
+      document.body.appendChild(dlAnchor);
+      dlAnchor.click();
 
-    setTimeout(() => {
-      try {
-        document.body.removeChild(dlAnchor);
-      } catch {}
-    }, 2000);
+      setTimeout(() => {
+        try {
+          document.body.removeChild(dlAnchor);
+        } catch {}
+      }, 3000);
+    } catch {
+      window.location.href = proxiedUrl;
+    }
 
     return { downloadUrl: proxiedUrl };
   };
@@ -392,7 +396,12 @@ export default function Downloader() {
         formatId.toLowerCase().includes('mp3') ||
         formatId.toLowerCase().includes('audio') ||
         targetFormat?.format === 'mp3';
-      const ext = isAudio ? 'mp3' : 'mp4';
+      const isPhoto =
+        formatId.toLowerCase().includes('photo') ||
+        formatId.toLowerCase().includes('image') ||
+        targetFormat?.format === 'jpg' ||
+        targetFormat?.format === 'png';
+      const ext = isAudio ? 'mp3' : isPhoto ? (targetFormat?.format || 'jpg') : 'mp4';
       const safeTitle = (currentMedia.title || 'media')
         .replace(/[/\\?%*:|"<>]/g, '_')
         .replace(/\s+/g, ' ')
@@ -1061,19 +1070,15 @@ export default function Downloader() {
 
                   <div className={styles.completionActions}>
                     {completedInfo.downloadUrl && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (completedInfo.downloadUrl) {
-                            triggerNativeDownload(completedInfo.downloadUrl, completedInfo.filename);
-                          }
-                        }}
+                      <a
+                        href={completedInfo.downloadUrl}
+                        download={completedInfo.filename}
                         className={styles.completionBtnPrimary}
                         title="Save or open file directly"
                       >
                         <Download size={14} />
-                        <span>Save File</span>
-                      </button>
+                        <span>Save File to Device</span>
+                      </a>
                     )}
                     <button
                       type="button"

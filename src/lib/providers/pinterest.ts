@@ -48,57 +48,64 @@ export class PinterestAdapter extends MediaProvider {
   }
 
   /**
-   * Resolves short links (like pin.it/...) to full canonical URL
+   * Resolves short links (like pin.it/...) to full clean canonical URL without tracking or login walls
    */
   async resolveCanonicalUrl(rawUrl: string): Promise<string> {
-    if (!rawUrl.includes('pin.it')) {
-      return rawUrl;
+    const trimmed = rawUrl.trim();
+    if (!trimmed.includes('pin.it')) {
+      // Clean query params that might cause Pinterest redirects
+      const pinIdMatch = trimmed.match(/\/pin\/([0-9]+)/i);
+      if (pinIdMatch) {
+        return `https://www.pinterest.com/pin/${pinIdMatch[1]}/`;
+      }
+      return trimmed;
     }
 
     try {
-      const response = await fetch(rawUrl, {
-        method: 'GET',
-        redirect: 'follow',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-        signal: AbortSignal.timeout(6000),
-      });
+      let currentUrl = trimmed;
+      for (let hop = 0; hop < 5; hop++) {
+        const response = await fetch(currentUrl, {
+          method: 'GET',
+          redirect: 'manual',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+          signal: AbortSignal.timeout(6000),
+        });
 
-      if (response.url && response.url !== rawUrl && !response.url.includes('pin.it')) {
-        return response.url;
+        const location = response.headers.get('location');
+        if (location) {
+          // Check if location contains /pin/<id>/
+          const pinMatch = location.match(/pinterest\.[a-z.]+\/pin\/([0-9]+)/i) || location.match(/\/pin\/([0-9]+)/i);
+          if (pinMatch) {
+            const cleanUrl = `https://www.pinterest.com/pin/${pinMatch[1]}/`;
+            logger.info('Resolved clean Pinterest URL from redirect', { rawUrl, cleanUrl });
+            return cleanUrl;
+          }
+          currentUrl = location.startsWith('http') ? location : new URL(location, currentUrl).toString();
+        } else {
+          // If no redirect, parse body for pin link
+          const html = await response.text();
+          const bodyPinMatch = html.match(/pinterest\.[a-z.]+\/pin\/([0-9]+)/i) || html.match(/\/pin\/([0-9]+)/i);
+          if (bodyPinMatch) {
+            return `https://www.pinterest.com/pin/${bodyPinMatch[1]}/`;
+          }
+          break;
+        }
       }
 
-      const text = await response.text();
-      const pinMatch =
-        text.match(/href=["'](https?:\/\/(?:www\.)?pinterest\.[a-z.]+\/pin\/[0-9]+(?:\/|\?[^"']*)?)["']/i) ||
-        text.match(/content=["'](https?:\/\/(?:www\.)?pinterest\.[a-z.]+\/pin\/[0-9]+(?:\/|\?[^"']*)?)["']/i) ||
-        text.match(/href=["'](ios-app:\/\/429047995\/pinterest\/pin\/[0-9]+)["']/i) ||
-        text.match(/https?:\/\/(?:www\.)?pinterest\.[a-z.]+\/pin\/([0-9]+)/i) ||
-        text.match(/url=(https%3A%2F%2F[^\s"&]+pinterest\.[a-z.]+%2Fpin%2F[0-9]+)/i);
-
-      if (pinMatch) {
-        const matched = pinMatch[1];
-        if (matched.startsWith('http')) {
-          return decodeURIComponent(matched);
-        }
-        const pinId = matched.replace(/[^0-9]/g, '');
-        if (pinId) {
-          return `https://www.pinterest.com/pin/${pinId}/`;
-        }
-      }
-
-      if (response.url && /\/pin\/[0-9]+/i.test(response.url)) {
-        return response.url;
+      const fallbackMatch = currentUrl.match(/\/pin\/([0-9]+)/i);
+      if (fallbackMatch) {
+        return `https://www.pinterest.com/pin/${fallbackMatch[1]}/`;
       }
     } catch (err: unknown) {
       const error = err as Error;
       logger.warn('Pinterest resolve canonical URL warning', { msg: error.message, rawUrl });
     }
 
-    return rawUrl;
+    return trimmed;
   }
 
   extractPinId(url: string): string | null {
@@ -113,6 +120,8 @@ export class PinterestAdapter extends MediaProvider {
     author?: string;
     thumbnailUrl?: string;
     directVideoUrl?: string;
+    masterImage?: string;
+    previewImage?: string;
   }> {
     try {
       const res = await fetch(url, {
@@ -149,7 +158,18 @@ export class PinterestAdapter extends MediaProvider {
         directVideoUrl = generalMp4[0];
       }
 
-      // 2. Extract from JSON-LD script
+      // 2. Extract Pinterest HLS stream and convert to direct HD MP4
+      if (!directVideoUrl) {
+        const m3u8Match =
+          html.match(/https?:\/\/(?:v1\.pinimg\.com|v\.pinimg\.com)\/videos\/[^"'\s<>]+\.m3u8/i) ||
+          html.match(/https?:\/\/[^"'\s<>]+?\/hls\/[^"'\s<>]+\.m3u8/i);
+        if (m3u8Match) {
+          const m3u8Url = m3u8Match[0].replace(/\\u0026/g, '&').replace(/\\\//g, '/');
+          directVideoUrl = m3u8Url.replace(/\/hls\//i, '/720p/').replace(/\.m3u8/i, '.mp4');
+        }
+      }
+
+      // 3. Extract from JSON-LD script
       if (!directVideoUrl) {
         const jsonLdMatches = html.matchAll(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
         for (const match of jsonLdMatches) {
@@ -165,7 +185,7 @@ export class PinterestAdapter extends MediaProvider {
         }
       }
 
-      // 3. Extract from Redux / Relay initial state script
+      // 4. Extract from Redux / Relay / PWS data
       if (!directVideoUrl) {
         const relayMatch = html.match(/"url":"(https:\/\/[^"]+?\.mp4)"/i);
         if (relayMatch) {
@@ -173,7 +193,7 @@ export class PinterestAdapter extends MediaProvider {
         }
       }
 
-      // 4. Extract og:video
+      // 5. Extract og:video
       if (!directVideoUrl) {
         const ogVideo =
           html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i) ||

@@ -253,7 +253,17 @@ export async function HEAD(request: NextRequest) {
     }
 
     const headers = new Headers();
-    const mimeType = ext === 'mp3' ? 'audio/mpeg' : ext === 'm4a' ? 'audio/mp4' : 'video/mp4';
+    const mimeType = ext === 'mp3'
+      ? 'audio/mpeg'
+      : ext === 'm4a'
+      ? 'audio/mp4'
+      : (ext === 'jpg' || ext === 'jpeg')
+      ? 'image/jpeg'
+      : ext === 'png'
+      ? 'image/png'
+      : ext === 'webp'
+      ? 'image/webp'
+      : 'video/mp4';
     headers.set('Content-Type', mimeType);
     headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('Accept-Ranges', 'bytes');

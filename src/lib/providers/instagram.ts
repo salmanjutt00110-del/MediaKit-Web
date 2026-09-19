@@ -243,7 +243,12 @@ export class InstagramAdapter extends MediaProvider {
     try {
       const [getmyfb, meta] = await Promise.all([
         this.extractGetMyFB(resolvedUrl).catch(() => null),
-        this.scrapeInstagramMetadata(shortcode, resolvedUrl).catch(() => ({})),
+        this.scrapeInstagramMetadata(shortcode, resolvedUrl).catch(() => ({} as {
+          title?: string;
+          author?: string;
+          thumbnailUrl?: string;
+          directVideoUrl?: string;
+        })),
       ]);
 
       if (getmyfb && (getmyfb.hdUrl || getmyfb.sdUrl)) {

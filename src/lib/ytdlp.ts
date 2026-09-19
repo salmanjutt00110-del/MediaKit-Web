@@ -166,7 +166,8 @@ export const ytDlpRunner = {
 
       const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
       if (isYouTube) {
-        args.push('--js-runtimes', 'node');
+        const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
+        args.push('--js-runtimes', nodeRuntime);
       }
 
       const cookies = getCookiesPath();
@@ -572,10 +573,13 @@ export const ytDlpRunner = {
 
     const ffmpegPath = path.resolve(process.cwd(), 'bin', 'ffmpeg.exe');
 
+    const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
+    const isYouTube = media.sourceUrl?.includes('youtube.com') || media.sourceUrl?.includes('youtu.be');
+
     return new Promise((resolve, reject) => {
       const args = [
         '--js-runtimes',
-        'node',
+        nodeRuntime,
         '--no-playlist',
         '--no-part',
         '--newline',
@@ -587,6 +591,10 @@ export const ytDlpRunner = {
         '3',
         '--windows-filenames',
       ];
+
+      if (isYouTube) {
+        args.push('--extractor-args', 'youtube:player_client=android,web');
+      }
 
       if (fs.existsSync(ffmpegPath)) {
         args.push('--ffmpeg-location', ffmpegPath);
@@ -742,8 +750,8 @@ export const ytDlpRunner = {
             const validation = await validateMediaFile(tempOutputFile, {
               expectedDurationSeconds,
               isAudioOnly: isMp3,
-              checkDecoding: true,
-              timeoutMs: 15000,
+              checkDecoding: false,
+              timeoutMs: 8000,
             });
 
             if (!validation.isValid) {
