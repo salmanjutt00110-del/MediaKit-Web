@@ -135,26 +135,8 @@ export default function Downloader() {
         if (state !== 'ready' && state !== 'processing' && state !== 'downloading' && state !== 'completed') {
           setState('url_entered');
         }
-      } else if (trimmed.length > 7) {
-        if (result.errorCode === 'UNSUPPORTED_PLATFORM') {
-          setError({
-            type: 'UNSUPPORTED_PLATFORM',
-            code: 'UNSUPPORTED_PLATFORM',
-            title: "Platform Isn't Supported",
-            message: "Sorry, this platform isn't supported yet. Try a YouTube, TikTok, Facebook, Instagram, or Pinterest link.",
-            retryable: false,
-          });
-        } else {
-          setError({
-            type: 'INVALID_URL',
-            code: 'INVALID_URL',
-            title: 'Invalid Link',
-            message: result.error || 'Please enter a valid link.',
-            retryable: false,
-          });
-        }
       }
-    }, 250);
+    }, 180);
 
     return () => clearTimeout(timer);
   }, [url, state]);
@@ -353,10 +335,15 @@ export default function Downloader() {
   ): Promise<{ downloadUrl: string; actualFileSize?: string }> => {
     const safeTitle = filename.replace(/\.[^/.]+$/, '');
     const ext = filename.split('.').pop() || 'mp4';
-    const proxiedUrl =
-      finalDlUrl.startsWith('/api/download/file') || finalDlUrl.startsWith('/api/download/serve')
-        ? finalDlUrl
-        : `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
+    const isAlreadyInternalEndpoint =
+      finalDlUrl.startsWith('/api/download/file') ||
+      finalDlUrl.startsWith('/api/download/serve') ||
+      finalDlUrl.includes('/api/download/file') ||
+      finalDlUrl.includes('/api/download/serve');
+
+    const proxiedUrl = isAlreadyInternalEndpoint
+      ? finalDlUrl
+      : `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
 
     setDownloadProgress((prev) => ({
       ...prev,
@@ -368,8 +355,7 @@ export default function Downloader() {
       const dlAnchor = document.createElement('a');
       dlAnchor.href = proxiedUrl;
       dlAnchor.setAttribute('download', filename);
-      dlAnchor.target = '_blank';
-      dlAnchor.rel = 'noopener noreferrer';
+      dlAnchor.style.display = 'none';
       document.body.appendChild(dlAnchor);
       dlAnchor.click();
 

@@ -71,12 +71,26 @@ export async function GET(request: NextRequest) {
     const title = searchParams.get('title') || 'media';
     const ext = (searchParams.get('ext') || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    if (!targetUrl || !isSafeUrl(targetUrl)) {
-      return new Response('Invalid or disallowed media URL parameter', { status: 400 });
+    if (!targetUrl) {
+      return new Response('Media URL parameter is required', { status: 400 });
+    }
+
+    // If targetUrl is an internal serve endpoint, redirect cleanly to it
+    if (targetUrl.includes('/api/download/serve')) {
+      const serveUrl = new URL(targetUrl, request.url);
+      return Response.redirect(serveUrl.toString(), 302);
+    }
+
+    const reqHost = request.headers.get('host')?.toLowerCase();
+    const isSelfHost = reqHost && (targetUrl.includes(`://${reqHost}/`) || targetUrl.startsWith('/'));
+
+    if (!isSelfHost && !isSafeUrl(targetUrl)) {
+      logger.warn('Disallowed media URL rejected in download proxy', { targetUrl: targetUrl.slice(0, 100) });
+      return new Response('Invalid media link. Please verify the URL and try again.', { status: 400 });
     }
 
     if (targetUrl.includes('googlevideo.com')) {
-      return new Response('Direct GoogleVideo streams must be processed and merged via the server download engine.', { status: 400 });
+      return new Response('YouTube streams must be processed via the media engine.', { status: 400 });
     }
 
     const rangeHeader = request.headers.get('range');
@@ -126,8 +140,12 @@ export async function GET(request: NextRequest) {
     });
 
     // Verify redirected URL against SSRF
-    if (upstreamRes.url && !isSafeUrl(upstreamRes.url)) {
-      return new Response('Redirection to disallowed host rejected', { status: 403 });
+    if (upstreamRes.url) {
+      const isRedirectSelf = reqHost && (upstreamRes.url.includes(`://${reqHost}/`) || upstreamRes.url.startsWith('/'));
+      if (!isRedirectSelf && !isSafeUrl(upstreamRes.url)) {
+        logger.warn('Redirection to unsafe host blocked', { redirectUrl: upstreamRes.url.slice(0, 80) });
+        return new Response('Unable to download from redirected source.', { status: 403 });
+      }
     }
 
     if (!upstreamRes.ok && upstreamRes.status !== 206) {
@@ -191,31 +209,24 @@ export async function GET(request: NextRequest) {
       `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(safeUtf8)}`
     );
 
-    // Forward caching and range parameters
-    if (contentLength) {
-      headers.set('Content-Length', contentLength);
-    }
-
-    const contentRange = upstreamRes.headers.get('content-range');
-    if (contentRange) {
-      headers.set('Content-Range', contentRange);
-    }
-
-    const etag = upstreamRes.headers.get('etag');
-    if (etag) {
-      headers.set('ETag', etag);
-    }
-
     headers.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=3600');
-    // Enable CORS for client-side fetch progress tracking
     headers.set('Access-Control-Allow-Origin', '*');
     headers.set('Access-Control-Allow-Headers', 'Range, Content-Type');
     headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges, Content-Disposition');
 
-    const status = rangeHeader && upstreamRes.status === 206 ? 206 : 200;
+    if (rangeHeader && upstreamRes.status === 206) {
+      if (contentLength) headers.set('Content-Length', contentLength);
+      const contentRange = upstreamRes.headers.get('content-range');
+      if (contentRange) headers.set('Content-Range', contentRange);
+      return new Response(upstreamRes.body, { status: 206, headers });
+    }
 
-    return new Response(upstreamRes.body, {
-      status,
+    // Direct buffer response ensures zero stream stalling on modern Node runtimes
+    const arrayBuffer = await upstreamRes.arrayBuffer();
+    headers.set('Content-Length', arrayBuffer.byteLength.toString());
+
+    return new Response(arrayBuffer, {
+      status: 200,
       headers,
     });
   } catch (err: unknown) {

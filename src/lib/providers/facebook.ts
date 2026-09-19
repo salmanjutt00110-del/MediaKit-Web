@@ -71,17 +71,17 @@ export class FacebookAdapter extends MediaProvider {
 
     if (target.includes('fb.watch') || target.includes('/share/')) {
       try {
-        const headRes = await fetch(target, {
-          method: 'HEAD',
+        const expandRes = await fetch(target, {
+          method: 'GET',
           redirect: 'follow',
           headers: {
             'User-Agent':
               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           },
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(4000),
         });
-        if (headRes.url && headRes.url !== target) {
-          target = headRes.url;
+        if (expandRes.url && expandRes.url !== target) {
+          target = expandRes.url;
         }
       } catch (err: unknown) {
         const error = err as Error;
@@ -221,9 +221,10 @@ export class FacebookAdapter extends MediaProvider {
       this.scrapeFacebookPage(resolvedUrl).catch(() => ({} as { title?: string; thumbnailUrl?: string; hdUrl?: string; sdUrl?: string })),
     ]);
 
-    let fbThumb = getmyfbData?.thumb || scraped.thumbnailUrl;
-    let fbHd = getmyfbData?.hdUrl || scraped.hdUrl;
-    let fbSd = getmyfbData?.sdUrl || scraped.sdUrl;
+    // Prefer direct fbcdn streams over ssscdn proxies
+    let fbThumb = scraped.thumbnailUrl || getmyfbData?.thumb;
+    let fbHd = scraped.hdUrl || getmyfbData?.hdUrl;
+    let fbSd = scraped.sdUrl || getmyfbData?.sdUrl;
 
     if (!fbHd && !fbSd) {
       try {
@@ -349,23 +350,7 @@ export class FacebookAdapter extends MediaProvider {
       return `/api/download/file?url=${encodeURIComponent(rawUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
     };
 
-    // 1. Direct return if format already has prepared download URL
-    const format = media.formats.find((f) => f.id === formatId);
-    let directUrl = format?.downloadUrl;
-    if (!directUrl) {
-      const anyFmtWithUrl = media.formats.find((f) => f.downloadUrl && f.downloadUrl.startsWith('http'));
-      if (anyFmtWithUrl) directUrl = anyFmtWithUrl.downloadUrl;
-    }
-
-    if (directUrl && directUrl.startsWith('http')) {
-      return {
-        success: true,
-        downloadUrl: wrapProxy(directUrl),
-        message: 'Direct media download prepared successfully.',
-      };
-    }
-
-    // 2. Check stream cache
+    // 1. Check stream cache first
     const cacheKey = `fb_${media.id}_${formatId}`;
     const cachedStream = fbStreamCache.get(cacheKey);
     if (cachedStream && cachedStream.expiry > Date.now()) {
@@ -373,6 +358,56 @@ export class FacebookAdapter extends MediaProvider {
         success: true,
         downloadUrl: cachedStream.url,
         message: 'Instant stream retrieved from cache.',
+      };
+    }
+
+    // 2. Direct return if format has authentic direct fbcdn stream
+    const format = media.formats.find((f) => f.id === formatId);
+    let directUrl = format?.downloadUrl;
+    if (!directUrl) {
+      const anyFmtWithUrl = media.formats.find((f) => f.downloadUrl && f.downloadUrl.startsWith('http'));
+      if (anyFmtWithUrl) directUrl = anyFmtWithUrl.downloadUrl;
+    }
+
+    if (directUrl && directUrl.startsWith('http') && !directUrl.includes('ssscdn.io') && !directUrl.includes('getmyfb')) {
+      return {
+        success: true,
+        downloadUrl: wrapProxy(directUrl),
+        message: 'Direct media download prepared successfully.',
+      };
+    }
+
+    // 3. If direct stream is ssscdn or missing, try yt-dlp to guarantee full synchronized audio & video
+    if (ytDlpRunner.isAvailable()) {
+      try {
+        const localResult = await ytDlpRunner.downloadMedia(media, formatId);
+        if (localResult && localResult.serveUrl) {
+          fbStreamCache.set(cacheKey, {
+            url: localResult.serveUrl,
+            expiry: Date.now() + 20 * 60 * 1000,
+          });
+          return {
+            success: true,
+            downloadUrl: localResult.serveUrl,
+            fileSizeBytes: localResult.fileSizeBytes,
+            fileSizeFormatted: localResult.fileSizeFormatted,
+            resolution: localResult.resolution,
+            duration: localResult.duration,
+            message: 'Direct media file prepared and validated successfully.',
+          };
+        }
+      } catch (err: unknown) {
+        const error = err as Error;
+        logger.warn('Facebook yt-dlp download attempt note', { msg: error.message });
+      }
+    }
+
+    // 4. Fallback to direct URL proxy if available
+    if (directUrl && directUrl.startsWith('http')) {
+      return {
+        success: true,
+        downloadUrl: wrapProxy(directUrl),
+        message: 'Direct media download prepared successfully.',
       };
     }
 

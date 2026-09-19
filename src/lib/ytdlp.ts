@@ -598,6 +598,7 @@ export const ytDlpRunner = {
 
       if (fs.existsSync(ffmpegPath)) {
         args.push('--ffmpeg-location', ffmpegPath);
+        args.push('--postprocessor-args', 'ffmpeg:-threads 4 -preset ultrafast');
       }
 
       const cookies = getCookiesPath();

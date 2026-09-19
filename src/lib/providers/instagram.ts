@@ -4,6 +4,7 @@ import { logger } from '../logger';
 import { cleanAndDecodeTitle, sanitizeFilename, probeUrlSize } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
 import { extractSnapSave } from '../snapsave-native';
+import { igdl } from 'btch-downloader';
 
 interface IgCacheEntry {
   data: MediaMetadata;
@@ -239,10 +240,10 @@ export class InstagramAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(shortcode);
     if (cached) return cached;
 
-    // 1. Tier 1: High-Speed Web Extractor (GetMyFB multi-platform) + Embed Scraper in parallel (<2 seconds)
+    // 1. Tier 1: Fast Direct Web Extractor via igdl + Embed Scraper in parallel (<2 seconds)
     try {
-      const [getmyfb, meta] = await Promise.all([
-        this.extractGetMyFB(resolvedUrl).catch(() => null),
+      const [igdlData, meta] = await Promise.all([
+        igdl(resolvedUrl).catch(() => null),
         this.scrapeInstagramMetadata(shortcode, resolvedUrl).catch(() => ({} as {
           title?: string;
           author?: string;
@@ -251,66 +252,50 @@ export class InstagramAdapter extends MediaProvider {
         })),
       ]);
 
-      if (getmyfb && (getmyfb.hdUrl || getmyfb.sdUrl)) {
-        const hdUrl = getmyfb.hdUrl;
-        const sdUrl = getmyfb.sdUrl;
-        const isDifferent = Boolean(hdUrl && sdUrl && hdUrl !== sdUrl);
+      if (igdlData && igdlData.status && Array.isArray(igdlData.result) && igdlData.result.length > 0) {
+        const validItems = igdlData.result.filter((r) => r && r.url && r.url.startsWith('http'));
+        if (validItems.length > 0) {
+          const bestItem = validItems[0];
+          const formats: MediaFormat[] = [
+            {
+              id: 'hd',
+              format: 'mp4',
+              quality: 'HD Video (High Definition)',
+              resolution: '720x1280',
+              hasAudio: true,
+              hasVideo: true,
+              downloadUrl: bestItem.url,
+            },
+            {
+              id: 'mp3',
+              format: 'mp3',
+              quality: 'Original Audio (MP3)',
+              hasAudio: true,
+              hasVideo: false,
+              downloadUrl: bestItem.url,
+            },
+          ];
 
-        const formats: MediaFormat[] = [];
-        if (hdUrl) {
-          formats.push({
-            id: 'hd',
-            format: 'mp4',
-            quality: isDifferent ? 'HD Video (High Definition)' : 'Video (MP4)',
-            resolution: '720x1280',
-            hasAudio: true,
-            hasVideo: true,
-            downloadUrl: hdUrl,
-          });
+          const finalThumb = bestItem.thumbnail || meta.thumbnailUrl;
+          const finalTitle = meta.title || `Instagram Reel (${shortcode})`;
+          const finalAuthor = meta.author || 'Instagram Creator';
+
+          const result: MediaMetadata = {
+            id: shortcode,
+            platform: 'instagram',
+            title: finalTitle,
+            author: finalAuthor,
+            thumbnailUrl: finalThumb ? `/api/thumbnail?url=${encodeURIComponent(finalThumb)}` : undefined,
+            sourceUrl: resolvedUrl,
+            formats,
+            requiresProviderSetup: false,
+          };
+
+          setCachedMedia(resolvedUrl, result);
+          setCachedMedia(rawUrl, result);
+          setCachedMedia(shortcode, result);
+          return result;
         }
-        if (isDifferent && sdUrl) {
-          formats.push({
-            id: 'sd',
-            format: 'mp4',
-            quality: 'SD Video (Standard Quality)',
-            resolution: '480x854',
-            hasAudio: true,
-            hasVideo: true,
-            downloadUrl: sdUrl,
-          });
-        }
-
-        const audioUrl = hdUrl || sdUrl;
-        if (audioUrl) {
-          formats.push({
-            id: 'mp3',
-            format: 'mp3',
-            quality: 'Original Audio (MP3)',
-            hasAudio: true,
-            hasVideo: false,
-            downloadUrl: audioUrl,
-          });
-        }
-
-        const finalThumb = getmyfb.thumb || meta.thumbnailUrl;
-        const finalTitle = meta.title || getmyfb.title || `Instagram Reel (${shortcode})`;
-        const finalAuthor = meta.author || 'Instagram Creator';
-
-        const result: MediaMetadata = {
-          id: shortcode,
-          platform: 'instagram',
-          title: finalTitle,
-          author: finalAuthor,
-          thumbnailUrl: finalThumb ? `/api/thumbnail?url=${encodeURIComponent(finalThumb)}` : undefined,
-          sourceUrl: resolvedUrl,
-          formats,
-          requiresProviderSetup: false,
-        };
-
-        setCachedMedia(resolvedUrl, result);
-        setCachedMedia(rawUrl, result);
-        setCachedMedia(shortcode, result);
-        return result;
       }
 
       // If direct video url was scraped from embed
@@ -412,7 +397,72 @@ export class InstagramAdapter extends MediaProvider {
       logger.warn('Instagram snapsave extraction error', { msg: error.message });
     }
 
-    // 3. Tier 3: yt-dlp native extraction fallback
+    // 3. Tier 3: GetMyFB web extractor fallback
+    try {
+      const getmyfb = await this.extractGetMyFB(resolvedUrl);
+      if (getmyfb && (getmyfb.hdUrl || getmyfb.sdUrl)) {
+        const hdUrl = getmyfb.hdUrl;
+        const sdUrl = getmyfb.sdUrl;
+        const isDifferent = Boolean(hdUrl && sdUrl && hdUrl !== sdUrl);
+
+        const formats: MediaFormat[] = [];
+        if (hdUrl) {
+          formats.push({
+            id: 'hd',
+            format: 'mp4',
+            quality: isDifferent ? 'HD Video (High Definition)' : 'Video (MP4)',
+            resolution: '720x1280',
+            hasAudio: true,
+            hasVideo: true,
+            downloadUrl: hdUrl,
+          });
+        }
+        if (isDifferent && sdUrl) {
+          formats.push({
+            id: 'sd',
+            format: 'mp4',
+            quality: 'SD Video (Standard Quality)',
+            resolution: '480x854',
+            hasAudio: true,
+            hasVideo: true,
+            downloadUrl: sdUrl,
+          });
+        }
+
+        const audioUrl = hdUrl || sdUrl;
+        if (audioUrl) {
+          formats.push({
+            id: 'mp3',
+            format: 'mp3',
+            quality: 'Original Audio (MP3)',
+            hasAudio: true,
+            hasVideo: false,
+            downloadUrl: audioUrl,
+          });
+        }
+
+        const result: MediaMetadata = {
+          id: shortcode,
+          platform: 'instagram',
+          title: getmyfb.title || `Instagram Reel (${shortcode})`,
+          author: 'Instagram Creator',
+          thumbnailUrl: getmyfb.thumb ? `/api/thumbnail?url=${encodeURIComponent(getmyfb.thumb)}` : undefined,
+          sourceUrl: resolvedUrl,
+          formats,
+          requiresProviderSetup: false,
+        };
+
+        setCachedMedia(resolvedUrl, result);
+        setCachedMedia(rawUrl, result);
+        setCachedMedia(shortcode, result);
+        return result;
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('Instagram GetMyFB fallback warning', { msg: error.message });
+    }
+
+    // 4. Tier 4: yt-dlp native extraction fallback
     if (ytDlpRunner.isAvailable()) {
       try {
         const info = await Promise.race([
