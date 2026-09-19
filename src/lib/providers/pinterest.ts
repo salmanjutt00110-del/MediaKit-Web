@@ -194,7 +194,7 @@ export class PinterestAdapter extends MediaProvider {
         title = cleanAndDecodeTitle(ogTitle[1]);
       }
 
-      // 6. Extract thumbnail
+      // 6. Extract thumbnail & master images
       let thumbnailUrl: string | undefined;
       const ogImage =
         html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
@@ -213,17 +213,28 @@ export class PinterestAdapter extends MediaProvider {
         }
       }
 
+      // Robust extraction of Pinterest original and preview images from HTML/CSS/JSON
+      const origImgs = [...html.matchAll(/https:\/\/i\.pinimg\.com\/originals\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp)/gi)].map((m) => m[0]);
+      const previewImgs = [...html.matchAll(/https:\/\/i\.pinimg\.com\/(?:736x|1200x)\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp)/gi)].map((m) => m[0]);
+      const masterImage = origImgs[0] || previewImgs[0];
+      const previewImage = previewImgs[0] || origImgs[0];
+
+      if (!thumbnailUrl && masterImage) {
+        thumbnailUrl = previewImage || masterImage;
+      }
+
       // 7. Extract author
       let author: string | undefined;
       const authorMatch =
         html.match(/property="og:site_name"[^>]+content="([^"]+)"/i) ||
         html.match(/"author":\{"name":"([^"]+)"/i) ||
-        html.match(/"uploader":\s*"([^"]+)"/i);
+        html.match(/"uploader":\s*"([^"]+)"/i) ||
+        html.match(/"username":"([^"]+)"/i);
       if (authorMatch && authorMatch[1] && !authorMatch[1].toLowerCase().includes('pinterest')) {
         author = authorMatch[1].trim();
       }
 
-      return { title, author, thumbnailUrl, directVideoUrl };
+      return { title, author, thumbnailUrl, directVideoUrl, masterImage, previewImage };
     } catch (err: unknown) {
       const error = err as Error;
       logger.warn('Pinterest scrape warning', { msg: error.message, url });
@@ -234,16 +245,128 @@ export class PinterestAdapter extends MediaProvider {
 
   async getMediaInfo(rawUrl: string): Promise<MediaMetadata> {
     const resolvedUrl = await this.resolveCanonicalUrl(rawUrl);
-    const pinId = this.extractPinId(resolvedUrl) || this.extractPinId(rawUrl) || 'pinterest-video';
+    const pinId = this.extractPinId(resolvedUrl) || this.extractPinId(rawUrl) || 'pinterest-media';
 
     // 1. Check cache
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(pinId);
     if (cached) return cached;
 
-    // 2. Primary Engine: yt-dlp native extraction if available
+    // 2. Fast Tier 1: Scrape directly from page (<400ms)
+    const scraped = await this.scrapePinterest(resolvedUrl);
+    const directVideo = scraped.directVideoUrl;
+    const masterImage = scraped.masterImage;
+    const previewImage = scraped.previewImage;
+    const title = scraped.title || `Pinterest Pin (${pinId})`;
+    const author = scraped.author || 'Pinterest Creator';
+    const thumbnailUrl = scraped.thumbnailUrl || masterImage || previewImage;
+
+    const proxiedThumb = thumbnailUrl
+      ? `/api/thumbnail?url=${encodeURIComponent(thumbnailUrl)}`
+      : undefined;
+
+    // If video pin found
+    if (directVideo) {
+      const formats: MediaFormat[] = [
+        {
+          id: 'video',
+          format: 'mp4',
+          quality: 'HD Video (MP4)',
+          resolution: '720x1280',
+          hasAudio: true,
+          hasVideo: true,
+          downloadUrl: directVideo,
+        },
+        {
+          id: 'mp3',
+          format: 'mp3',
+          quality: 'Original Audio (MP3)',
+          hasAudio: true,
+          hasVideo: false,
+          downloadUrl: directVideo,
+        },
+      ];
+
+      if (masterImage) {
+        const isPng = masterImage.toLowerCase().includes('.png');
+        formats.push({
+          id: 'photo_orig',
+          format: isPng ? 'png' : 'jpg',
+          quality: 'Original Cover Photo (HD)',
+          hasAudio: false,
+          hasVideo: false,
+          downloadUrl: masterImage,
+        });
+      }
+
+      const result: MediaMetadata = {
+        id: pinId,
+        platform: 'pinterest',
+        title,
+        author,
+        thumbnailUrl: proxiedThumb,
+        sourceUrl: resolvedUrl,
+        formats,
+        requiresProviderSetup: false,
+      };
+
+      setCachedMedia(resolvedUrl, result);
+      setCachedMedia(rawUrl, result);
+      setCachedMedia(pinId, result);
+      return result;
+    }
+
+    // If photo pin found
+    if (masterImage || previewImage) {
+      const activeImg = masterImage || previewImage!;
+      const isPng = activeImg.toLowerCase().includes('.png');
+      const imgExt = isPng ? 'png' : 'jpg';
+
+      const formats: MediaFormat[] = [
+        {
+          id: 'photo_orig',
+          format: imgExt,
+          quality: 'Original Master Photo (HD)',
+          hasAudio: false,
+          hasVideo: false,
+          downloadUrl: activeImg,
+        },
+      ];
+
+      if (previewImage && previewImage !== masterImage) {
+        formats.push({
+          id: 'photo_preview',
+          format: 'jpg',
+          quality: 'Standard Quality Photo (736p)',
+          hasAudio: false,
+          hasVideo: false,
+          downloadUrl: previewImage,
+        });
+      }
+
+      const result: MediaMetadata = {
+        id: pinId,
+        platform: 'pinterest',
+        title,
+        author,
+        thumbnailUrl: proxiedThumb,
+        sourceUrl: resolvedUrl,
+        formats,
+        requiresProviderSetup: false,
+      };
+
+      setCachedMedia(resolvedUrl, result);
+      setCachedMedia(rawUrl, result);
+      setCachedMedia(pinId, result);
+      return result;
+    }
+
+    // 3. Tier 2: yt-dlp native extraction fallback if available
     if (ytDlpRunner.isAvailable()) {
       try {
-        const info = await ytDlpRunner.getMediaInfo(resolvedUrl);
+        const info = await Promise.race([
+          ytDlpRunner.getMediaInfo(resolvedUrl),
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('yt-dlp timeout')), 6000)),
+        ]);
         if (info && info.formats && info.formats.length > 0) {
           const proxiedThumb = info.thumbnailUrl
             ? `/api/thumbnail?url=${encodeURIComponent(info.thumbnailUrl)}`
@@ -253,8 +376,8 @@ export class PinterestAdapter extends MediaProvider {
             ...info,
             id: pinId,
             platform: 'pinterest',
-            title: info.title || `Pinterest Video (${pinId})`,
-            author: info.author || 'Unavailable',
+            title: info.title || `Pinterest Media (${pinId})`,
+            author: info.author || 'Pinterest Creator',
             thumbnailUrl: proxiedThumb,
             sourceUrl: resolvedUrl,
             requiresProviderSetup: false,
@@ -271,62 +394,9 @@ export class PinterestAdapter extends MediaProvider {
       }
     }
 
-    // 3. Fallback: Scrape directly from page
-    const scraped = await this.scrapePinterest(resolvedUrl);
-    const directVideo = scraped.directVideoUrl;
-    const title = scraped.title;
-    const author = scraped.author || 'Unavailable';
-    const thumbnailUrl = scraped.thumbnailUrl;
-
-    if (!directVideo) {
-      throw new Error(
-        'Unable to process this Pinterest link. Please make sure the link is to a public video pin and try again.'
-      );
-    }
-
-    const cleanTitle = title || `Pinterest Video (${pinId})`;
-    const proxiedThumb = thumbnailUrl
-      ? `/api/thumbnail?url=${encodeURIComponent(thumbnailUrl)}`
-      : undefined;
-
-    const vidSize = await probeUrlSize(directVideo);
-
-    const formats: MediaFormat[] = [
-      {
-        id: 'video',
-        format: 'mp4',
-        quality: 'Video (MP4)',
-        hasAudio: true,
-        hasVideo: true,
-        downloadUrl: directVideo,
-        fileSize: vidSize,
-      },
-      {
-        id: 'mp3',
-        format: 'mp3',
-        quality: 'Original Audio (MP3)',
-        hasAudio: true,
-        hasVideo: false,
-        downloadUrl: directVideo,
-      },
-    ];
-
-    const result: MediaMetadata = {
-      id: pinId,
-      platform: 'pinterest',
-      title: cleanTitle,
-      author,
-      thumbnailUrl: proxiedThumb,
-      sourceUrl: resolvedUrl,
-      formats,
-      requiresProviderSetup: false,
-    };
-
-    setCachedMedia(resolvedUrl, result);
-    setCachedMedia(rawUrl, result);
-    setCachedMedia(pinId, result);
-
-    return result;
+    throw new Error(
+      'Unable to process this Pinterest link. Please make sure the link is to a public pin and try again.'
+    );
   }
 
   getDownloadOptions(media: MediaMetadata): MediaFormat[] {
@@ -335,16 +405,19 @@ export class PinterestAdapter extends MediaProvider {
 
   async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
-    const ext = isMp3 ? 'mp3' : 'mp4';
-    const cleanTitle = sanitizeFilename(media.title || 'Pinterest_Video', ext);
-
-    // 1. Direct video URL if available
+    const isPhoto = formatId.toLowerCase().includes('photo') || formatId.toLowerCase().includes('image');
     const format = media.formats.find((f) => f.id === formatId);
+    const ext = format?.format || (isMp3 ? 'mp3' : isPhoto ? 'jpg' : 'mp4');
+    const cleanTitle = sanitizeFilename(media.title || 'Pinterest_Media', ext);
+
+    // 1. Direct URL if available (proxy through /api/download/file with Referer headers)
     let directUrl = format?.downloadUrl;
 
     if (!directUrl) {
       const fresh = await this.scrapePinterest(media.sourceUrl);
-      if (fresh.directVideoUrl) {
+      if (formatId === 'photo_orig' || isPhoto) {
+        directUrl = fresh.masterImage || fresh.previewImage;
+      } else if (fresh.directVideoUrl) {
         directUrl = fresh.directVideoUrl;
       }
     }
@@ -399,6 +472,6 @@ export class PinterestAdapter extends MediaProvider {
       }
     }
 
-    throw new Error('Unable to extract Pinterest video stream. Please ensure the pin contains a video and is public.');
+    throw new Error('Unable to extract Pinterest media stream. Please ensure the pin is public and accessible.');
   }
 }

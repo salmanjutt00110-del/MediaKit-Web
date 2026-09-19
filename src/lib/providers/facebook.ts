@@ -215,38 +215,7 @@ export class FacebookAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(videoId);
     if (cached) return cached;
 
-    // 1. Primary Engine: yt-dlp native extraction if available
-    if (ytDlpRunner.isAvailable()) {
-      try {
-        const info = await ytDlpRunner.getMediaInfo(resolvedUrl);
-        if (info && info.formats && info.formats.length > 0) {
-          const proxiedThumb = info.thumbnailUrl
-            ? `/api/thumbnail?url=${encodeURIComponent(info.thumbnailUrl)}`
-            : undefined;
-
-          const result: MediaMetadata = {
-            ...info,
-            id: videoId,
-            platform: 'facebook',
-            title: info.title || `Facebook Video (${videoId})`,
-            author: info.author || 'Unavailable',
-            thumbnailUrl: proxiedThumb,
-            sourceUrl: resolvedUrl,
-            requiresProviderSetup: false,
-          };
-
-          setCachedMedia(resolvedUrl, result);
-          setCachedMedia(rawUrl, result);
-          setCachedMedia(videoId, result);
-          return result;
-        }
-      } catch (ytErr: unknown) {
-        const error = ytErr as Error;
-        logger.warn('Facebook yt-dlp extraction note:', { msg: error.message });
-      }
-    }
-
-    // 2. Parallel web scrapers
+    // 1. Tier 1: Fast Parallel Web Resolvers (GetMyFB + Scraper) in <1.5s
     const [getmyfbData, scraped] = await Promise.all([
       this.extractGetMyFB(resolvedUrl).catch(() => null),
       this.scrapeFacebookPage(resolvedUrl).catch(() => ({} as { title?: string; thumbnailUrl?: string; hdUrl?: string; sdUrl?: string })),
@@ -269,16 +238,49 @@ export class FacebookAdapter extends MediaProvider {
       } catch {}
     }
 
+    // 2. Tier 2: yt-dlp fallback with timeout if web scrapers failed
+    if (!fbHd && !fbSd && ytDlpRunner.isAvailable()) {
+      try {
+        const info = await Promise.race([
+          ytDlpRunner.getMediaInfo(resolvedUrl),
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('yt-dlp timeout')), 6000)),
+        ]);
+        if (info && info.formats && info.formats.length > 0) {
+          const proxiedThumb = info.thumbnailUrl
+            ? `/api/thumbnail?url=${encodeURIComponent(info.thumbnailUrl)}`
+            : undefined;
+
+          const result: MediaMetadata = {
+            ...info,
+            id: videoId,
+            platform: 'facebook',
+            title: info.title || `Facebook Video (${videoId})`,
+            author: info.author || 'Facebook Creator',
+            thumbnailUrl: proxiedThumb,
+            sourceUrl: resolvedUrl,
+            requiresProviderSetup: false,
+          };
+
+          setCachedMedia(resolvedUrl, result);
+          setCachedMedia(rawUrl, result);
+          setCachedMedia(videoId, result);
+          return result;
+        }
+      } catch (ytErr: unknown) {
+        const error = ytErr as Error;
+        logger.warn('Facebook yt-dlp fallback note:', { msg: error.message });
+      }
+    }
+
+    if (!fbHd && !fbSd) {
+      throw new Error('Unable to extract Facebook video stream. Please ensure the video is public and accessible.');
+    }
+
     const title = getmyfbData?.title || scraped.title || `Facebook Video (${videoId})`;
     const thumbnailUrl = fbThumb
       ? `/api/thumbnail?url=${encodeURIComponent(fbThumb)}`
       : undefined;
-
     const isDifferent = Boolean(fbHd && fbSd && fbHd !== fbSd);
-    const [hdSize, sdSize] = await Promise.all([
-      fbHd ? probeUrlSize(fbHd) : Promise.resolve(undefined),
-      isDifferent && fbSd ? probeUrlSize(fbSd) : Promise.resolve(undefined),
-    ]);
 
     const formats: MediaFormat[] = [];
     if (fbHd) {
@@ -290,7 +292,6 @@ export class FacebookAdapter extends MediaProvider {
         hasAudio: true,
         hasVideo: true,
         downloadUrl: fbHd,
-        fileSize: hdSize,
       });
     }
     if (isDifferent && fbSd) {
@@ -302,7 +303,6 @@ export class FacebookAdapter extends MediaProvider {
         hasAudio: true,
         hasVideo: true,
         downloadUrl: fbSd,
-        fileSize: sdSize,
       });
     }
     const audioSource = fbHd || fbSd;
@@ -321,7 +321,7 @@ export class FacebookAdapter extends MediaProvider {
       id: videoId,
       platform: 'facebook',
       title,
-      author: 'Unavailable',
+      author: 'Facebook Creator',
       thumbnailUrl,
       sourceUrl: resolvedUrl,
       formats,

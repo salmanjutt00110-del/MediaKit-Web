@@ -317,12 +317,6 @@ export class TikTokAdapter extends MediaProvider {
       universalData?.musicUrl ||
       undefined;
 
-    const [hdSize, sdSize, mp3Size] = await Promise.all([
-      hdDownloadUrl ? probeUrlSize(hdDownloadUrl) : Promise.resolve(undefined),
-      sdDownloadUrl && sdDownloadUrl !== hdDownloadUrl ? probeUrlSize(sdDownloadUrl) : Promise.resolve(undefined),
-      mp3DownloadUrl ? probeUrlSize(mp3DownloadUrl) : Promise.resolve(undefined),
-    ]);
-
     const formats: MediaFormat[] = [
       {
         id: 'hd',
@@ -332,7 +326,6 @@ export class TikTokAdapter extends MediaProvider {
         hasAudio: true,
         hasVideo: true,
         downloadUrl: hdDownloadUrl,
-        fileSize: hdSize,
       },
       {
         id: 'sd',
@@ -342,7 +335,6 @@ export class TikTokAdapter extends MediaProvider {
         hasAudio: true,
         hasVideo: true,
         downloadUrl: sdDownloadUrl,
-        fileSize: sdSize || hdSize,
       },
       {
         id: 'mp3',
@@ -351,7 +343,6 @@ export class TikTokAdapter extends MediaProvider {
         hasAudio: true,
         hasVideo: false,
         downloadUrl: mp3DownloadUrl,
-        fileSize: mp3Size,
       },
     ];
 

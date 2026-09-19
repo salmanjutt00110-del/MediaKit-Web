@@ -29,16 +29,21 @@ export async function GET(request: NextRequest) {
       upstreamHeaders['Origin'] = 'https://www.pinterest.com';
     } else if (
       targetUrl.includes('instagram.com') ||
-      targetUrl.includes('cdninstagram.com') ||
-      targetUrl.includes('fbcdn.net') ||
-      targetUrl.includes('facebook.com')
+      targetUrl.includes('cdninstagram.com')
     ) {
       upstreamHeaders['Referer'] = 'https://www.instagram.com/';
       upstreamHeaders['Origin'] = 'https://www.instagram.com';
+    } else if (targetUrl.includes('fbcdn.net') || targetUrl.includes('facebook.com')) {
+      upstreamHeaders['Referer'] = 'https://www.facebook.com/';
+      upstreamHeaders['Origin'] = 'https://www.facebook.com';
     } else if (targetUrl.includes('ytimg.com') || targetUrl.includes('youtube.com')) {
       upstreamHeaders['Referer'] = 'https://www.youtube.com/';
-    } else if (targetUrl.includes('tiktokcdn') || targetUrl.includes('tiktok.com')) {
+    } else if (targetUrl.includes('tiktokcdn') || targetUrl.includes('tiktok.com') || targetUrl.includes('tikwm.com')) {
       upstreamHeaders['Referer'] = 'https://www.tiktok.com/';
+    } else if (targetUrl.includes('rapidcdn') || targetUrl.includes('snapinsta')) {
+      upstreamHeaders['Referer'] = 'https://snapinsta.app/';
+    } else if (targetUrl.includes('ssscdn.io') || targetUrl.includes('getmyfb')) {
+      upstreamHeaders['Referer'] = 'https://getmyfb.com/';
     }
 
     const res = await fetch(targetUrl, {

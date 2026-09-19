@@ -1,5 +1,20 @@
 import type { Metadata, Viewport } from 'next';
+import { Plus_Jakarta_Sans, Caveat } from 'next/font/google';
 import './globals.css';
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-plus-jakarta',
+  display: 'swap',
+});
+
+const caveat = Caveat({
+  subsets: ['latin'],
+  weight: ['600', '700'],
+  variable: '--font-caveat',
+  display: 'swap',
+});
 
 export const viewport: Viewport = {
   themeColor: [
@@ -8,8 +23,6 @@ export const viewport: Viewport = {
   ],
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
 };
 
@@ -212,7 +225,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>{children}</body>
+      <body className={`${plusJakartaSans.variable} ${caveat.variable}`}>{children}</body>
     </html>
   );
 }

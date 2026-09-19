@@ -346,139 +346,39 @@ export default function Downloader() {
     }
   };
 
-  // Native direct file download trigger to Downloads folder with stream validation
+  // Native direct file download trigger to Downloads folder
   const triggerNativeDownload = async (
     finalDlUrl: string,
     filename: string
   ): Promise<{ downloadUrl: string; actualFileSize?: string }> => {
     const safeTitle = filename.replace(/\.[^/.]+$/, '');
     const ext = filename.split('.').pop() || 'mp4';
-    const isAudio = ext === 'mp3' || ext === 'm4a';
     const proxiedUrl =
       finalDlUrl.startsWith('/api/download/file') || finalDlUrl.startsWith('/api/download/serve')
         ? finalDlUrl
         : `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
 
-    // Fast-path: /api/download/serve serves files already processed & validated by FFmpeg on server
-    if (proxiedUrl.startsWith('/api/download/serve')) {
-      const dlAnchor = document.createElement('a');
-      dlAnchor.href = proxiedUrl;
-      dlAnchor.setAttribute('download', filename);
-      dlAnchor.style.display = 'none';
-      document.body.appendChild(dlAnchor);
-      dlAnchor.click();
-      setTimeout(() => {
-        try {
-          document.body.removeChild(dlAnchor);
-        } catch {}
-      }, 2000);
-      return { downloadUrl: proxiedUrl };
-    }
+    setDownloadProgress((prev) => ({
+      ...prev,
+      percent: 90,
+      receivedMB: 'Saving file to Downloads...',
+    }));
 
-    try {
-      // 1. Client-Side Stream Fetch with Real Progress
-      setDownloadProgress((prev) => ({
-        ...prev,
-        receivedMB: 'Connecting to stream...',
-      }));
+    // Direct browser anchor trigger: native OS download manager streams directly to Downloads folder
+    const dlAnchor = document.createElement('a');
+    dlAnchor.href = proxiedUrl;
+    dlAnchor.setAttribute('download', filename);
+    dlAnchor.style.display = 'none';
+    document.body.appendChild(dlAnchor);
+    dlAnchor.click();
 
-      const response = await fetch(proxiedUrl);
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        throw new Error(errText || `Server returned HTTP ${response.status}`);
-      }
+    setTimeout(() => {
+      try {
+        document.body.removeChild(dlAnchor);
+      } catch {}
+    }, 2000);
 
-      const resContentType = response.headers.get('content-type') || '';
-      if (resContentType.includes('text/html') || resContentType.includes('application/json')) {
-        throw new Error('Upstream delivered an error response instead of a valid media stream.');
-      }
-
-      const reader = response.body?.getReader();
-      const contentLength = Number(response.headers.get('Content-Length')) || 0;
-
-      let received = 0;
-      const chunks: Uint8Array[] = [];
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          received += value.length;
-          const receivedMB = (received / (1024 * 1024)).toFixed(1);
-          if (contentLength > 0) {
-            const totalMB = (contentLength / (1024 * 1024)).toFixed(1);
-            const pct = Math.min(94, Math.round((received / contentLength) * 100));
-            setDownloadProgress((prev) => ({
-              ...prev,
-              percent: Math.max(prev.percent, pct),
-              receivedMB: `Downloading: ${receivedMB} MB / ${totalMB} MB (${pct}%)`,
-              totalMB: `${totalMB} MB`,
-            }));
-          } else {
-            setDownloadProgress((prev) => ({
-              ...prev,
-              receivedMB: `Downloading: ${receivedMB} MB received...`,
-            }));
-          }
-        }
-      }
-
-      // 2. Validate received stream size before presenting completion
-      setDownloadProgress((prev) => ({
-        ...prev,
-        percent: 96,
-        receivedMB: 'Validating file...',
-      }));
-
-      const minSaneBytes = isAudio ? 20 * 1024 : 45 * 1024;
-      if (received < minSaneBytes) {
-        throw new Error(
-          `Downloaded media file is too small (~${Math.round(received / 1024)} KB). The stream was truncated or restricted.`
-        );
-      }
-
-      if (contentLength > 0 && received < contentLength * 0.90) {
-        throw new Error(
-          `Incomplete download: received ${(received / (1024 * 1024)).toFixed(2)} MB of ${(contentLength / (1024 * 1024)).toFixed(2)} MB.`
-        );
-      }
-
-      const actualBytesMB = (received / (1024 * 1024)).toFixed(1);
-      const actualSizeFormatted = `${actualBytesMB} MB`;
-
-      const blob = new Blob(chunks as any[], { type: isAudio ? 'audio/mpeg' : 'video/mp4' });
-      const blobUrl = window.URL.createObjectURL(blob);
-      const dlAnchor = document.createElement('a');
-      dlAnchor.href = blobUrl;
-      dlAnchor.setAttribute('download', filename);
-      dlAnchor.style.display = 'none';
-      document.body.appendChild(dlAnchor);
-      dlAnchor.click();
-      setTimeout(() => {
-        try {
-          document.body.removeChild(dlAnchor);
-        } catch {}
-      }, 2000);
-
-      return { downloadUrl: blobUrl, actualFileSize: actualSizeFormatted };
-    } catch (err: any) {
-      console.warn('Stream fetch validation note:', err?.message);
-      // Fallback: direct browser trigger if reader was blocked by CORS or browser policy
-      const dlAnchor = document.createElement('a');
-      dlAnchor.href = proxiedUrl;
-      dlAnchor.setAttribute('download', filename);
-      dlAnchor.style.display = 'none';
-      document.body.appendChild(dlAnchor);
-      dlAnchor.click();
-      setTimeout(() => {
-        try {
-          document.body.removeChild(dlAnchor);
-        } catch {}
-      }, 1000);
-
-      return { downloadUrl: proxiedUrl };
-    }
+    return { downloadUrl: proxiedUrl };
   };
 
   // Download Trigger Handler

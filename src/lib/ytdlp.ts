@@ -487,9 +487,14 @@ export const ytDlpRunner = {
     } catch {}
 
     const targetExt = isMp3 ? 'mp3' : 'mp4';
-    const cleanId = videoId.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const cleanFormat = formatId.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const cacheToken = `${cleanId}_${cleanFormat}`;
+    const cleanId = videoId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 24);
+    const cleanFormat = formatId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 16);
+    const urlHash = crypto
+      .createHash('sha256')
+      .update(`${media.sourceUrl || media.id}:${formatId}`)
+      .digest('hex')
+      .slice(0, 12);
+    const cacheToken = `${cleanId}_${cleanFormat}_${urlHash}`;
     const cachedFilePath = path.join(storageDir, `${cacheToken}.${targetExt}`);
 
     // Return instant cached file if already processed AND matches requested quality
