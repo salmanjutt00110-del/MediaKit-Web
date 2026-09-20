@@ -190,6 +190,16 @@ export async function POST(request: NextRequest) {
 
     const finalDownloadUrl = downloadResult.downloadUrl;
 
+    logger.diagnostic({
+      platform: detection.platform,
+      normalizedUrl: detection.normalizedUrl,
+      videoId: mediaInfo.id,
+      operation: 'download',
+      providerUsed: provider.displayName,
+      responseStatus: 'success',
+      selectedFormatId: formatId,
+    });
+
     return NextResponse.json({
       success: true,
       data: {
@@ -207,6 +217,14 @@ export async function POST(request: NextRequest) {
     const code = error.code || 'DOWNLOAD_ERROR';
     const message = error.message || 'Unable to process download request. Please try again.';
 
+    logger.diagnostic({
+      platform: 'unknown',
+      operation: 'download',
+      providerUsed: 'ProviderRegistry',
+      responseStatus: 'failed',
+      errorCategory: code,
+    });
+
     return NextResponse.json(
       {
         success: false,
@@ -216,7 +234,7 @@ export async function POST(request: NextRequest) {
           message,
         },
       },
-      { status: code === 'PRIVATE_CONTENT' || code === 'UNAVAILABLE_CONTENT' ? 403 : 500 }
+      { status: code === 'PRIVATE_CONTENT' || code === 'UNAVAILABLE_CONTENT' || code === 'YOUTUBE_AUTH_REQUIRED' ? 403 : 500 }
     );
   }
 }

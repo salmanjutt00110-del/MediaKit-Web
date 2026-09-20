@@ -20,9 +20,7 @@ const inflightDownloads = new Map<string, Promise<DownloadedMediaFile>>();
 
 export function getCookiesPath(): string | null {
   const candidates = [
-    path.resolve(process.cwd(), 'bin', 'cookies.txt'),
     path.resolve(process.cwd(), 'bin', 'instagram_cookies.txt'),
-    path.resolve(process.cwd(), 'cookies.txt'),
   ];
   for (const c of candidates) {
     if (fs.existsSync(c)) return c;
@@ -56,14 +54,7 @@ function getYtDlpCommand(): YtDlpCommand | null {
   if (cachedCommand) return cachedCommand;
 
   if (isWin) {
-    // 1. Windows standalone binary in bin/yt-dlp.exe
-    const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
-    if (fs.existsSync(winPath)) {
-      cachedCommand = { cmd: winPath, prefixArgs: [] };
-      return cachedCommand;
-    }
-
-    // 2. Native python with yt_dlp
+    // 1. Native python with yt_dlp (avoids PyInstaller temp unpacking issues)
     try {
       const check = spawnSync('python.exe', ['-m', 'yt_dlp', '--version'], { timeout: 3000 });
       if (check.status === 0) {
@@ -71,6 +62,21 @@ function getYtDlpCommand(): YtDlpCommand | null {
         return cachedCommand;
       }
     } catch {}
+
+    try {
+      const check = spawnSync('python', ['-m', 'yt_dlp', '--version'], { timeout: 3000 });
+      if (check.status === 0) {
+        cachedCommand = { cmd: 'python', prefixArgs: ['-m', 'yt_dlp'] };
+        return cachedCommand;
+      }
+    } catch {}
+
+    // 2. Windows standalone binary in bin/yt-dlp.exe
+    const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
+    if (fs.existsSync(winPath)) {
+      cachedCommand = { cmd: winPath, prefixArgs: [] };
+      return cachedCommand;
+    }
 
     // 3. System PATH yt-dlp.exe
     try {
@@ -237,16 +243,16 @@ export const ytDlpRunner = {
       const args = ['-j', '--skip-download', '--no-playlist'];
 
       const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
-      if (isYouTube) {
-        const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
-        args.push('--js-runtimes', nodeRuntime);
-        args.push('-4');
-        args.push('--extractor-args', 'youtube:player_client=android,web');
-      }
+      const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
+      args.push('--js-runtimes', nodeRuntime);
 
-      const cookies = getCookiesPath();
-      if (cookies) {
-        args.push('--cookies', cookies);
+      if (isYouTube) {
+        args.push('-4');
+      } else {
+        const cookies = getCookiesPath();
+        if (cookies) {
+          args.push('--cookies', cookies);
+        }
       }
 
       args.push(targetUrl);
@@ -321,6 +327,8 @@ export const ytDlpRunner = {
                     resolution: tier.res,
                     hasAudio: true,
                     hasVideo: true,
+                    codec: matchingFmt.vcodec?.split('.')[0] || 'h264',
+                    container: 'mp4',
                     downloadUrl: undefined, // Enforces server-side merged audio+video download
                     fileSize: formatBytes(totalBytes),
                   });
@@ -343,6 +351,8 @@ export const ytDlpRunner = {
                     resolution: `${bestVideo.width || ''}x${bestVideo.height}`,
                     hasAudio: true,
                     hasVideo: true,
+                    codec: bestVideo.vcodec?.split('.')[0] || 'h264',
+                    container: 'mp4',
                     downloadUrl: undefined,
                     fileSize: formatBytes(totalBytes),
                   });
@@ -357,6 +367,8 @@ export const ytDlpRunner = {
                   quality: bestAudio.abr ? `${Math.round(bestAudio.abr)} kbps (High Quality Audio)` : 'High Quality Audio',
                   hasAudio: true,
                   hasVideo: false,
+                  codec: 'mp3',
+                  container: 'mp3',
                   downloadUrl: undefined, // Enforces server-side audio conversion
                   fileSize: formatBytes(bestAudio.filesize || bestAudio.filesize_approx),
                 });
@@ -676,7 +688,6 @@ export const ytDlpRunner = {
 
       if (isYouTube) {
         args.push('-4');
-        args.push('--extractor-args', 'youtube:player_client=android,web');
       }
 
       if (ffmpegPath) {
@@ -684,9 +695,11 @@ export const ytDlpRunner = {
         args.push('--postprocessor-args', 'ffmpeg:-threads 4 -preset ultrafast');
       }
 
-      const cookies = getCookiesPath();
-      if (cookies) {
-        args.push('--cookies', cookies);
+      if (!isYouTube) {
+        const cookies = getCookiesPath();
+        if (cookies) {
+          args.push('--cookies', cookies);
+        }
       }
 
       if (isMp3) {
@@ -715,10 +728,10 @@ export const ytDlpRunner = {
 
         // Prefer h264 (avc1) to guarantee remux-only merge (no transcode), with fallback to any codec at target height
         const minHeight = Math.max(144, Math.round(height * 0.72));
-        const isExactId = /^\d+$/.test(formatId);
+        const isExactId = /^\d+$/.test(formatId) || formatId.includes('+');
 
         const formatArg = isExactId
-          ? `${formatId}+bestaudio/${formatId}/best`
+          ? (formatId.includes('+') ? formatId : `${formatId}+bestaudio/${formatId}/best`)
           : [
               `bestvideo[height<=${height}][height>=${minHeight}][vcodec^=avc1]+bestaudio[ext=m4a]`,
               `bestvideo[height<=${height}][height>=${minHeight}]+bestaudio`,
@@ -908,7 +921,34 @@ export const ytDlpRunner = {
             .filter((l) => Boolean(l) && !l.startsWith('WARNING:'));
           const errorLine = errLines.find((l) => l.startsWith('ERROR:')) || errLines[0] || `Process exited with code ${exitCode}`;
           const cleanErr = errorLine.replace(/^ERROR:\s*(\[.*?\]\s*)?/i, '').trim();
-          return reject(new Error(cleanErr || `Download failed with exit code ${exitCode}`));
+
+          let errCode = 'YOUTUBE_DOWNLOAD_FAILED';
+          const lower = cleanErr.toLowerCase();
+          if (lower.includes('sign in') || lower.includes('bot') || lower.includes('confirm you') || lower.includes('private')) {
+            errCode = 'YOUTUBE_AUTH_REQUIRED';
+          } else if (lower.includes('rate') || lower.includes('429') || lower.includes('too many')) {
+            errCode = 'YOUTUBE_RATE_LIMITED';
+          } else if (lower.includes('format') || lower.includes('requested format not available')) {
+            errCode = 'YOUTUBE_FORMAT_UNAVAILABLE';
+          } else if (lower.includes('timed out') || lower.includes('timeout')) {
+            errCode = 'YOUTUBE_TIMEOUT';
+          }
+
+          logger.diagnostic({
+            platform: isYouTube ? 'youtube' : 'other',
+            normalizedUrl: media.sourceUrl,
+            videoId,
+            operation: 'download',
+            providerUsed: 'yt-dlp',
+            responseStatus: 'failed',
+            errorCategory: errCode,
+            downloaderExitCode: exitCode,
+            selectedFormatId: formatId,
+          });
+
+          const err = new Error(cleanErr || `Download failed with exit code ${exitCode}`);
+          (err as unknown as { code: string }).code = errCode;
+          return reject(err);
         }
 
         reject(new Error('Download completed but target file was not generated.'));
@@ -945,7 +985,6 @@ export const ytDlpRunner = {
         const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
         args.push('--js-runtimes', nodeRuntime);
         args.push('-4');
-        args.push('--extractor-args', 'youtube:player_client=android,web');
         if (isMp3) {
           formatArg = 'bestaudio/ba/140/251';
         } else if (formatId.includes('1080')) {

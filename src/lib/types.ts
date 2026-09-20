@@ -19,6 +19,8 @@ export interface MediaFormat {
   fileSize?: string;
   hasAudio: boolean;
   hasVideo: boolean;
+  codec?: string;
+  container?: string;
   note?: string;
   downloadUrl?: string;
 }
@@ -29,6 +31,7 @@ export interface MediaMetadata {
   title: string;
   author?: string;
   duration?: string;
+  publishedAt?: string;
   thumbnailUrl?: string;
   sourceUrl: string;
   formats: MediaFormat[];
@@ -73,6 +76,14 @@ export type ErrorType =
   | 'NO_MEDIA_FOUND'
   | 'FORMAT_UNAVAILABLE'
   | 'DOWNLOAD_ERROR'
+  | 'YOUTUBE_RATE_LIMITED'
+  | 'YOUTUBE_AUTH_REQUIRED'
+  | 'YOUTUBE_PROVIDER_ERROR'
+  | 'YOUTUBE_FORMAT_UNAVAILABLE'
+  | 'YOUTUBE_TIMEOUT'
+  | 'YOUTUBE_DOWNLOAD_FAILED'
+  | 'YOUTUBE_HOSTING_LIMIT'
+  | 'YOUTUBE_TEMPORARILY_UNAVAILABLE'
   | 'invalid_url'
   | 'unsupported_url'
   | 'provider_error'

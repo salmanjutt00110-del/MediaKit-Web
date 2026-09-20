@@ -111,24 +111,43 @@ export async function POST(request: NextRequest) {
       ),
     ]);
 
+    logger.diagnostic({
+      platform: detection.platform,
+      normalizedUrl: detection.normalizedUrl,
+      videoId: mediaInfo.id,
+      operation: 'metadata',
+      providerUsed: provider.displayName,
+      responseStatus: 'success',
+    });
+
     return NextResponse.json({
       success: true,
       platform: mediaInfo.platform,
       data: mediaInfo,
     });
   } catch (err: unknown) {
-    const error = err as Error;
+    const error = err as any;
+    const code = error?.code || 'PROVIDER_ERROR';
     logger.error('Error in /api/media-info', error);
+
+    logger.diagnostic({
+      platform: 'unknown',
+      operation: 'metadata',
+      providerUsed: 'ProviderRegistry',
+      responseStatus: 'failed',
+      errorCategory: code,
+    });
+
     return NextResponse.json(
       {
         success: false,
         error: {
-          code: 'PROVIDER_ERROR',
-          type: 'provider_error',
+          code,
+          type: String(code).toLowerCase(),
           message: error?.message || 'Unable to process media information at this time. Please try again.',
         },
       },
-      { status: 500 }
+      { status: code === 'PRIVATE_CONTENT' || code === 'UNAVAILABLE_CONTENT' ? 403 : 500 }
     );
   }
 }

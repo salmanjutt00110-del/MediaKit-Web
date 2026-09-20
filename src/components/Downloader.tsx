@@ -89,22 +89,26 @@ export function getRecommendedAutoFormat(formats?: MediaFormat[]): MediaFormat |
   const videoFormats = formats.filter((f) => f.hasVideo && f.format !== 'mp3');
   if (videoFormats.length === 0) return formats[0];
 
-  // 1. Prefer 720p HD (standard crisp HD, 15-25MB, downloads in seconds)
-  const fmt720 = videoFormats.find((f) => f.id.toLowerCase() === '720p' || f.id.toLowerCase().includes('720'));
-  if (fmt720) return fmt720;
+  // Auto HD: highest suitable REAL available quality (up to 1080p Full HD for universal compatibility)
+  const getScore = (f: MediaFormat) => {
+    const id = f.id.toLowerCase();
+    if (id.includes('1080')) return 1080;
+    if (id.includes('720')) return 720;
+    if (id.includes('480')) return 480;
+    if (id.includes('360')) return 360;
+    if (id.includes('240')) return 240;
+    if (id.includes('144')) return 144;
+    const match = f.resolution?.match(/(\d+)x(\d+)/);
+    if (match) {
+      const h = Math.min(Number(match[1]), Number(match[2]));
+      return Math.min(1080, h);
+    }
+    const num = parseInt(f.quality.replace(/[^0-9]/g, ''), 10);
+    return isNaN(num) ? 0 : Math.min(1080, num);
+  };
 
-  // 2. Ultra-fast formats (480p / 360p)
-  const fmt480 = videoFormats.find((f) => f.id.toLowerCase() === '480p' || f.id.toLowerCase().includes('480'));
-  if (fmt480) return fmt480;
-
-  const fmt360 = videoFormats.find((f) => f.id.toLowerCase() === '360p' || f.id.toLowerCase().includes('360'));
-  if (fmt360) return fmt360;
-
-  // 3. 1080p Full HD
-  const fmt1080 = videoFormats.find((f) => f.id.toLowerCase() === '1080p' || f.id.toLowerCase().includes('1080'));
-  if (fmt1080) return fmt1080;
-
-  return videoFormats[0];
+  const sorted = [...videoFormats].sort((a, b) => getScore(b) - getScore(a));
+  return sorted[0] || videoFormats[0];
 }
 
 export default function Downloader() {
@@ -224,6 +228,10 @@ export default function Downloader() {
     }
 
     const cleanUrl = extractUrlFromText(trimmed);
+    if (isProcessingRef.current || (lastSubmittedUrlRef.current === cleanUrl && (state === 'processing' || state === 'downloading'))) {
+      return;
+    }
+
     setUrl(cleanUrl);
     setMediaInfo(null);
     setCompletedInfo(null);
@@ -237,7 +245,6 @@ export default function Downloader() {
     if (result.valid) {
       setError(null);
       setState('url_entered');
-      isProcessingRef.current = false;
       lastSubmittedUrlRef.current = cleanUrl;
       handleSubmit(undefined, cleanUrl, { autoDownload });
     } else if (result.errorCode === 'UNSUPPORTED_PLATFORM') {
@@ -365,24 +372,42 @@ export default function Downloader() {
 
       if (!mediaResponse.ok || !mediaData.success) {
         const errCode = (mediaData?.error?.code as ErrorType) || 'PROVIDER_ERROR';
+        const isYtAuth = errCode === 'YOUTUBE_AUTH_REQUIRED' || errCode === 'PRIVATE_CONTENT';
+        const isYtRate = errCode === 'YOUTUBE_RATE_LIMITED' || errCode === 'RATE_LIMITED';
+        const isYtFormat = errCode === 'YOUTUBE_FORMAT_UNAVAILABLE' || errCode === 'FORMAT_UNAVAILABLE';
+        const isYtTimeout = errCode === 'YOUTUBE_TIMEOUT' || errCode === 'TIMEOUT';
+        const isYtHosting = errCode === 'YOUTUBE_HOSTING_LIMIT';
+
         const errTitle =
-          errCode === 'PRIVATE_CONTENT'
-            ? 'Private Content'
+          isYtAuth
+            ? 'Content Restricted'
             : errCode === 'UNAVAILABLE_CONTENT'
             ? 'Content Unavailable'
-            : errCode === 'RATE_LIMITED'
-            ? 'Rate Limit'
+            : isYtRate
+            ? 'Rate Limit Reached'
+            : isYtFormat
+            ? 'Format Unavailable'
+            : isYtTimeout
+            ? 'Request Timed Out'
+            : isYtHosting
+            ? 'Duration Limit'
             : errCode === 'UNSUPPORTED_PLATFORM'
             ? "Platform Isn't Supported"
             : 'Unable to Process';
 
         const errMsg =
-          errCode === 'PRIVATE_CONTENT'
-            ? 'This content is private and cannot be accessed.'
+          isYtAuth
+            ? 'This YouTube content requires account authorization or is private.'
             : errCode === 'UNAVAILABLE_CONTENT'
             ? 'This content is not available or has been removed.'
-            : errCode === 'RATE_LIMITED'
-            ? 'Too many requests. Please try again later.'
+            : isYtRate
+            ? 'Too many requests. Please wait a moment before trying again.'
+            : isYtFormat
+            ? 'The requested video format is currently unavailable. Please try another quality.'
+            : isYtTimeout
+            ? 'The media server took too long to respond. Please try again.'
+            : isYtHosting
+            ? 'This video exceeds the maximum duration supported by the serverless environment.'
             : errCode === 'UNSUPPORTED_PLATFORM'
             ? "Sorry, this platform isn't supported yet. Try a YouTube, TikTok, Facebook, Instagram, or Pinterest link."
             : mediaData?.error?.message || "We couldn't process this link right now. Please check the URL and try again.";
@@ -392,7 +417,7 @@ export default function Downloader() {
           code: errCode,
           title: errTitle,
           message: errMsg,
-          retryable: errCode !== 'UNSUPPORTED_PLATFORM' && errCode !== 'PRIVATE_CONTENT',
+          retryable: errCode !== 'UNSUPPORTED_PLATFORM' && !isYtAuth,
         });
         setState('error');
         setLoadingStage('idle');
@@ -571,20 +596,50 @@ export default function Downloader() {
 
         if (!dlResponse.ok || !dlData.success) {
           const rawMsg = dlData?.error?.message || 'Download was unavailable. Please try again.';
-          const isBot =
-            rawMsg.toLowerCase().includes('bot') ||
-            rawMsg.toLowerCase().includes('sign in') ||
-            rawMsg.toLowerCase().includes('confirm you');
+          const errCode = (dlData?.error?.code as ErrorType) || 'DOWNLOAD_ERROR';
+
+          let errTitle = 'Unable to Download';
+          let displayMsg = 'Unable to download this YouTube video right now.';
+          let isRetryable = true;
+
+          if (errCode === 'YOUTUBE_RATE_LIMITED' || rawMsg.toLowerCase().includes('rate')) {
+            errTitle = 'Rate Limit Reached';
+            displayMsg = 'Too many requests. Please wait a moment before trying again.';
+          } else if (
+            errCode === 'YOUTUBE_AUTH_REQUIRED' ||
+            errCode === 'PRIVATE_CONTENT' ||
+            rawMsg.toLowerCase().includes('private') ||
+            rawMsg.toLowerCase().includes('sign in')
+          ) {
+            errTitle = 'Content Restricted';
+            displayMsg = 'This YouTube video requires account authorization or is restricted.';
+            isRetryable = false;
+          } else if (errCode === 'YOUTUBE_FORMAT_UNAVAILABLE') {
+            errTitle = 'Format Unavailable';
+            displayMsg = 'The requested video format is currently unavailable. Please try another quality.';
+          } else if (errCode === 'YOUTUBE_TIMEOUT' || rawMsg.toLowerCase().includes('timed out')) {
+            errTitle = 'Request Timed Out';
+            displayMsg = 'The media server took too long to respond. Please retry.';
+          } else if (errCode === 'YOUTUBE_HOSTING_LIMIT') {
+            errTitle = 'Duration Limit';
+            displayMsg = 'This video exceeds the maximum duration supported by the serverless environment.';
+            isRetryable = false;
+          } else if (errCode === 'YOUTUBE_TEMPORARILY_UNAVAILABLE') {
+            errTitle = 'Service Notice';
+            displayMsg = 'Temporary YouTube provider issue. Please try again shortly.';
+          } else {
+            displayMsg = rawMsg.includes('verification')
+              ? 'Temporary YouTube provider issue. Please try again shortly.'
+              : rawMsg;
+          }
 
           if (!isBatch) {
             setError({
               type: 'DOWNLOAD_ERROR',
-              code: isBot ? 'PRIVATE_CONTENT' : 'DOWNLOAD_ERROR',
-              title: isBot ? 'YouTube Verification' : 'Download Notice',
-              message: isBot
-                ? 'YouTube requires temporary verification. Please retry in a few moments.'
-                : rawMsg,
-              retryable: !isBot,
+              code: errCode,
+              title: errTitle,
+              message: displayMsg,
+              retryable: isRetryable,
             });
             setState('error');
             setDownloadingFormatId(null);
@@ -916,22 +971,11 @@ export default function Downloader() {
                     const val = e.target.value;
                     setUrl(val);
                     const trimmed = val.trim();
-                    if (
-                      autoDownload &&
-                      trimmed.length > 10 &&
-                      (trimmed.startsWith('http://') ||
-                        trimmed.startsWith('https://') ||
-                        trimmed.includes('.com') ||
-                        trimmed.includes('.be') ||
-                        trimmed.includes('tiktok') ||
-                        trimmed.includes('instagram') ||
-                        trimmed.includes('facebook') ||
-                        trimmed.includes('pinterest'))
-                    ) {
+                    if (trimmed.length > 5) {
                       const det = detectPlatform(trimmed);
-                      if (det.valid && state !== 'processing' && state !== 'downloading') {
-                        handlePasteEvent(trimmed);
-                      }
+                      setDetection(det);
+                    } else {
+                      setDetection(null);
                     }
                   }}
                   onPaste={(e) => {

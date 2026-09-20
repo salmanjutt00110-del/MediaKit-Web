@@ -3,12 +3,305 @@ import { MediaProvider, ProviderDownloadResult, DownloadProgressCallback } from 
 import { ytDlpRunner } from '../ytdlp';
 import { logger } from '../logger';
 
-// In-memory stream cache to make repeat downloads instantaneous
-const youtubeStreamCache = new Map<string, { url: string; expiry: number }>();
+// In-memory stream cache for repeat download requests (TTL 30 min)
+const youtubeStreamCache = new Map<string, { url: string; fileResult: ProviderDownloadResult; expiry: number }>();
 
-// In-memory media info cache (30 minutes TTL)
-const youtubeMediaInfoCache = new Map<string, { info: MediaMetadata; expiry: number }>();
+// In-memory metadata cache (TTL 30 min)
+const youtubeMetadataCache = new Map<string, { info: MediaMetadata; expiry: number }>();
 
+/**
+ * Parses an ISO 8601 duration string (e.g. "PT1H2M10S", "PT3M33S", "PT19S")
+ * into formatted string ("01:02:10" or "03:33" or "00:19") and total seconds.
+ */
+export function parseIsoDuration(isoDuration?: string): { formatted?: string; seconds?: number } {
+  if (!isoDuration || typeof isoDuration !== 'string') return {};
+  const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/i);
+  if (!match) return {};
+  const hours = parseInt(match[1] || '0', 10);
+  const minutes = parseInt(match[2] || '0', 10);
+  const seconds = parseInt(match[3] || '0', 10);
+  const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+  const formatted =
+    hours > 0
+      ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  return { formatted, seconds: totalSeconds };
+}
+
+/**
+ * YouTubeMetadataProvider
+ * Handles metadata requests (title, author, thumbnail, duration, published date)
+ * via the official YouTube Data API v3, with graceful fallback to official oEmbed.
+ * Server-side only: never exposes API keys to client-side JavaScript.
+ */
+export class YouTubeMetadataProvider {
+  static extractVideoId(url: string): string | null {
+    if (!url || typeof url !== 'string') return null;
+    const clean = url.trim();
+
+    // Universal regex for YouTube video IDs (11 chars)
+    const match = clean.match(
+      /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|(?:shorts|live|embed|v|e)\/))([a-zA-Z0-9_-]{11})/i
+    );
+    if (match && match[1]) {
+      return match[1];
+    }
+
+    try {
+      const parsed = new URL(clean.startsWith('http') ? clean : `https://${clean}`);
+      const vParam = parsed.searchParams.get('v');
+      if (vParam) {
+        const cleanV = vParam.replace(/[/\\?%*:|"<>]/g, '').slice(0, 11);
+        if (cleanV.length === 11) return cleanV;
+      }
+      const segments = parsed.pathname.split('/').filter(Boolean);
+      for (const seg of segments) {
+        const cleanSeg = seg.replace(/[^a-zA-Z0-9_-]/g, '');
+        if (cleanSeg.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(cleanSeg)) {
+          return cleanSeg;
+        }
+      }
+    } catch {}
+
+    if (/^[a-zA-Z0-9_-]{11}$/.test(clean)) {
+      return clean;
+    }
+    return null;
+  }
+
+  static getCanonicalUrl(videoId: string): string {
+    if (/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+      return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+    if (videoId.startsWith('http://') || videoId.startsWith('https://')) {
+      return videoId;
+    }
+    return `https://www.youtube.com/watch?v=${videoId}`;
+  }
+
+  /**
+   * Fetches official metadata using YouTube Data API v3
+   */
+  static async fetchFromDataApi(videoId: string): Promise<Partial<MediaMetadata> | null> {
+    const apiKey = process.env.YOUTUBE_API_KEY?.trim();
+    if (!apiKey) return null;
+
+    try {
+      const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${encodeURIComponent(
+        videoId
+      )}&key=${encodeURIComponent(apiKey)}`;
+
+      const res = await fetch(apiUrl, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!res.ok) {
+        logger.warn('YouTube Data API v3 HTTP response not OK', { status: res.status, videoId });
+        return null;
+      }
+
+      const data = await res.json();
+      const item = data?.items?.[0];
+      if (!item) {
+        return null;
+      }
+
+      const snippet = item.snippet || {};
+      const contentDetails = item.contentDetails || {};
+      const durationInfo = parseIsoDuration(contentDetails.duration);
+      const thumbs = snippet.thumbnails || {};
+      const thumbnailUrl =
+        thumbs.maxres?.url ||
+        thumbs.standard?.url ||
+        thumbs.high?.url ||
+        thumbs.medium?.url ||
+        thumbs.default?.url ||
+        `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
+      logger.diagnostic({
+        platform: 'youtube',
+        videoId,
+        operation: 'metadata',
+        providerUsed: 'YouTubeDataAPIv3',
+        responseStatus: 'success',
+      });
+
+      return {
+        id: videoId,
+        platform: 'youtube',
+        title: snippet.title || 'YouTube Video',
+        author: snippet.channelTitle || 'YouTube Creator',
+        duration: durationInfo.formatted,
+        publishedAt: snippet.publishedAt,
+        thumbnailUrl,
+        description: snippet.description,
+      };
+    } catch (err: unknown) {
+      logger.warn('YouTube Data API v3 lookup failed; falling back', {
+        error: (err as Error).message,
+        videoId,
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Fallback metadata via official YouTube oEmbed endpoint
+   */
+  static async fetchFromOEmbed(
+    videoId: string,
+    canonicalUrl: string
+  ): Promise<Partial<MediaMetadata> | { isUnavailable: boolean } | null> {
+    try {
+      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(canonicalUrl)}&format=json`;
+      const res = await fetch(oembedUrl, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+        },
+        signal: AbortSignal.timeout(4000),
+      });
+
+      if (res.status === 404 || res.status === 401 || res.status === 403) {
+        return { isUnavailable: true };
+      }
+      if (!res.ok) return null;
+
+      const data = await res.json();
+      return {
+        id: videoId,
+        platform: 'youtube',
+        title: data.title || 'YouTube Video',
+        author: data.author_name || 'YouTube Creator',
+        thumbnailUrl: data.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  static async getMetadata(videoId: string, canonicalUrl: string): Promise<Partial<MediaMetadata>> {
+    // 1. Try official YouTube Data API v3
+    const apiMeta = await this.fetchFromDataApi(videoId);
+    if (apiMeta && apiMeta.title) {
+      return apiMeta;
+    }
+
+    // 2. Fallback to official oEmbed
+    const oembedMeta = await this.fetchFromOEmbed(videoId, canonicalUrl);
+    if (oembedMeta && 'isUnavailable' in oembedMeta && oembedMeta.isUnavailable) {
+      const err = new Error('This content is unavailable or has been removed on YouTube.');
+      (err as unknown as { code: string }).code = 'UNAVAILABLE_CONTENT';
+      throw err;
+    }
+    if (oembedMeta && !('isUnavailable' in oembedMeta)) {
+      return oembedMeta;
+    }
+
+    // 3. Fallback to basic video information
+    return {
+      id: videoId,
+      platform: 'youtube',
+      title: `YouTube Video (${videoId})`,
+      author: 'YouTube Creator',
+      thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+    };
+  }
+}
+
+/**
+ * YouTubeDownloadProvider
+ * Handles format extraction, validation, and media downloads.
+ * Separated from metadata so download limitations never break metadata display.
+ */
+export class YouTubeDownloadProvider {
+  /**
+   * Fetches real, genuinely available formats from yt-dlp.
+   * Returns empty array if downloader is unavailable or rate-limited.
+   */
+  static async getAvailableFormats(canonicalUrl: string): Promise<{ formats: MediaFormat[]; duration?: string }> {
+    if (!ytDlpRunner.isAvailable()) {
+      return { formats: [] };
+    }
+
+    try {
+      const info = await ytDlpRunner.getMediaInfo(canonicalUrl);
+      return {
+        formats: info.formats || [],
+        duration: info.duration,
+      };
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('YouTubeDownloadProvider format extraction warning', {
+        canonicalUrl,
+        msg: error.message,
+      });
+      return { formats: [] };
+    }
+  }
+
+  static async download(
+    media: MediaMetadata,
+    formatId: string,
+    onProgress?: DownloadProgressCallback
+  ): Promise<ProviderDownloadResult> {
+    const videoId = YouTubeMetadataProvider.extractVideoId(media.sourceUrl) || media.id;
+    const cacheKey = `${videoId}_${formatId}`;
+
+    // 1. Instant Cache Return
+    const cached = youtubeStreamCache.get(cacheKey);
+    if (cached && cached.expiry > Date.now()) {
+      onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
+      return cached.fileResult;
+    }
+
+    // 2. Process authentic media download via engine
+    if (ytDlpRunner.isAvailable()) {
+      try {
+        onProgress?.({ percent: 15, stage: 'Starting download engine...' });
+        const canonicalUrl = YouTubeMetadataProvider.getCanonicalUrl(videoId);
+        const fullMedia = { ...media, sourceUrl: canonicalUrl };
+
+        const fileResult = await ytDlpRunner.downloadMedia(fullMedia, formatId, onProgress);
+        if (fileResult && fileResult.serveUrl) {
+          const result: ProviderDownloadResult = {
+            success: true,
+            downloadUrl: fileResult.serveUrl,
+            fileSizeBytes: fileResult.fileSizeBytes,
+            fileSizeFormatted: fileResult.fileSizeFormatted,
+            resolution: fileResult.resolution,
+            duration: fileResult.duration,
+            message: 'Media successfully processed and ready for download.',
+          };
+
+          youtubeStreamCache.set(cacheKey, {
+            url: fileResult.serveUrl,
+            fileResult: result,
+            expiry: Date.now() + 30 * 60 * 1000,
+          });
+
+          return result;
+        }
+      } catch (dlErr: unknown) {
+        const err = dlErr as Error;
+        logger.error('YouTube yt-dlp downloadMedia failed', { msg: err.message, videoId, formatId });
+        throw err;
+      }
+    }
+
+    return {
+      success: false,
+      message: 'Unable to process YouTube download stream. Please verify the link or try another format.',
+    };
+  }
+}
+
+/**
+ * YouTubeAdapter
+ * Coordinates YouTubeMetadataProvider and YouTubeDownloadProvider.
+ * Implements the standard MediaProvider interface.
+ */
 export class YouTubeAdapter extends MediaProvider {
   readonly platform: PlatformType = 'youtube';
   readonly displayName = 'YouTube';
@@ -25,207 +318,68 @@ export class YouTubeAdapter extends MediaProvider {
     return this.canHandle(url) ? 'youtube' : 'unknown';
   }
 
-  private extractVideoId(url: string): string | null {
-    if (!url || typeof url !== 'string') return null;
-
-    const clean = url.trim();
-
-    // 1. Universal regex to match standard YouTube video IDs (11 chars)
-    const match = clean.match(
-      /(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|(?:shorts|live|embed|v|e)\/))([a-zA-Z0-9_-]{11})/i
-    );
-    if (match && match[1]) {
-      return match[1];
-    }
-
-    // 2. URL searchParams or pathname fallback
-    try {
-      const parsed = new URL(clean.startsWith('http') ? clean : `https://${clean}`);
-      const vParam = parsed.searchParams.get('v');
-      if (vParam) {
-        const cleanV = vParam.replace(/[/\\?%*:|"<>]/g, '').slice(0, 11);
-        if (cleanV.length === 11) return cleanV;
-      }
-
-      const segments = parsed.pathname.split('/').filter(Boolean);
-      for (const seg of segments) {
-        const cleanSeg = seg.replace(/[^a-zA-Z0-9_-]/g, '');
-        if (cleanSeg.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(cleanSeg)) {
-          return cleanSeg;
-        }
-      }
-    } catch {}
-
-    // 3. Raw 11-char ID check (e.g. if user pasted just the ID)
-    if (/^[a-zA-Z0-9_-]{11}$/.test(clean)) {
-      return clean;
-    }
-
-    return null;
-  }
-
-  private getCanonicalUrl(videoId: string): string {
-    if (/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-      return `https://www.youtube.com/watch?v=${videoId}`;
-    }
-    if (videoId.startsWith('http://') || videoId.startsWith('https://')) {
-      return videoId;
-    }
-    return `https://www.youtube.com/watch?v=${videoId}`;
-  }
-
-  private async fetchOEmbedMetadata(
-    videoId: string,
-    canonicalUrl: string
-  ): Promise<MediaMetadata | { isUnavailable: boolean; status: number } | null> {
-    try {
-      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(canonicalUrl)}&format=json`;
-      const res = await fetch(oembedUrl, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
-        },
-        signal: AbortSignal.timeout(4000),
-      });
-
-      if (res.status === 404 || res.status === 401 || res.status === 403) {
-        return { isUnavailable: true, status: res.status };
-      }
-      if (!res.ok) return null;
-      const data = await res.json();
-      return {
-        id: videoId,
-        platform: 'youtube',
-        title: data.title || 'YouTube Video',
-        author: data.author_name || 'YouTube Creator',
-        thumbnailUrl: data.thumbnail_url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-        sourceUrl: canonicalUrl,
-        formats: [
-          { id: '1080p', format: 'mp4', quality: '1080p Full HD', resolution: '1920x1080', hasAudio: true, hasVideo: true },
-          { id: '720p', format: 'mp4', quality: '720p HD (Recommended)', resolution: '1280x720', hasAudio: true, hasVideo: true },
-          { id: '480p', format: 'mp4', quality: '480p SD', resolution: '854x480', hasAudio: true, hasVideo: true },
-          { id: '360p', format: 'mp4', quality: '360p Fast Download', resolution: '640x360', hasAudio: true, hasVideo: true },
-          { id: 'mp3', format: 'mp3', quality: 'High Quality Audio (MP3)', hasAudio: true, hasVideo: false },
-        ],
-        requiresProviderSetup: false,
-      };
-    } catch (err: unknown) {
-      return null;
-    }
-  }
-
   async getMediaInfo(url: string): Promise<MediaMetadata> {
-    const videoId = this.extractVideoId(url) || url;
-    const canonicalUrl = this.getCanonicalUrl(videoId);
+    const videoId = YouTubeMetadataProvider.extractVideoId(url) || url;
+    const canonicalUrl = YouTubeMetadataProvider.getCanonicalUrl(videoId);
 
-    // 1. Check in-memory cache
+    // 1. Check in-memory metadata cache
     const cached =
-      youtubeMediaInfoCache.get(videoId) ||
-      youtubeMediaInfoCache.get(canonicalUrl) ||
-      youtubeMediaInfoCache.get(url);
-    if (cached && cached.expiry > Date.now()) {
+      youtubeMetadataCache.get(videoId) ||
+      youtubeMetadataCache.get(canonicalUrl) ||
+      youtubeMetadataCache.get(url);
+    if (cached && cached.expiry > Date.now() && cached.info.formats && cached.info.formats.length > 0) {
       return cached.info;
     }
 
-    // 2. ULTRA-FAST OEMBED CHECK (300ms) - Instant title, author, formats, and 404 detection
+    const startTime = Date.now();
+
+    // 2. Fetch authentic metadata via YouTubeMetadataProvider (official API key + oEmbed fallback)
+    const baseMeta = await YouTubeMetadataProvider.getMetadata(videoId, canonicalUrl);
+
+    // 3. Extract genuinely available formats via YouTubeDownloadProvider
+    let realFormats: MediaFormat[] = [];
+    let detectedDuration = baseMeta.duration;
+
     try {
-      const oembedResult = await this.fetchOEmbedMetadata(videoId, canonicalUrl);
-      if (oembedResult && 'isUnavailable' in oembedResult && oembedResult.isUnavailable) {
-        const err = new Error('This content is unavailable or has been removed on YouTube.');
-        (err as unknown as { code: string }).code = 'UNAVAILABLE_CONTENT';
-        throw err;
+      const formatResult = await YouTubeDownloadProvider.getAvailableFormats(canonicalUrl);
+      if (formatResult.formats && formatResult.formats.length > 0) {
+        realFormats = formatResult.formats;
       }
-
-      if (oembedResult && !('isUnavailable' in oembedResult)) {
-        const meta = oembedResult as MediaMetadata;
-        youtubeMediaInfoCache.set(videoId, {
-          info: meta,
-          expiry: Date.now() + 30 * 60 * 1000,
-        });
-        youtubeMediaInfoCache.set(canonicalUrl, {
-          info: meta,
-          expiry: Date.now() + 30 * 60 * 1000,
-        });
-        return meta;
+      if (!detectedDuration && formatResult.duration) {
+        detectedDuration = formatResult.duration;
       }
-    } catch (oErr: unknown) {
-      if ((oErr as { code?: string })?.code === 'UNAVAILABLE_CONTENT') {
-        throw oErr;
-      }
+    } catch (fmtErr: unknown) {
+      logger.warn('YouTube format extraction error', { videoId, error: (fmtErr as Error).message });
     }
 
-    // 3. Fallback: Extract authentic metadata & real formats via yt-dlp runner
-    if (ytDlpRunner.isAvailable()) {
-      try {
-        const info = await ytDlpRunner.getMediaInfo(canonicalUrl);
-        const resolved: MediaMetadata = {
-          ...info,
-          id: videoId,
-          platform: 'youtube',
-          sourceUrl: canonicalUrl,
-        };
+    const resolved: MediaMetadata = {
+      id: videoId,
+      platform: 'youtube',
+      title: baseMeta.title || `YouTube Video (${videoId})`,
+      author: baseMeta.author || 'YouTube Creator',
+      duration: detectedDuration,
+      publishedAt: baseMeta.publishedAt,
+      thumbnailUrl: baseMeta.thumbnailUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      sourceUrl: canonicalUrl,
+      description: baseMeta.description,
+      formats: realFormats,
+      requiresProviderSetup: false,
+    };
 
-        youtubeMediaInfoCache.set(videoId, {
-          info: resolved,
-          expiry: Date.now() + 30 * 60 * 1000,
-        });
-        youtubeMediaInfoCache.set(canonicalUrl, {
-          info: resolved,
-          expiry: Date.now() + 30 * 60 * 1000,
-        });
+    // Cache metadata
+    youtubeMetadataCache.set(videoId, { info: resolved, expiry: Date.now() + 30 * 60 * 1000 });
+    youtubeMetadataCache.set(canonicalUrl, { info: resolved, expiry: Date.now() + 30 * 60 * 1000 });
 
-        return resolved;
-      } catch (err: unknown) {
-        const error = err as { code?: string; message?: string };
-        if (error.code === 'PRIVATE_CONTENT' || error.code === 'UNAVAILABLE_CONTENT') {
-          throw err;
-        }
-        logger.warn('YouTube yt-dlp getMediaInfo canonicalUrl failed, trying original url', {
-          msg: error.message,
-          canonicalUrl,
-        });
+    logger.diagnostic({
+      platform: 'youtube',
+      videoId,
+      operation: 'metadata',
+      providerUsed: 'YouTubeAdapter',
+      responseStatus: 'success',
+      durationMs: Date.now() - startTime,
+    });
 
-        // Try with the raw input url if different from canonicalUrl
-        if (url !== canonicalUrl) {
-          try {
-            const rawInfo = await ytDlpRunner.getMediaInfo(url);
-            const resolved: MediaMetadata = {
-              ...rawInfo,
-              id: videoId,
-              platform: 'youtube',
-              sourceUrl: canonicalUrl,
-            };
-            youtubeMediaInfoCache.set(videoId, { info: resolved, expiry: Date.now() + 30 * 60 * 1000 });
-            return resolved;
-          } catch {}
-        }
-
-        // 3. Fallback to YouTube official oEmbed metadata endpoint
-        logger.info('Falling back to YouTube oEmbed metadata provider', { videoId, canonicalUrl });
-        const oembedMeta = await this.fetchOEmbedMetadata(videoId, canonicalUrl);
-        if (oembedMeta && !('isUnavailable' in oembedMeta)) {
-          const meta = oembedMeta as MediaMetadata;
-          youtubeMediaInfoCache.set(videoId, {
-            info: meta,
-            expiry: Date.now() + 30 * 60 * 1000,
-          });
-          return meta;
-        }
-
-        logger.error('YouTube yt-dlp getMediaInfo failed', { msg: error.message, canonicalUrl });
-        throw new Error(
-          error.message || 'Unable to retrieve YouTube video information. Please verify the URL and try again.'
-        );
-      }
-    }
-
-    // 4. Fallback if yt-dlp is not available
-    const oembedMeta = await this.fetchOEmbedMetadata(videoId, canonicalUrl);
-    if (oembedMeta && !('isUnavailable' in oembedMeta)) {
-      return oembedMeta as MediaMetadata;
-    }
-
-    throw new Error('YouTube engine is currently unavailable. Please try again later.');
+    return resolved;
   }
 
   getDownloadOptions(media: MediaMetadata): MediaFormat[] {
@@ -237,55 +391,6 @@ export class YouTubeAdapter extends MediaProvider {
     formatId: string,
     onProgress?: DownloadProgressCallback
   ): Promise<ProviderDownloadResult> {
-    const videoId = this.extractVideoId(media.sourceUrl) || media.id;
-    const cacheKey = `${videoId}_${formatId}`;
-
-    // 1. Instant Cache Return
-    const cached = youtubeStreamCache.get(cacheKey);
-    if (cached && cached.expiry > Date.now()) {
-      onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
-      return {
-        success: true,
-        downloadUrl: cached.url,
-        message: 'Instant stream retrieved from cache.',
-      };
-    }
-
-    // 2. Download and merge authentic media stream via ytDlpRunner + FFmpeg
-    if (ytDlpRunner.isAvailable()) {
-      try {
-        onProgress?.({ percent: 15, stage: 'Starting download engine...' });
-        const canonicalUrl = this.getCanonicalUrl(videoId);
-        const fullMedia = { ...media, sourceUrl: canonicalUrl };
-
-        const fileResult = await ytDlpRunner.downloadMedia(fullMedia, formatId, onProgress);
-        if (fileResult && fileResult.serveUrl) {
-          youtubeStreamCache.set(cacheKey, {
-            url: fileResult.serveUrl,
-            expiry: Date.now() + 30 * 60 * 1000,
-          });
-
-          return {
-            success: true,
-            downloadUrl: fileResult.serveUrl,
-            fileSizeBytes: fileResult.fileSizeBytes,
-            fileSizeFormatted: fileResult.fileSizeFormatted,
-            resolution: fileResult.resolution,
-            duration: fileResult.duration,
-            message: 'Media successfully processed and ready for download.',
-          };
-        }
-      } catch (dlErr: unknown) {
-        const err = dlErr as Error;
-        logger.error('YouTube yt-dlp downloadMedia failed', { msg: err.message, videoId, formatId });
-        throw err;
-      }
-    }
-
-    return {
-      success: false,
-      message: 'Unable to process YouTube download stream. Please verify the link or try another format.',
-    };
+    return YouTubeDownloadProvider.download(media, formatId, onProgress);
   }
 }
-
