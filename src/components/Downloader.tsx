@@ -84,6 +84,29 @@ export function getHighestVideoFormat(formats?: MediaFormat[]): MediaFormat | nu
   return [...videoFormats].sort((a, b) => getQualityScore(b) - getQualityScore(a))[0];
 }
 
+export function getRecommendedAutoFormat(formats?: MediaFormat[]): MediaFormat | null {
+  if (!formats || formats.length === 0) return null;
+  const videoFormats = formats.filter((f) => f.hasVideo && f.format !== 'mp3');
+  if (videoFormats.length === 0) return formats[0];
+
+  // 1. Prefer 720p HD (standard crisp HD, 15-25MB, downloads in seconds)
+  const fmt720 = videoFormats.find((f) => f.id.toLowerCase() === '720p' || f.id.toLowerCase().includes('720'));
+  if (fmt720) return fmt720;
+
+  // 2. Ultra-fast formats (480p / 360p)
+  const fmt480 = videoFormats.find((f) => f.id.toLowerCase() === '480p' || f.id.toLowerCase().includes('480'));
+  if (fmt480) return fmt480;
+
+  const fmt360 = videoFormats.find((f) => f.id.toLowerCase() === '360p' || f.id.toLowerCase().includes('360'));
+  if (fmt360) return fmt360;
+
+  // 3. 1080p Full HD
+  const fmt1080 = videoFormats.find((f) => f.id.toLowerCase() === '1080p' || f.id.toLowerCase().includes('1080'));
+  if (fmt1080) return fmt1080;
+
+  return videoFormats[0];
+}
+
 export default function Downloader() {
   const [activeTab, setActiveTab] = useState<'single' | 'batch'>('single');
 
@@ -143,6 +166,7 @@ export default function Downloader() {
   }, []);
 
   const isProcessingRef = useRef(false);
+  const lastSubmittedUrlRef = useRef<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-dismiss clipboard toast
@@ -161,6 +185,7 @@ export default function Downloader() {
         setDetection(null);
         setIsDetecting(false);
         setError(null);
+        lastSubmittedUrlRef.current = '';
         if (state !== 'ready' && state !== 'downloading' && state !== 'completed') setState('idle');
         return;
       }
@@ -171,15 +196,18 @@ export default function Downloader() {
       setIsDetecting(false);
 
       if (result.valid) {
-        setError(null);
-        if (state !== 'ready' && state !== 'processing' && state !== 'downloading' && state !== 'completed') {
+        if (autoDownload && lastSubmittedUrlRef.current !== trimmed && !isProcessingRef.current) {
+          lastSubmittedUrlRef.current = trimmed;
+          setError(null);
+          handleSubmit(undefined, trimmed, { autoDownload: true });
+        } else if (state === 'idle') {
           setState('url_entered');
         }
       }
     }, 180);
 
     return () => clearTimeout(timer);
-  }, [url, state]);
+  }, [url, autoDownload]);
 
   // Smart multi-line paste detector
   const handlePasteEvent = (pastedText: string) => {
@@ -209,6 +237,8 @@ export default function Downloader() {
     if (result.valid) {
       setError(null);
       setState('url_entered');
+      isProcessingRef.current = false;
+      lastSubmittedUrlRef.current = cleanUrl;
       handleSubmit(undefined, cleanUrl, { autoDownload });
     } else if (result.errorCode === 'UNSUPPORTED_PLATFORM') {
       setError({
@@ -260,6 +290,7 @@ export default function Downloader() {
     setCompletedInfo(null);
     setDownloadProgress({ percent: 0, receivedMB: '0 MB', totalMB: '', active: false });
     isProcessingRef.current = false;
+    lastSubmittedUrlRef.current = '';
   };
 
   // Single Link Submit Flow
@@ -278,9 +309,22 @@ export default function Downloader() {
       return;
     }
 
-    if (mediaInfo && mediaInfo.formats && mediaInfo.formats.length > 0 && targetUrl === mediaInfo.sourceUrl) {
-      const bestFmt = getHighestVideoFormat(mediaInfo.formats) || mediaInfo.formats[0];
-      handleDownloadFormat(bestFmt.id);
+    const det = detectPlatform(targetUrl);
+    const normUrl = det.valid ? det.normalizedUrl : targetUrl;
+
+    if (
+      mediaInfo &&
+      mediaInfo.formats &&
+      mediaInfo.formats.length > 0 &&
+      (targetUrl === mediaInfo.sourceUrl ||
+        normUrl === mediaInfo.sourceUrl ||
+        (mediaInfo.id && targetUrl.includes(mediaInfo.id)))
+    ) {
+      const bestFmt =
+        getRecommendedAutoFormat(mediaInfo.formats) ||
+        getHighestVideoFormat(mediaInfo.formats) ||
+        mediaInfo.formats[0];
+      handleDownloadFormat(bestFmt.id, mediaInfo);
       return;
     }
 
@@ -360,12 +404,19 @@ export default function Downloader() {
       setMediaInfo(mediaData.data);
       setState('ready');
 
-      // Auto Download: automatically trigger highest available quality
-      const shouldAuto = options?.autoDownload !== undefined ? options.autoDownload : autoDownload;
+      // Auto Download: automatically trigger recommended high-quality video format
+      // If user clicked Download button (e is passed) or autoDownload is ON, immediately trigger download
+      const shouldAuto =
+        options?.autoDownload !== undefined
+          ? options.autoDownload
+          : e !== undefined
+          ? true
+          : autoDownload;
+
       if (shouldAuto && mediaData.data && mediaData.data.formats) {
-        const highestFmt = getHighestVideoFormat(mediaData.data.formats);
-        if (highestFmt) {
-          handleDownloadFormat(highestFmt.id, mediaData.data);
+        const targetFmt = getRecommendedAutoFormat(mediaData.data.formats) || getHighestVideoFormat(mediaData.data.formats);
+        if (targetFmt) {
+          handleDownloadFormat(targetFmt.id, mediaData.data, false);
         }
       }
     } catch (fetchErr: unknown) {
@@ -397,8 +448,8 @@ export default function Downloader() {
     const isAlreadyInternalEndpoint =
       finalDlUrl.startsWith('/api/download/file') ||
       finalDlUrl.startsWith('/api/download/serve') ||
-      finalDlUrl.includes('/api/download/file') ||
-      finalDlUrl.includes('/api/download/serve');
+      finalDlUrl.startsWith('/api/download') ||
+      finalDlUrl.includes('/api/download');
 
     const proxiedUrl = isAlreadyInternalEndpoint
       ? finalDlUrl
@@ -406,17 +457,12 @@ export default function Downloader() {
 
     setDownloadProgress((prev) => ({
       ...prev,
-      percent: 90,
-      receivedMB: 'Saving file to Downloads...',
+      percent: 100,
+      receivedMB: 'Saving file to your Downloads folder...',
     }));
 
-    const isMobile =
-      typeof navigator !== 'undefined' &&
-      /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|Mobile/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      window.location.href = proxiedUrl;
-    } else {
+    // Trigger browser download directly to OS Downloads folder:
+    if (typeof window !== 'undefined') {
       try {
         const dlAnchor = document.createElement('a');
         dlAnchor.href = proxiedUrl;
@@ -424,14 +470,25 @@ export default function Downloader() {
         dlAnchor.style.display = 'none';
         document.body.appendChild(dlAnchor);
         dlAnchor.click();
-
         setTimeout(() => {
           try {
             document.body.removeChild(dlAnchor);
           } catch {}
         }, 3000);
       } catch {
-        window.location.href = proxiedUrl;
+        try {
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.src = proxiedUrl;
+          document.body.appendChild(iframe);
+          setTimeout(() => {
+            try {
+              document.body.removeChild(iframe);
+            } catch {}
+          }, 60000);
+        } catch {
+          window.location.assign(proxiedUrl);
+        }
       }
     }
 
@@ -439,7 +496,7 @@ export default function Downloader() {
   };
 
   // Download Trigger Handler
-  const handleDownloadFormat = async (formatId: string, customMedia?: MediaMetadata) => {
+  const handleDownloadFormat = async (formatId: string, customMedia?: MediaMetadata, isBatch: boolean = false) => {
     const currentMedia = customMedia || mediaInfo;
     if (!currentMedia) return false;
 
@@ -461,175 +518,125 @@ export default function Downloader() {
         .trim();
       const filename = `${safeTitle}.${ext}`;
 
-      // FAST PATH: If direct download URL already exists on format (SnapSave, TikWM, GetMyFB, etc.)
-      if (targetFormat?.downloadUrl && (targetFormat.downloadUrl.startsWith('http://') || targetFormat.downloadUrl.startsWith('https://') || targetFormat.downloadUrl.startsWith('/api/'))) {
-        if (!customMedia) {
+      let finalEndpoint = targetFormat?.downloadUrl;
+
+      // If stream is not yet cached or requires server-side processing/merging
+      if (!finalEndpoint || !finalEndpoint.includes('/api/download/serve')) {
+        let progressVal = 20;
+        let progressTimer: NodeJS.Timeout | undefined;
+
+        if (!isBatch) {
           setDownloadingFormatId(formatId);
           setState('downloading');
           setError(null);
           setDownloadProgress({
             percent: 20,
-            receivedMB: 'Fetching media...',
+            receivedMB: 'Connecting to high-speed media server...',
             totalMB: '',
             active: true,
             formatTitle: targetFormat?.quality || formatId,
           });
+
+          progressTimer = setInterval(() => {
+            progressVal = Math.min(88, progressVal + (progressVal < 50 ? 8 : 4));
+            const msg =
+              progressVal < 45
+                ? 'Downloading high-definition video stream...'
+                : progressVal < 70
+                ? 'Merging video & audio with FFmpeg...'
+                : 'Finalizing file for your Downloads folder...';
+            setDownloadProgress((prev) => ({
+              ...prev,
+              percent: progressVal,
+              receivedMB: msg,
+            }));
+          }, 450);
         }
 
-        const safeDl = await triggerNativeDownload(targetFormat.downloadUrl, filename);
-
-        if (!customMedia) {
-          setDownloadProgress({
-            percent: 100,
-            receivedMB: 'Download complete ✓ Saved to your Downloads.',
-            totalMB: '',
-            active: false,
+        let dlResponse: Response;
+        let dlData: any = {};
+        try {
+          dlResponse = await fetch('/api/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: currentMedia.sourceUrl,
+              formatId,
+            }),
           });
-          setState('completed');
-          setCompletedInfo({
-            title: safeTitle,
-            filename,
-            ext: ext.toUpperCase(),
-            quality: targetFormat?.quality || 'HD',
-            fileSize: safeDl.actualFileSize || targetFormat?.fileSize || 'Size unavailable',
-            formatId,
-            downloadUrl: safeDl.downloadUrl,
-          });
-          setDownloadingFormatId(null);
+          dlData = await dlResponse.json().catch(() => ({}));
+        } finally {
+          if (progressTimer) clearInterval(progressTimer);
         }
 
-        return true;
-      }
+        if (!dlResponse.ok || !dlData.success) {
+          const rawMsg = dlData?.error?.message || 'Download was unavailable. Please try again.';
+          const isBot =
+            rawMsg.toLowerCase().includes('bot') ||
+            rawMsg.toLowerCase().includes('sign in') ||
+            rawMsg.toLowerCase().includes('confirm you');
 
-      // STREAM PATH: Call /api/download with real-time SSE progress
-      if (!customMedia) {
-        setDownloadingFormatId(formatId);
-        setState('downloading');
-        setError(null);
-        setCompletedInfo(null);
-        setDownloadProgress({
-          percent: 5,
-          receivedMB: 'Connecting to media server...',
-          totalMB: '',
-          active: true,
-          formatTitle: targetFormat?.quality || formatId,
-        });
-      }
-
-      const response = await fetch('/api/download', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-        },
-        body: JSON.stringify({
-          url: currentMedia.sourceUrl,
-          formatId,
-        }),
-      });
-
-      let rawDlUrl: string | null = null;
-      let downloadData: any = null;
-
-      const contentType = response.headers.get('content-type') || '';
-
-      if (contentType.includes('text/event-stream') && response.body) {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split('\n\n');
-          buffer = parts.pop() || '';
-
-          for (const part of parts) {
-            const trimmed = part.trim();
-            if (!trimmed.startsWith('data:')) continue;
-            try {
-              const payload = JSON.parse(trimmed.replace(/^data:\s*/, ''));
-              if (payload.type === 'progress') {
-                if (!customMedia) {
-                  setDownloadProgress((prev) => ({
-                    ...prev,
-                    percent: payload.percent,
-                    receivedMB: payload.stage,
-                    totalMB: payload.total || prev.totalMB,
-                  }));
-                }
-              } else if (payload.type === 'complete') {
-                downloadData = payload.data;
-                rawDlUrl = payload.data?.downloadUrl;
-              } else if (payload.type === 'error') {
-                throw new Error(payload.message || 'Unable to complete download.');
-              }
-            } catch (pErr: any) {
-              if (pErr.message && !pErr.message.includes('JSON')) {
-                throw pErr;
-              }
-            }
+          if (!isBatch) {
+            setError({
+              type: 'DOWNLOAD_ERROR',
+              code: isBot ? 'PRIVATE_CONTENT' : 'DOWNLOAD_ERROR',
+              title: isBot ? 'YouTube Verification' : 'Download Notice',
+              message: isBot
+                ? 'YouTube requires temporary verification. Please retry in a few moments.'
+                : rawMsg,
+              retryable: !isBot,
+            });
+            setState('error');
+            setDownloadingFormatId(null);
           }
+          return false;
         }
-      } else {
-        const data = await response.json();
-        if (!response.ok || !data.success || !data.data?.downloadUrl) {
-          throw new Error(data?.error?.message || 'Download failed. Please try another quality.');
+
+        finalEndpoint = dlData.data?.downloadUrl;
+        if (targetFormat && finalEndpoint) {
+          targetFormat.downloadUrl = finalEndpoint;
         }
-        downloadData = data.data;
-        rawDlUrl = data.data.downloadUrl;
       }
 
-      if (!rawDlUrl) {
-        throw new Error('Download could not be prepared. Please try again.');
+      if (!finalEndpoint) {
+        throw new Error('Server did not return a valid download link.');
       }
 
-      if (!customMedia) {
-        setDownloadProgress((prev) => ({
-          ...prev,
-          percent: 98,
-          receivedMB: 'Saving file to Downloads...',
-        }));
-      }
-
-      const safeDl = await triggerNativeDownload(rawDlUrl, filename);
-
-      if (!customMedia) {
+      if (!isBatch) {
+        setDownloadingFormatId(null);
+        setState('completed');
+        setError(null);
         setDownloadProgress({
           percent: 100,
-          receivedMB: 'Download complete ✓ Saved to your Downloads.',
+          receivedMB: 'Saving file directly to your Downloads folder...',
           totalMB: '',
           active: false,
+          formatTitle: targetFormat?.quality || formatId,
         });
-        setState('completed');
         setCompletedInfo({
           title: safeTitle,
           filename,
           ext: ext.toUpperCase(),
           quality: targetFormat?.quality || 'HD',
-          fileSize: safeDl.actualFileSize || downloadData?.fileSize || targetFormat?.fileSize || 'Size unavailable',
+          fileSize: targetFormat?.fileSize || 'HD Quality',
           formatId,
-          downloadUrl: safeDl.downloadUrl,
+          downloadUrl: finalEndpoint,
         });
-        setDownloadingFormatId(null);
       }
 
+      await triggerNativeDownload(finalEndpoint, filename);
       return true;
-    } catch (err: any) {
-      if (!customMedia) {
-        const msg = err?.message || 'A network error occurred while downloading. Please try again.';
+    } catch (err: unknown) {
+      if (!isBatch) {
         setError({
           type: 'DOWNLOAD_ERROR',
           code: 'DOWNLOAD_ERROR',
           title: 'Download Notice',
-          message: msg,
+          message: (err as Error)?.message || 'Download was blocked. Please try again.',
           retryable: true,
         });
-        setState('ready');
+        setState('error');
         setDownloadingFormatId(null);
-        setDownloadProgress((prev) => ({ ...prev, active: false }));
       }
       return false;
     }
@@ -784,7 +791,7 @@ export default function Downloader() {
       prev.map((it) => (it.id === item.id ? { ...it, status: 'downloading' } : it))
     );
 
-    const success = await handleDownloadFormat(item.selectedFormatId, item.mediaInfo);
+    const success = await handleDownloadFormat(item.selectedFormatId, item.mediaInfo, true);
 
     setBatchItems((prev) =>
       prev.map((it) =>
@@ -812,7 +819,7 @@ export default function Downloader() {
       );
 
       if (item.mediaInfo && item.selectedFormatId) {
-        const ok = await handleDownloadFormat(item.selectedFormatId, item.mediaInfo);
+        const ok = await handleDownloadFormat(item.selectedFormatId, item.mediaInfo, true);
         setBatchItems((prev) =>
           prev.map((it) => (it.id === item.id ? { ...it, status: ok ? 'completed' : 'error' } : it))
         );
@@ -905,10 +912,34 @@ export default function Downloader() {
                   ref={inputRef}
                   type="url"
                   value={url}
-                  onChange={(e) => setUrl(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setUrl(val);
+                    const trimmed = val.trim();
+                    if (
+                      autoDownload &&
+                      trimmed.length > 10 &&
+                      (trimmed.startsWith('http://') ||
+                        trimmed.startsWith('https://') ||
+                        trimmed.includes('.com') ||
+                        trimmed.includes('.be') ||
+                        trimmed.includes('tiktok') ||
+                        trimmed.includes('instagram') ||
+                        trimmed.includes('facebook') ||
+                        trimmed.includes('pinterest'))
+                    ) {
+                      const det = detectPlatform(trimmed);
+                      if (det.valid && state !== 'processing' && state !== 'downloading') {
+                        handlePasteEvent(trimmed);
+                      }
+                    }
+                  }}
                   onPaste={(e) => {
                     const text = e.clipboardData.getData('text');
-                    if (text) handlePasteEvent(text);
+                    if (text) {
+                      e.preventDefault();
+                      handlePasteEvent(text);
+                    }
                   }}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
@@ -1071,10 +1102,10 @@ export default function Downloader() {
                 <div className={styles.downloadProgressCard} role="status" aria-live="polite">
                   <div className={styles.progressHeader}>
                     <span className={styles.progressTitle}>
-                      {mediaInfo?.title || 'Downloading media...'} ({downloadProgress.formatTitle})
+                      {mediaInfo?.title || 'Preparing media...'} ({downloadProgress.formatTitle})
                     </span>
                     <span className={styles.progressPercent}>
-                      {downloadProgress.percent > 0 ? `${downloadProgress.percent}%` : 'Downloading...'}
+                      {downloadProgress.percent > 0 ? `${downloadProgress.percent}%` : 'Preparing...'}
                     </span>
                   </div>
                   <div className={styles.progressBarTrack}>
@@ -1091,7 +1122,7 @@ export default function Downloader() {
                         ? `${downloadProgress.receivedMB} / ${downloadProgress.totalMB}`
                         : downloadProgress.receivedMB}
                     </span>
-                    <span>High-Speed Direct Stream • Ready in moments</span>
+                    <span>Saving directly to your Downloads folder • Ready in moments</span>
                   </div>
                 </div>
               )}
@@ -1104,7 +1135,7 @@ export default function Downloader() {
                       <div className={styles.completionCheckIcon}>
                         <Check size={14} strokeWidth={3} />
                       </div>
-                      <span className={styles.completionStatusTitle}>Download complete</span>
+                      <span className={styles.completionStatusTitle}>Download Complete — Saved to your Downloads folder</span>
                       <button
                         type="button"
                         onClick={() => setCompletedInfo(null)}
@@ -1137,10 +1168,10 @@ export default function Downloader() {
                         href={completedInfo.downloadUrl}
                         download={completedInfo.filename}
                         className={styles.completionBtnPrimary}
-                        title="Save or open file directly"
+                        title="Open or Save again to Downloads"
                       >
                         <Download size={14} />
-                        <span>Save File to Device</span>
+                        <span>Saved to Downloads (Click to Save Again)</span>
                       </a>
                     )}
                     <button

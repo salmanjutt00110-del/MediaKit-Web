@@ -160,16 +160,25 @@ export default function DownloadResult({
   };
 
   const getFormatDownloadLink = (fmt: MediaFormat) => {
-    if (!fmt.downloadUrl) return null;
     const safeTitle = (media.title || 'media')
       .replace(/[/\\?%*:|"<>]/g, '_')
       .replace(/\s+/g, ' ')
       .trim();
     const ext = fmt.format || (fmt.id.includes('mp3') ? 'mp3' : 'mp4');
-    if (fmt.downloadUrl.startsWith('/api/download/file') || fmt.downloadUrl.startsWith('/api/download/serve')) {
-      return fmt.downloadUrl;
+
+    if (fmt.downloadUrl) {
+      if (
+        fmt.downloadUrl.startsWith('/api/download/file') ||
+        fmt.downloadUrl.startsWith('/api/download/serve') ||
+        fmt.downloadUrl.startsWith('/api/download')
+      ) {
+        return fmt.downloadUrl;
+      }
+      return `/api/download/file?url=${encodeURIComponent(fmt.downloadUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
     }
-    return `/api/download/file?url=${encodeURIComponent(fmt.downloadUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
+
+    // Direct endpoint for server-prepared media downloads (YouTube, etc.)
+    return `/api/download?url=${encodeURIComponent(media.sourceUrl)}&formatId=${encodeURIComponent(fmt.id)}`;
   };
 
   const getFormatFilename = (fmt: MediaFormat) => {
@@ -274,20 +283,41 @@ export default function DownloadResult({
                 <span>• Highest available quality</span>
               </div>
             </div>
-            <button
-              type="button"
-              className={styles.autoHdBtn}
-              onClick={() => onDownloadFormat && onDownloadFormat(highestVideoFormat.id)}
-              disabled={isDownloading}
-              aria-label={`Download Auto HD ${highestVideoFormat.quality}`}
-            >
-              <Download size={16} />
-              <span>
-                {isDownloading && downloadingFormatId === highestVideoFormat.id
-                  ? 'Preparing...'
-                  : 'Download Auto HD'}
-              </span>
-            </button>
+            {(() => {
+              const autoHdLnk = getFormatDownloadLink(highestVideoFormat);
+              const autoHdName = getFormatFilename(highestVideoFormat);
+              return autoHdLnk ? (
+                <a
+                  href={autoHdLnk}
+                  download={autoHdName}
+                  className={styles.autoHdBtn}
+                  onClick={() => onDownloadFormat && onDownloadFormat(highestVideoFormat.id)}
+                  aria-label={`Download Auto HD ${highestVideoFormat.quality}`}
+                >
+                  <Download size={16} />
+                  <span>
+                    {isDownloading && downloadingFormatId === highestVideoFormat.id
+                      ? 'Downloading...'
+                      : 'Download Auto HD'}
+                  </span>
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.autoHdBtn}
+                  onClick={() => onDownloadFormat && onDownloadFormat(highestVideoFormat.id)}
+                  disabled={isDownloading}
+                  aria-label={`Download Auto HD ${highestVideoFormat.quality}`}
+                >
+                  <Download size={16} />
+                  <span>
+                    {isDownloading && downloadingFormatId === highestVideoFormat.id
+                      ? 'Preparing...'
+                      : 'Download Auto HD'}
+                  </span>
+                </button>
+              );
+            })()}
           </div>
         )}
 

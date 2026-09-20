@@ -74,7 +74,10 @@ export class YouTubeAdapter extends MediaProvider {
     return `https://www.youtube.com/watch?v=${videoId}`;
   }
 
-  private async fetchOEmbedMetadata(videoId: string, canonicalUrl: string): Promise<MediaMetadata | null> {
+  private async fetchOEmbedMetadata(
+    videoId: string,
+    canonicalUrl: string
+  ): Promise<MediaMetadata | { isUnavailable: boolean; status: number } | null> {
     try {
       const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(canonicalUrl)}&format=json`;
       const res = await fetch(oembedUrl, {
@@ -82,8 +85,12 @@ export class YouTubeAdapter extends MediaProvider {
           'User-Agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
         },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(4000),
       });
+
+      if (res.status === 404 || res.status === 401 || res.status === 403) {
+        return { isUnavailable: true, status: res.status };
+      }
       if (!res.ok) return null;
       const data = await res.json();
       return {
@@ -102,7 +109,7 @@ export class YouTubeAdapter extends MediaProvider {
         ],
         requiresProviderSetup: false,
       };
-    } catch {
+    } catch (err: unknown) {
       return null;
     }
   }
@@ -120,7 +127,34 @@ export class YouTubeAdapter extends MediaProvider {
       return cached.info;
     }
 
-    // 2. Extract authentic metadata & real formats via yt-dlp runner
+    // 2. ULTRA-FAST OEMBED CHECK (300ms) - Instant title, author, formats, and 404 detection
+    try {
+      const oembedResult = await this.fetchOEmbedMetadata(videoId, canonicalUrl);
+      if (oembedResult && 'isUnavailable' in oembedResult && oembedResult.isUnavailable) {
+        const err = new Error('This content is unavailable or has been removed on YouTube.');
+        (err as unknown as { code: string }).code = 'UNAVAILABLE_CONTENT';
+        throw err;
+      }
+
+      if (oembedResult && !('isUnavailable' in oembedResult)) {
+        const meta = oembedResult as MediaMetadata;
+        youtubeMediaInfoCache.set(videoId, {
+          info: meta,
+          expiry: Date.now() + 30 * 60 * 1000,
+        });
+        youtubeMediaInfoCache.set(canonicalUrl, {
+          info: meta,
+          expiry: Date.now() + 30 * 60 * 1000,
+        });
+        return meta;
+      }
+    } catch (oErr: unknown) {
+      if ((oErr as { code?: string })?.code === 'UNAVAILABLE_CONTENT') {
+        throw oErr;
+      }
+    }
+
+    // 3. Fallback: Extract authentic metadata & real formats via yt-dlp runner
     if (ytDlpRunner.isAvailable()) {
       try {
         const info = await ytDlpRunner.getMediaInfo(canonicalUrl);
@@ -169,12 +203,13 @@ export class YouTubeAdapter extends MediaProvider {
         // 3. Fallback to YouTube official oEmbed metadata endpoint
         logger.info('Falling back to YouTube oEmbed metadata provider', { videoId, canonicalUrl });
         const oembedMeta = await this.fetchOEmbedMetadata(videoId, canonicalUrl);
-        if (oembedMeta) {
+        if (oembedMeta && !('isUnavailable' in oembedMeta)) {
+          const meta = oembedMeta as MediaMetadata;
           youtubeMediaInfoCache.set(videoId, {
-            info: oembedMeta,
+            info: meta,
             expiry: Date.now() + 30 * 60 * 1000,
           });
-          return oembedMeta;
+          return meta;
         }
 
         logger.error('YouTube yt-dlp getMediaInfo failed', { msg: error.message, canonicalUrl });
@@ -186,8 +221,8 @@ export class YouTubeAdapter extends MediaProvider {
 
     // 4. Fallback if yt-dlp is not available
     const oembedMeta = await this.fetchOEmbedMetadata(videoId, canonicalUrl);
-    if (oembedMeta) {
-      return oembedMeta;
+    if (oembedMeta && !('isUnavailable' in oembedMeta)) {
+      return oembedMeta as MediaMetadata;
     }
 
     throw new Error('YouTube engine is currently unavailable. Please try again later.');

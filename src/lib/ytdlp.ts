@@ -14,6 +14,10 @@ const isWin = process.platform === 'win32';
 // Avoids running FFmpeg probe on every cache hit (was causing multi-second latency)
 const validatedCacheHeights = new Map<string, number>();
 
+// In-flight download deduplication map: cacheToken -> Promise<DownloadedMediaFile>
+// Prevents duplicate concurrent yt-dlp processes from competing for bandwidth on the same media
+const inflightDownloads = new Map<string, Promise<DownloadedMediaFile>>();
+
 export function getCookiesPath(): string | null {
   const candidates = [
     path.resolve(process.cwd(), 'bin', 'cookies.txt'),
@@ -51,30 +55,46 @@ let cachedCommand: YtDlpCommand | null = null;
 function getYtDlpCommand(): YtDlpCommand | null {
   if (cachedCommand) return cachedCommand;
 
-  // 1. Check native python with yt_dlp module (fastest, zero PyInstaller unpack overhead)
+  if (isWin) {
+    // 1. Windows standalone binary in bin/yt-dlp.exe
+    const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
+    if (fs.existsSync(winPath)) {
+      cachedCommand = { cmd: winPath, prefixArgs: [] };
+      return cachedCommand;
+    }
+
+    // 2. Native python with yt_dlp
+    try {
+      const check = spawnSync('python.exe', ['-m', 'yt_dlp', '--version'], { timeout: 3000 });
+      if (check.status === 0) {
+        cachedCommand = { cmd: 'python.exe', prefixArgs: ['-m', 'yt_dlp'] };
+        return cachedCommand;
+      }
+    } catch {}
+
+    // 3. System PATH yt-dlp.exe
+    try {
+      const check = spawnSync('yt-dlp.exe', ['--version'], { timeout: 3000 });
+      if (check.status === 0) {
+        cachedCommand = { cmd: 'yt-dlp.exe', prefixArgs: [] };
+        return cachedCommand;
+      }
+    } catch {}
+
+    return null;
+  }
+
+  // Non-Windows (Linux / macOS / Vercel Serverless)
+  // 1. Native python3 with yt_dlp
   try {
-    const check = spawnSync('python', ['-m', 'yt_dlp', '--version'], { timeout: 3000 });
+    const check = spawnSync('python3', ['-m', 'yt_dlp', '--version'], { timeout: 3000 });
     if (check.status === 0) {
-      cachedCommand = { cmd: 'python', prefixArgs: ['-m', 'yt_dlp'] };
+      cachedCommand = { cmd: 'python3', prefixArgs: ['-m', 'yt_dlp'] };
       return cachedCommand;
     }
   } catch {}
 
-  // 2. Windows standalone binary
-  if (isWin) {
-    const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
-    if (fs.existsSync(winPath)) {
-      try {
-        const check = spawnSync(winPath, ['--version'], { timeout: 3000 });
-        if (check.status === 0) {
-          cachedCommand = { cmd: winPath, prefixArgs: [] };
-          return cachedCommand;
-        }
-      } catch {}
-    }
-  }
-
-  // 3. Linux / Vercel Serverless environment
+  // 2. /tmp/yt-dlp
   const tmpBinary = '/tmp/yt-dlp';
   if (fs.existsSync(tmpBinary)) {
     try {
@@ -84,7 +104,7 @@ function getYtDlpCommand(): YtDlpCommand | null {
     return cachedCommand;
   }
 
-  // Bundled Linux binary
+  // 3. Bundled Linux binary
   const bundledPath = path.resolve(process.cwd(), 'bin', 'yt-dlp');
   if (fs.existsSync(bundledPath)) {
     try {
@@ -101,7 +121,7 @@ function getYtDlpCommand(): YtDlpCommand | null {
     }
   }
 
-  // 4. Check system PATH for yt-dlp
+  // 4. System PATH yt-dlp
   try {
     const check = spawnSync('yt-dlp', ['--version'], { timeout: 3000 });
     if (check.status === 0) {
@@ -192,6 +212,7 @@ export const ytDlpRunner = {
       if (isYouTube) {
         const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
         args.push('--js-runtimes', nodeRuntime);
+        args.push('-4');
       }
 
       const cookies = getCookiesPath();
@@ -207,6 +228,9 @@ export const ytDlpRunner = {
         { maxBuffer: 25 * 1024 * 1024, timeout: 35000 },
         (error, stdout, stderr) => {
           if (error) {
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+              cachedCommand = null;
+            }
             const rawMsg = stderr || error.message;
             const lower = rawMsg.toLowerCase();
             if (lower.includes('private video') || lower.includes('sign in if you') || lower.includes('private')) {
@@ -581,6 +605,14 @@ export const ytDlpRunner = {
       }
     }
 
+    // Await already running in-flight download for same media & format
+    const existingInflight = inflightDownloads.get(cacheToken);
+    if (existingInflight) {
+      logger.info('Awaiting existing in-flight download for same media & format', { cacheToken });
+      onProgress?.({ percent: 50, stage: 'Download in progress...' });
+      return existingInflight;
+    }
+
     // Temporary working directory
     const tempDir = path.join(os.tmpdir(), 'mediakit_dl');
     try {
@@ -597,7 +629,7 @@ export const ytDlpRunner = {
     const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
     const isYouTube = media.sourceUrl?.includes('youtube.com') || media.sourceUrl?.includes('youtu.be');
 
-    return new Promise((resolve, reject) => {
+    const downloadPromise = new Promise<DownloadedMediaFile>((resolve, reject) => {
       const args = [
         '--js-runtimes',
         nodeRuntime,
@@ -612,6 +644,10 @@ export const ytDlpRunner = {
         '3',
         '--windows-filenames',
       ];
+
+      if (isYouTube) {
+        args.push('-4');
+      }
 
       if (ffmpegPath) {
         args.push('--ffmpeg-location', ffmpegPath);
@@ -688,6 +724,13 @@ export const ytDlpRunner = {
       let isAudioStream = false;
       let stderrOutput = '';
 
+      // Safety timeout: kill child if it hangs longer than 120s (prevents stuck UI)
+      const downloadTimeout = setTimeout(() => {
+        try { child.kill('SIGKILL'); } catch {}
+        try { if (fs.existsSync(tempOutputFile)) fs.unlinkSync(tempOutputFile); } catch {}
+        logger.warn('Download killed by safety timeout (120s)', { cacheToken });
+      }, 120_000);
+
       child.stdout.on('data', (chunk) => {
         const text = chunk.toString();
         const lines = text.split(/[\r\n]+/);
@@ -740,10 +783,12 @@ export const ytDlpRunner = {
       });
 
       child.on('error', (err) => {
+        cachedCommand = null;
         reject(new Error(`Failed to start yt-dlp engine: ${err.message}`));
       });
 
       child.on('close', async (exitCode) => {
+        clearTimeout(downloadTimeout);
         if (fs.existsSync(tempOutputFile)) {
           try {
             onProgress?.({
@@ -824,13 +869,25 @@ export const ytDlpRunner = {
         }
 
         if (exitCode !== 0) {
-          const rawMsg = stderrOutput ? stderrOutput.split('\n')[0] : `Process exited with code ${exitCode}`;
-          return reject(new Error(`Download failed: ${rawMsg}`));
+          const errLines = stderrOutput
+            .split('\n')
+            .map((l) => l.trim())
+            .filter((l) => Boolean(l) && !l.startsWith('WARNING:'));
+          const errorLine = errLines.find((l) => l.startsWith('ERROR:')) || errLines[0] || `Process exited with code ${exitCode}`;
+          const cleanErr = errorLine.replace(/^ERROR:\s*(\[.*?\]\s*)?/i, '').trim();
+          return reject(new Error(cleanErr || `Download failed with exit code ${exitCode}`));
         }
 
         reject(new Error('Download completed but target file was not generated.'));
       });
     });
+
+    inflightDownloads.set(cacheToken, downloadPromise);
+    downloadPromise.finally(() => {
+      inflightDownloads.delete(cacheToken);
+    });
+
+    return downloadPromise;
   },
 
   /**
@@ -854,6 +911,7 @@ export const ytDlpRunner = {
       if (isYouTube) {
         const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
         args.push('--js-runtimes', nodeRuntime);
+        args.push('-4');
         if (isMp3) {
           formatArg = 'bestaudio/ba/140/251';
         } else if (formatId.includes('1080')) {
@@ -889,6 +947,9 @@ export const ytDlpRunner = {
         { timeout: 18000 },
         (error, stdout, stderr) => {
           if (error) {
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+              cachedCommand = null;
+            }
             return reject(new Error(stderr || error.message));
           }
           const lines = stdout.trim().split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith('http'));
