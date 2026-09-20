@@ -241,6 +241,7 @@ export const ytDlpRunner = {
         const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
         args.push('--js-runtimes', nodeRuntime);
         args.push('-4');
+        args.push('--extractor-args', 'youtube:player_client=android,web');
       }
 
       const cookies = getCookiesPath();
@@ -675,6 +676,7 @@ export const ytDlpRunner = {
 
       if (isYouTube) {
         args.push('-4');
+        args.push('--extractor-args', 'youtube:player_client=android,web');
       }
 
       if (ffmpegPath) {
@@ -943,6 +945,7 @@ export const ytDlpRunner = {
         const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
         args.push('--js-runtimes', nodeRuntime);
         args.push('-4');
+        args.push('--extractor-args', 'youtube:player_client=android,web');
         if (isMp3) {
           formatArg = 'bestaudio/ba/140/251';
         } else if (formatId.includes('1080')) {
