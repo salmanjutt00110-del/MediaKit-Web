@@ -94,31 +94,59 @@ function getYtDlpCommand(): YtDlpCommand | null {
     }
   } catch {}
 
-  // 2. /tmp/yt-dlp
+  // 2. Bundled Linux binary
   const tmpBinary = '/tmp/yt-dlp';
-  if (fs.existsSync(tmpBinary)) {
+  const candidateBundledPaths = [
+    path.resolve(process.cwd(), 'bin', 'yt-dlp'),
+    path.resolve(__dirname, '..', '..', '..', 'bin', 'yt-dlp'),
+    path.resolve(__dirname, '..', '..', 'bin', 'yt-dlp'),
+    path.resolve(__dirname, '..', 'bin', 'yt-dlp'),
+  ];
+
+  let foundBundled: string | null = null;
+  for (const p of candidateBundledPaths) {
     try {
-      fs.chmodSync(tmpBinary, 0o755);
+      if (fs.existsSync(p)) {
+        foundBundled = p;
+        break;
+      }
     } catch {}
-    cachedCommand = { cmd: tmpBinary, prefixArgs: [] };
-    return cachedCommand;
   }
 
-  // 3. Bundled Linux binary
-  const bundledPath = path.resolve(process.cwd(), 'bin', 'yt-dlp');
-  if (fs.existsSync(bundledPath)) {
+  if (foundBundled) {
     try {
-      fs.copyFileSync(bundledPath, tmpBinary);
+      const srcStat = fs.statSync(foundBundled);
+      let needsCopy = true;
+      if (fs.existsSync(tmpBinary)) {
+        try {
+          const dstStat = fs.statSync(tmpBinary);
+          if (dstStat.size === srcStat.size) {
+            needsCopy = false;
+          }
+        } catch {}
+      }
+      if (needsCopy) {
+        fs.copyFileSync(foundBundled, tmpBinary);
+      }
       fs.chmodSync(tmpBinary, 0o755);
       cachedCommand = { cmd: tmpBinary, prefixArgs: [] };
       return cachedCommand;
     } catch {
       try {
-        fs.chmodSync(bundledPath, 0o755);
+        fs.chmodSync(foundBundled, 0o755);
+        cachedCommand = { cmd: foundBundled, prefixArgs: [] };
+        return cachedCommand;
       } catch {}
-      cachedCommand = { cmd: bundledPath, prefixArgs: [] };
-      return cachedCommand;
     }
+  }
+
+  // 3. Existing /tmp/yt-dlp fallback
+  if (fs.existsSync(tmpBinary)) {
+    try {
+      fs.chmodSync(tmpBinary, 0o755);
+      cachedCommand = { cmd: tmpBinary, prefixArgs: [] };
+      return cachedCommand;
+    } catch {}
   }
 
   // 4. System PATH yt-dlp
@@ -784,6 +812,9 @@ export const ytDlpRunner = {
 
       child.on('error', (err) => {
         cachedCommand = null;
+        try {
+          if (fs.existsSync('/tmp/yt-dlp')) fs.unlinkSync('/tmp/yt-dlp');
+        } catch {}
         reject(new Error(`Failed to start yt-dlp engine: ${err.message}`));
       });
 
