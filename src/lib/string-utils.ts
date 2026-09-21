@@ -124,15 +124,16 @@ export function sanitizeAsciiFilename(title: string, ext: string = 'mp4', maxLen
     .replace(/[^a-z0-9]/g, '')
     .slice(0, 8) || 'mp4';
 
-  let clean = (title || 'media')
+  let clean = (title || 'media').trim();
+  clean = clean.replace(new RegExp(`\\.${safeExt}$`, 'i'), '');
+  clean = clean.replace(/\.(mp4|webm|mkv|m4a|mp3|aac|opus|jpg|jpeg|png|webp)$/i, '');
+
+  clean = clean
     .replace(/[^a-zA-Z0-9_\-\s]/g, '')
     .replace(/\s+/g, '_')
     .replace(/_+/g, '_')
     .trim();
 
-  clean = clean.replace(/^[._-]+|[._-]+$/g, '').trim();
-  clean = clean.replace(new RegExp(`\\.${safeExt}$`, 'i'), '');
-  clean = clean.replace(/\.(mp4|webm|mkv|m4a|mp3|aac|opus|jpg|jpeg|png|webp)$/i, '');
   clean = clean.replace(/^[._-]+|[._-]+$/g, '').trim();
 
   if (!clean) {

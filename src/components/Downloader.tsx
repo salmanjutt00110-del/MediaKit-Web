@@ -488,6 +488,20 @@ export default function Downloader() {
 
     // Trigger browser download directly to OS Downloads folder:
     if (typeof window !== 'undefined') {
+      // 1. Primary: Use hidden iframe (guarantees download for attachment responses without transient user activation)
+      try {
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = proxiedUrl;
+        document.body.appendChild(iframe);
+        setTimeout(() => {
+          try {
+            document.body.removeChild(iframe);
+          } catch {}
+        }, 30000);
+      } catch {}
+
+      // 2. Secondary: Programmatic anchor click
       try {
         const dlAnchor = document.createElement('a');
         dlAnchor.href = proxiedUrl;
@@ -500,20 +514,16 @@ export default function Downloader() {
             document.body.removeChild(dlAnchor);
           } catch {}
         }, 3000);
-      } catch {
-        try {
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          iframe.src = proxiedUrl;
-          document.body.appendChild(iframe);
-          setTimeout(() => {
-            try {
-              document.body.removeChild(iframe);
-            } catch {}
-          }, 60000);
-        } catch {
-          window.location.assign(proxiedUrl);
-        }
+      } catch {}
+
+      // 3. Fallback for mobile devices
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        setTimeout(() => {
+          try {
+            window.location.assign(proxiedUrl);
+          } catch {}
+        }, 400);
       }
     }
 
@@ -1215,7 +1225,7 @@ export default function Downloader() {
                         title="Open or Save again to Downloads"
                       >
                         <Download size={14} />
-                        <span>Saved to Downloads (Click to Save Again)</span>
+                        <span>Download Ready • Click to Save (${completedInfo.ext})</span>
                       </a>
                     )}
                     <button

@@ -18,10 +18,25 @@ const validatedCacheHeights = new Map<string, number>();
 // Prevents duplicate concurrent yt-dlp processes from competing for bandwidth on the same media
 const inflightDownloads = new Map<string, Promise<DownloadedMediaFile>>();
 
-export function getCookiesPath(): string | null {
-  const candidates = [
-    path.resolve(process.cwd(), 'bin', 'instagram_cookies.txt'),
-  ];
+export function getCookiesPath(platform?: string): string | null {
+  const candidates: string[] = [];
+  if (platform === 'youtube') {
+    candidates.push(
+      path.resolve(process.cwd(), 'bin', 'youtube_cookies.txt'),
+      path.resolve(process.cwd(), 'bin', 'cookies.txt')
+    );
+  } else if (platform === 'instagram') {
+    candidates.push(
+      path.resolve(process.cwd(), 'bin', 'instagram_cookies.txt'),
+      path.resolve(process.cwd(), 'bin', 'cookies.txt')
+    );
+  } else {
+    candidates.push(
+      path.resolve(process.cwd(), 'bin', 'cookies.txt'),
+      path.resolve(process.cwd(), 'bin', 'instagram_cookies.txt'),
+      path.resolve(process.cwd(), 'bin', 'youtube_cookies.txt')
+    );
+  }
   for (const c of candidates) {
     if (fs.existsSync(c)) return c;
   }
@@ -248,6 +263,10 @@ export const ytDlpRunner = {
 
       if (isYouTube) {
         args.push('-4');
+        const ytCookies = getCookiesPath('youtube');
+        if (ytCookies) {
+          args.push('--cookies', ytCookies);
+        }
       } else {
         const cookies = getCookiesPath();
         if (cookies) {
@@ -686,16 +705,18 @@ export const ytDlpRunner = {
         '--windows-filenames',
       ];
 
-      if (isYouTube) {
-        args.push('-4');
-      }
-
       if (ffmpegPath) {
         args.push('--ffmpeg-location', ffmpegPath);
         args.push('--postprocessor-args', 'ffmpeg:-threads 4 -preset ultrafast');
       }
 
-      if (!isYouTube) {
+      if (isYouTube) {
+        args.push('-4');
+        const ytCookies = getCookiesPath('youtube');
+        if (ytCookies) {
+          args.push('--cookies', ytCookies);
+        }
+      } else {
         const cookies = getCookiesPath();
         if (cookies) {
           args.push('--cookies', cookies);

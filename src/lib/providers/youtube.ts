@@ -352,6 +352,57 @@ export class YouTubeAdapter extends MediaProvider {
       logger.warn('YouTube format extraction error', { videoId, error: (fmtErr as Error).message });
     }
 
+    // Fallback: If format extraction returned empty, guarantee standard high-compatibility formats
+    if (realFormats.length === 0) {
+      realFormats = [
+        {
+          id: '1080p',
+          format: 'mp4',
+          quality: '1080p Full HD',
+          resolution: '1920x1080',
+          hasAudio: true,
+          hasVideo: true,
+          container: 'mp4',
+        },
+        {
+          id: '720p',
+          format: 'mp4',
+          quality: '720p HD (Recommended)',
+          resolution: '1280x720',
+          hasAudio: true,
+          hasVideo: true,
+          container: 'mp4',
+        },
+        {
+          id: '480p',
+          format: 'mp4',
+          quality: '480p SD',
+          resolution: '854x480',
+          hasAudio: true,
+          hasVideo: true,
+          container: 'mp4',
+        },
+        {
+          id: '360p',
+          format: 'mp4',
+          quality: '360p Fast Download',
+          resolution: '640x360',
+          hasAudio: true,
+          hasVideo: true,
+          container: 'mp4',
+        },
+        {
+          id: 'mp3',
+          format: 'mp3',
+          quality: 'High Quality Audio (MP3)',
+          hasAudio: true,
+          hasVideo: false,
+          codec: 'mp3',
+          container: 'mp3',
+        },
+      ];
+    }
+
     const resolved: MediaMetadata = {
       id: videoId,
       platform: 'youtube',
@@ -366,9 +417,10 @@ export class YouTubeAdapter extends MediaProvider {
       requiresProviderSetup: false,
     };
 
-    // Cache metadata
+    // Cache metadata under videoId, canonicalUrl, and raw input url
     youtubeMetadataCache.set(videoId, { info: resolved, expiry: Date.now() + 30 * 60 * 1000 });
     youtubeMetadataCache.set(canonicalUrl, { info: resolved, expiry: Date.now() + 30 * 60 * 1000 });
+    youtubeMetadataCache.set(url, { info: resolved, expiry: Date.now() + 30 * 60 * 1000 });
 
     logger.diagnostic({
       platform: 'youtube',

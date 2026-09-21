@@ -84,6 +84,11 @@ export function normalizeUrl(rawUrl: string): { normalizedUrl: string; isValid: 
     }
   }
 
+  // Direct support for raw 11-character YouTube video IDs (e.g. dQw4w9WgXcQ)
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return { normalizedUrl: `https://www.youtube.com/watch?v=${trimmed}`, isValid: true };
+  }
+
   let urlWithProto = trimmed;
   if (!/^https?:\/\//i.test(urlWithProto)) {
     urlWithProto = `https://${urlWithProto}`;

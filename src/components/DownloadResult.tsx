@@ -291,7 +291,12 @@ export default function DownloadResult({
                   href={autoHdLnk}
                   download={autoHdName}
                   className={styles.autoHdBtn}
-                  onClick={() => onDownloadFormat && onDownloadFormat(highestVideoFormat.id)}
+                  onClick={(e) => {
+                    if (!highestVideoFormat.downloadUrl || !highestVideoFormat.downloadUrl.includes('/api/download/serve')) {
+                      e.preventDefault();
+                      onDownloadFormat && onDownloadFormat(highestVideoFormat.id);
+                    }
+                  }}
                   aria-label={`Download Auto HD ${highestVideoFormat.quality}`}
                 >
                   <Download size={16} />
