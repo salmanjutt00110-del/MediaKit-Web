@@ -48,6 +48,7 @@ next-env.d.ts
 /bin/*
 !/bin/.gitkeep
 !/bin/yt-dlp
+!/bin/cookies.txt
 
 # root reference images
 /ChatGPT Image*.png
