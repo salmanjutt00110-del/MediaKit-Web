@@ -170,7 +170,9 @@ export default function DownloadResult({
       if (
         fmt.downloadUrl.startsWith('/api/download/file') ||
         fmt.downloadUrl.startsWith('/api/download/serve') ||
-        fmt.downloadUrl.startsWith('/api/download')
+        fmt.downloadUrl.startsWith('/api/download') ||
+        fmt.downloadUrl.includes('savenow.to') ||
+        fmt.downloadUrl.includes('loader.to')
       ) {
         return fmt.downloadUrl;
       }

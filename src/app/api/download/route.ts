@@ -284,6 +284,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(downloadResult.downloadUrl, request.url).toString(), 302);
     }
 
+    if (
+      downloadResult.downloadUrl.includes('savenow.to') ||
+      downloadResult.downloadUrl.includes('loader.to')
+    ) {
+      return NextResponse.redirect(downloadResult.downloadUrl, 302);
+    }
+
     const proxyPath = `/api/download/file?url=${encodeURIComponent(
       downloadResult.downloadUrl
     )}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;

@@ -473,8 +473,13 @@ export default function Downloader() {
     const isAlreadyInternalEndpoint =
       finalDlUrl.startsWith('/api/download/file') ||
       finalDlUrl.startsWith('/api/download/serve');
+    const isDirectCdn =
+      finalDlUrl.includes('savenow.to') ||
+      finalDlUrl.includes('loader.to');
 
-    const proxiedUrl = isAlreadyInternalEndpoint
+    const downloadUrlToTrigger = isDirectCdn
+      ? finalDlUrl
+      : isAlreadyInternalEndpoint
       ? finalDlUrl
       : `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
 
@@ -488,7 +493,7 @@ export default function Downloader() {
     if (typeof window !== 'undefined') {
       try {
         const dlAnchor = document.createElement('a');
-        dlAnchor.href = proxiedUrl;
+        dlAnchor.href = downloadUrlToTrigger;
         dlAnchor.setAttribute('download', filename);
         dlAnchor.rel = 'noopener noreferrer';
         dlAnchor.style.display = 'none';
@@ -501,12 +506,12 @@ export default function Downloader() {
         }, 3000);
       } catch {
         try {
-          window.location.assign(proxiedUrl);
+          window.location.assign(downloadUrlToTrigger);
         } catch {}
       }
     }
 
-    return { downloadUrl: proxiedUrl };
+    return { downloadUrl: downloadUrlToTrigger };
   };
 
   // Download Trigger Handler
@@ -660,7 +665,10 @@ export default function Downloader() {
         const isInternal =
           finalEndpoint.startsWith('/api/download/file') ||
           finalEndpoint.startsWith('/api/download/serve');
-        const finalProxied = isInternal
+        const isDirectCdn =
+          finalEndpoint.includes('savenow.to') ||
+          finalEndpoint.includes('loader.to');
+        const finalProxied = (isInternal || isDirectCdn)
           ? finalEndpoint
           : `/api/download/file?url=${encodeURIComponent(finalEndpoint)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
 

@@ -211,6 +211,98 @@ export class YouTubeMetadataProvider {
 }
 
 /**
+ * Fetches high-definition video or audio stream via the Savenow conversion engine.
+ * Generates direct CDN download URLs with Content-Disposition attachments.
+ */
+async function fetchSavenowStream(
+  canonicalUrl: string,
+  formatId: string,
+  onProgress?: DownloadProgressCallback
+): Promise<string | null> {
+  const isAudio =
+    formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
+  const targetFmt = isAudio
+    ? 'mp3'
+    : formatId.includes('1080')
+    ? '1080'
+    : formatId.includes('720')
+    ? '720'
+    : formatId.includes('480')
+    ? '480'
+    : formatId.includes('360')
+    ? '360'
+    : '1080';
+
+  try {
+    onProgress?.({ percent: 25, stage: 'Connecting to media engine...' });
+    const initUrl = `https://p.savenow.to/ajax/download.php?format=${targetFmt}&url=${encodeURIComponent(canonicalUrl)}`;
+    const initRes = await fetch(initUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        Referer: 'https://loader.to/',
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+
+    if (!initRes.ok) return null;
+    const init = await initRes.json().catch(() => null);
+    if (!init || !init.success) return null;
+
+    if (init.download_url) {
+      onProgress?.({ percent: 100, stage: 'Stream ready ✓' });
+      return init.download_url;
+    }
+
+    if (!init.progress_url) return null;
+
+    // Poll progress endpoint
+    for (let i = 0; i < 22; i++) {
+      await new Promise((r) => setTimeout(r, 1200));
+      const pct = Math.min(95, 30 + i * 3);
+      onProgress?.({ percent: pct, stage: 'Preparing media stream...' });
+
+      try {
+        const pRes = await fetch(init.progress_url, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Referer: 'https://loader.to/',
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (!pRes.ok) continue;
+        const p = await pRes.json().catch(() => null);
+        if (!p) continue;
+
+        if (p.download_url) {
+          onProgress?.({ percent: 100, stage: 'Download ready ✓' });
+          return p.download_url;
+        }
+
+        if (p.success === 1 && p.download_url) {
+          onProgress?.({ percent: 100, stage: 'Download ready ✓' });
+          return p.download_url;
+        }
+
+        if (p.text && typeof p.text === 'string' && p.text.toLowerCase().includes('error')) {
+          logger.warn('Savenow progress returned error', { text: p.text, canonicalUrl });
+          return null;
+        }
+      } catch {}
+    }
+  } catch (err: unknown) {
+    logger.warn('fetchSavenowStream failed', {
+      error: (err as Error).message,
+      canonicalUrl,
+    });
+  }
+
+  return null;
+}
+
+/**
  * YouTubeDownloadProvider
  * Handles format extraction, validation, and media downloads.
  * Separated from metadata so download limitations never break metadata display.
@@ -239,58 +331,56 @@ export class YouTubeDownloadProvider {
       }
     }
 
-    // Secondary fallback for format extraction (cloud engine for datacenter IPs)
-    try {
-      const btch = await import('btch-downloader');
-      const ytResult = await btch.youtube(canonicalUrl);
-      if (ytResult && (ytResult.mp4 || ytResult.mp3)) {
-        const formats: MediaFormat[] = [];
-        if (ytResult.mp4) {
-          formats.push({
-            id: '720p',
-            format: 'mp4',
-            quality: '720p HD (Recommended)',
-            resolution: '1280x720',
-            hasAudio: true,
-            hasVideo: true,
-            container: 'mp4',
-            downloadUrl: ytResult.mp4,
-          });
-          formats.push({
-            id: '1080p',
-            format: 'mp4',
-            quality: '1080p Full HD',
-            resolution: '1920x1080',
-            hasAudio: true,
-            hasVideo: true,
-            container: 'mp4',
-            downloadUrl: ytResult.mp4,
-          });
-        }
-        if (ytResult.mp3) {
-          formats.push({
-            id: 'mp3',
-            format: 'mp3',
-            quality: 'High Quality Audio (MP3)',
-            hasAudio: true,
-            hasVideo: false,
-            codec: 'mp3',
-            container: 'mp3',
-            downloadUrl: ytResult.mp3,
-          });
-        }
-        if (formats.length > 0) {
-          return { formats };
-        }
-      }
-    } catch (fbErr: unknown) {
-      logger.warn('YouTube secondary format extraction warning', {
-        canonicalUrl,
-        msg: (fbErr as Error).message,
-      });
-    }
-
-    return { formats: [] };
+    // High-definition formats universally supported by the media conversion engine
+    return {
+      formats: [
+        {
+          id: '1080p',
+          format: 'mp4',
+          quality: '1080p Full HD',
+          resolution: '1920x1080',
+          hasAudio: true,
+          hasVideo: true,
+          container: 'mp4',
+        },
+        {
+          id: '720p',
+          format: 'mp4',
+          quality: '720p HD (Recommended)',
+          resolution: '1280x720',
+          hasAudio: true,
+          hasVideo: true,
+          container: 'mp4',
+        },
+        {
+          id: '480p',
+          format: 'mp4',
+          quality: '480p SD',
+          resolution: '854x480',
+          hasAudio: true,
+          hasVideo: true,
+          container: 'mp4',
+        },
+        {
+          id: '360p',
+          format: 'mp4',
+          quality: '360p Fast Download',
+          resolution: '640x360',
+          hasAudio: true,
+          hasVideo: true,
+          container: 'mp4',
+        },
+        {
+          id: 'mp3',
+          format: 'mp3',
+          quality: 'High Quality Audio (MP3)',
+          hasAudio: true,
+          hasVideo: false,
+          codec: 'mp3',
+          container: 'mp3',
+        },
+      ],
+    };
   }
 
   static async download(
@@ -308,70 +398,44 @@ export class YouTubeDownloadProvider {
       return cached.fileResult;
     }
 
-    const isServerless = Boolean(
-      process.env.VERCEL ||
-      process.env.AWS_LAMBDA_FUNCTION_NAME ||
-      process.env.NETLIFY ||
-      process.env.VERCEL_ENV
-    );
-
+    const canonicalUrl = YouTubeMetadataProvider.getCanonicalUrl(videoId);
     const isAudio =
       formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
-    const ext = isAudio ? 'mp3' : 'mp4';
-    const safeTitle = (media.title || 'media')
-      .replace(/[/\\?%*:|"<>]/g, '_')
-      .replace(/\s+/g, ' ')
-      .trim();
 
-    // Helper to run Cloud Fallback
-    const tryCloudDownload = async (): Promise<ProviderDownloadResult | null> => {
+    // 2. High-Speed Conversion Engine (Savenow / direct CDN delivery)
+    const savenowUrl = await fetchSavenowStream(canonicalUrl, formatId, onProgress);
+    if (savenowUrl) {
+      const resLabel = isAudio
+        ? undefined
+        : formatId.includes('1080')
+        ? '1080p'
+        : formatId.includes('720')
+        ? '720p'
+        : formatId.includes('480')
+        ? '480p'
+        : '360p';
+
+      const result: ProviderDownloadResult = {
+        success: true,
+        downloadUrl: savenowUrl,
+        resolution: resLabel,
+        duration: media.duration,
+        message: 'Media successfully processed and ready for download.',
+      };
+
+      youtubeStreamCache.set(cacheKey, {
+        url: savenowUrl,
+        fileResult: result,
+        expiry: Date.now() + 30 * 60 * 1000,
+      });
+
+      return result;
+    }
+
+    // 3. Secondary Engine: yt-dlp (local binary if available)
+    if (ytDlpRunner.isAvailable()) {
       try {
-        onProgress?.({ percent: 40, stage: 'Connecting to high-speed cloud engine...' });
-        const canonicalUrl = YouTubeMetadataProvider.getCanonicalUrl(videoId);
-        const btch = await import('btch-downloader');
-        const ytResult = await btch.youtube(canonicalUrl);
-
-        if (ytResult && (ytResult.mp4 || ytResult.mp3)) {
-          const streamUrl = isAudio
-            ? ytResult.mp3 || ytResult.mp4
-            : ytResult.mp4 || ytResult.mp3;
-
-          if (streamUrl) {
-            onProgress?.({ percent: 90, stage: 'Finalizing media download...' });
-            const proxiedDownloadUrl = `/api/download/file?url=${encodeURIComponent(streamUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
-
-            const result: ProviderDownloadResult = {
-              success: true,
-              downloadUrl: proxiedDownloadUrl,
-              resolution: isAudio ? undefined : '720p',
-              duration: media.duration,
-              message: 'Media successfully processed and ready for download.',
-            };
-
-            youtubeStreamCache.set(cacheKey, {
-              url: proxiedDownloadUrl,
-              fileResult: result,
-              expiry: Date.now() + 30 * 60 * 1000,
-            });
-
-            return result;
-          }
-        }
-      } catch (fallbackErr: unknown) {
-        logger.warn('YouTube cloud engine fallback warning', {
-          error: (fallbackErr as Error).message,
-          videoId,
-        });
-      }
-      return null;
-    };
-
-    // Helper to run local yt-dlp engine
-    const tryYtDlpDownload = async (): Promise<ProviderDownloadResult | null> => {
-      if (!ytDlpRunner.isAvailable()) return null;
-      try {
-        onProgress?.({ percent: 15, stage: 'Starting download engine...' });
-        const canonicalUrl = YouTubeMetadataProvider.getCanonicalUrl(videoId);
+        onProgress?.({ percent: 30, stage: 'Processing with local download engine...' });
         const fullMedia = { ...media, sourceUrl: canonicalUrl };
 
         const fileResult = await ytDlpRunner.downloadMedia(fullMedia, formatId, onProgress);
@@ -401,28 +465,11 @@ export class YouTubeDownloadProvider {
           formatId,
         });
       }
-      return null;
-    };
-
-    // On Serverless (e.g. Vercel), disk storage across invocations is stateless,
-    // so we prioritize the cloud stream proxy to avoid 404 container-misses.
-    if (isServerless) {
-      const cloudResult = await tryCloudDownload();
-      if (cloudResult) return cloudResult;
-
-      const ytDlpResult = await tryYtDlpDownload();
-      if (ytDlpResult) return ytDlpResult;
-    } else {
-      const ytDlpResult = await tryYtDlpDownload();
-      if (ytDlpResult) return ytDlpResult;
-
-      const cloudResult = await tryCloudDownload();
-      if (cloudResult) return cloudResult;
     }
 
     return {
       success: false,
-      message: 'Unable to process YouTube download stream. Please verify the link or try another format.',
+      message: 'Unable to process YouTube download stream. Please verify the link or try another quality.',
     };
   }
 }
