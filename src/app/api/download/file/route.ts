@@ -132,6 +132,9 @@ export async function GET(request: NextRequest) {
       upstreamHeaders['Referer'] = 'https://getmyfb.com/';
     } else if (targetUrl.includes('rapidcdn') || targetUrl.includes('snapinsta') || targetUrl.includes('snapsave')) {
       upstreamHeaders['Referer'] = 'https://snapinsta.app/';
+    } else if (targetUrl.includes('ymcdn.org')) {
+      upstreamHeaders['Referer'] = 'https://c.ymcdn.org/';
+      upstreamHeaders['Origin'] = 'https://c.ymcdn.org';
     }
 
     const upstreamRes = await fetch(targetUrl, {

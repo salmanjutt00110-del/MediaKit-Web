@@ -308,8 +308,67 @@ export class YouTubeDownloadProvider {
       return cached.fileResult;
     }
 
-    // 2. Process authentic media download via engine
-    if (ytDlpRunner.isAvailable()) {
+    const isServerless = Boolean(
+      process.env.VERCEL ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.NETLIFY ||
+      process.env.VERCEL_ENV
+    );
+
+    const isAudio =
+      formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
+    const ext = isAudio ? 'mp3' : 'mp4';
+    const safeTitle = (media.title || 'media')
+      .replace(/[/\\?%*:|"<>]/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Helper to run Cloud Fallback
+    const tryCloudDownload = async (): Promise<ProviderDownloadResult | null> => {
+      try {
+        onProgress?.({ percent: 40, stage: 'Connecting to high-speed cloud engine...' });
+        const canonicalUrl = YouTubeMetadataProvider.getCanonicalUrl(videoId);
+        const btch = await import('btch-downloader');
+        const ytResult = await btch.youtube(canonicalUrl);
+
+        if (ytResult && (ytResult.mp4 || ytResult.mp3)) {
+          const streamUrl = isAudio
+            ? ytResult.mp3 || ytResult.mp4
+            : ytResult.mp4 || ytResult.mp3;
+
+          if (streamUrl) {
+            onProgress?.({ percent: 90, stage: 'Finalizing media download...' });
+            const proxiedDownloadUrl = `/api/download/file?url=${encodeURIComponent(streamUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
+
+            const result: ProviderDownloadResult = {
+              success: true,
+              downloadUrl: proxiedDownloadUrl,
+              resolution: isAudio ? undefined : '720p',
+              duration: media.duration,
+              message: 'Media successfully processed and ready for download.',
+            };
+
+            youtubeStreamCache.set(cacheKey, {
+              url: proxiedDownloadUrl,
+              fileResult: result,
+              expiry: Date.now() + 30 * 60 * 1000,
+            });
+
+            return result;
+          }
+        }
+      } catch (fallbackErr: unknown) {
+        logger.warn('YouTube cloud engine fallback warning', {
+          error: (fallbackErr as Error).message,
+          videoId,
+        });
+      }
+      return null;
+    };
+
+    // Helper to run local yt-dlp engine
+    const tryYtDlpDownload = async (): Promise<ProviderDownloadResult | null> => {
+      if (!ytDlpRunner.isAvailable()) return null;
       try {
         onProgress?.({ percent: 15, stage: 'Starting download engine...' });
         const canonicalUrl = YouTubeMetadataProvider.getCanonicalUrl(videoId);
@@ -336,53 +395,29 @@ export class YouTubeDownloadProvider {
           return result;
         }
       } catch (dlErr: unknown) {
-        const err = dlErr as Error;
-        logger.warn('YouTube yt-dlp downloadMedia failed, attempting cloud engine fallback', {
-          msg: err.message,
+        logger.warn('YouTube yt-dlp downloadMedia failed', {
+          msg: (dlErr as Error).message,
           videoId,
           formatId,
         });
       }
-    }
+      return null;
+    };
 
-    // 3. High-Resilience Cloud Fallback (bypasses datacenter IP blocks on Vercel/serverless)
-    try {
-      onProgress?.({ percent: 40, stage: 'Connecting to high-speed cloud engine...' });
-      const canonicalUrl = YouTubeMetadataProvider.getCanonicalUrl(videoId);
-      const btch = await import('btch-downloader');
-      const ytResult = await btch.youtube(canonicalUrl);
+    // On Serverless (e.g. Vercel), disk storage across invocations is stateless,
+    // so we prioritize the cloud stream proxy to avoid 404 container-misses.
+    if (isServerless) {
+      const cloudResult = await tryCloudDownload();
+      if (cloudResult) return cloudResult;
 
-      if (ytResult && (ytResult.mp4 || ytResult.mp3)) {
-        const isAudio =
-          formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
-        const streamUrl = isAudio
-          ? ytResult.mp3 || ytResult.mp4
-          : ytResult.mp4 || ytResult.mp3;
+      const ytDlpResult = await tryYtDlpDownload();
+      if (ytDlpResult) return ytDlpResult;
+    } else {
+      const ytDlpResult = await tryYtDlpDownload();
+      if (ytDlpResult) return ytDlpResult;
 
-        if (streamUrl) {
-          onProgress?.({ percent: 90, stage: 'Finalizing media download...' });
-          const result: ProviderDownloadResult = {
-            success: true,
-            downloadUrl: streamUrl,
-            resolution: isAudio ? undefined : '720p',
-            duration: media.duration,
-            message: 'Media successfully processed and ready for download.',
-          };
-
-          youtubeStreamCache.set(cacheKey, {
-            url: streamUrl,
-            fileResult: result,
-            expiry: Date.now() + 30 * 60 * 1000,
-          });
-
-          return result;
-        }
-      }
-    } catch (fallbackErr: unknown) {
-      logger.error('YouTube cloud engine fallback failed', {
-        error: (fallbackErr as Error).message,
-        videoId,
-      });
+      const cloudResult = await tryCloudDownload();
+      if (cloudResult) return cloudResult;
     }
 
     return {

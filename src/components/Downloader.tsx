@@ -472,9 +472,7 @@ export default function Downloader() {
     const ext = filename.split('.').pop() || 'mp4';
     const isAlreadyInternalEndpoint =
       finalDlUrl.startsWith('/api/download/file') ||
-      finalDlUrl.startsWith('/api/download/serve') ||
-      finalDlUrl.startsWith('/api/download') ||
-      finalDlUrl.includes('/api/download');
+      finalDlUrl.startsWith('/api/download/serve');
 
     const proxiedUrl = isAlreadyInternalEndpoint
       ? finalDlUrl
@@ -486,26 +484,13 @@ export default function Downloader() {
       receivedMB: 'Saving file to your Downloads folder...',
     }));
 
-    // Trigger browser download directly to OS Downloads folder:
+    // Trigger exactly ONE browser download request to avoid competing socket cancellations
     if (typeof window !== 'undefined') {
-      // 1. Primary: Use hidden iframe (guarantees download for attachment responses without transient user activation)
-      try {
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = proxiedUrl;
-        document.body.appendChild(iframe);
-        setTimeout(() => {
-          try {
-            document.body.removeChild(iframe);
-          } catch {}
-        }, 30000);
-      } catch {}
-
-      // 2. Secondary: Programmatic anchor click
       try {
         const dlAnchor = document.createElement('a');
         dlAnchor.href = proxiedUrl;
         dlAnchor.setAttribute('download', filename);
+        dlAnchor.rel = 'noopener noreferrer';
         dlAnchor.style.display = 'none';
         document.body.appendChild(dlAnchor);
         dlAnchor.click();
@@ -514,16 +499,10 @@ export default function Downloader() {
             document.body.removeChild(dlAnchor);
           } catch {}
         }, 3000);
-      } catch {}
-
-      // 3. Fallback for mobile devices
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        setTimeout(() => {
-          try {
-            window.location.assign(proxiedUrl);
-          } catch {}
-        }, 400);
+      } catch {
+        try {
+          window.location.assign(proxiedUrl);
+        } catch {}
       }
     }
 
@@ -678,6 +657,13 @@ export default function Downloader() {
           active: false,
           formatTitle: targetFormat?.quality || formatId,
         });
+        const isInternal =
+          finalEndpoint.startsWith('/api/download/file') ||
+          finalEndpoint.startsWith('/api/download/serve');
+        const finalProxied = isInternal
+          ? finalEndpoint
+          : `/api/download/file?url=${encodeURIComponent(finalEndpoint)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
+
         setCompletedInfo({
           title: safeTitle,
           filename,
@@ -685,7 +671,7 @@ export default function Downloader() {
           quality: targetFormat?.quality || 'HD',
           fileSize: targetFormat?.fileSize || 'HD Quality',
           formatId,
-          downloadUrl: finalEndpoint,
+          downloadUrl: finalProxied,
         });
       }
 
@@ -1225,7 +1211,7 @@ export default function Downloader() {
                         title="Open or Save again to Downloads"
                       >
                         <Download size={14} />
-                        <span>Download Ready • Click to Save (${completedInfo.ext})</span>
+                        <span>Download Ready • Click to Save ({completedInfo.ext})</span>
                       </a>
                     )}
                     <button

@@ -292,10 +292,8 @@ export default function DownloadResult({
                   download={autoHdName}
                   className={styles.autoHdBtn}
                   onClick={(e) => {
-                    if (!highestVideoFormat.downloadUrl || !highestVideoFormat.downloadUrl.includes('/api/download/serve')) {
-                      e.preventDefault();
-                      onDownloadFormat && onDownloadFormat(highestVideoFormat.id);
-                    }
+                    e.preventDefault();
+                    onDownloadFormat && onDownloadFormat(highestVideoFormat.id);
                   }}
                   aria-label={`Download Auto HD ${highestVideoFormat.quality}`}
                 >
@@ -353,7 +351,10 @@ export default function DownloadResult({
                             href={dlLink}
                             download={filename}
                             className={styles.rowDownloadBtn}
-                            onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onDownloadFormat && onDownloadFormat(fmt.id);
+                            }}
                             aria-label={`Download MP4 ${fmt.quality}`}
                           >
                             <Download size={14} />
@@ -411,7 +412,10 @@ export default function DownloadResult({
                             href={dlLink}
                             download={filename}
                             className={styles.rowDownloadBtnAudio}
-                            onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onDownloadFormat && onDownloadFormat(fmt.id);
+                            }}
                             aria-label="Download MP3 Audio"
                           >
                             <Download size={14} />
@@ -468,7 +472,10 @@ export default function DownloadResult({
                             href={dlLink}
                             download={filename}
                             className={styles.rowDownloadBtn}
-                            onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onDownloadFormat && onDownloadFormat(fmt.id);
+                            }}
                             aria-label={`Download ${fmt.format}`}
                           >
                             <Download size={14} />
