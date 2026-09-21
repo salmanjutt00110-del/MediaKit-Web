@@ -278,8 +278,8 @@ export async function GET(request: NextRequest) {
       .trim();
 
     if (
-      downloadResult.downloadUrl.startsWith('/api/download/serve') ||
-      downloadResult.downloadUrl.includes('/api/download/serve')
+      downloadResult.downloadUrl.startsWith('/api/download/') ||
+      downloadResult.downloadUrl.startsWith('/')
     ) {
       return NextResponse.redirect(new URL(downloadResult.downloadUrl, request.url).toString(), 302);
     }

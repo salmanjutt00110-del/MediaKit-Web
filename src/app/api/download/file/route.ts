@@ -89,9 +89,6 @@ export async function GET(request: NextRequest) {
       return new Response('Invalid media link. Please verify the URL and try again.', { status: 400 });
     }
 
-    if (targetUrl.includes('googlevideo.com')) {
-      return new Response('YouTube streams must be processed via the media engine.', { status: 400 });
-    }
 
     const rangeHeader = request.headers.get('range');
     logger.info('Proxying media download stream', {
