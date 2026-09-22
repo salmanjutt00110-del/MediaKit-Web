@@ -57,6 +57,11 @@ export default function Footer() {
             <h4 className={styles.footerColTitle}>Video Downloaders</h4>
             <ul className={styles.footerColLinks}>
               <li>
+                <Link href="/free-video-downloader-without-watermark" className={styles.footerLink}>
+                  Free Without Watermark
+                </Link>
+              </li>
+              <li>
                 <Link href="/youtube-video-downloader" className={styles.footerLink}>
                   YouTube Downloader
                 </Link>

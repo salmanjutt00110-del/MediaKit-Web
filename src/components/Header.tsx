@@ -3,12 +3,27 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Moon, Sun, Zap, Menu, X } from 'lucide-react';
+import { Moon, Sun, Zap, Menu, X, ChevronDown } from 'lucide-react';
 import styles from './Header.module.css';
+
+const toolsList = [
+  { name: '✨ Free Without Watermark', href: '/free-video-downloader-without-watermark' },
+  { name: 'YouTube Downloader', href: '/youtube-video-downloader' },
+  { name: 'YouTube Shorts', href: '/youtube-shorts-downloader' },
+  { name: 'TikTok (No Watermark)', href: '/tiktok-video-downloader' },
+  { name: 'Facebook Downloader', href: '/facebook-video-downloader' },
+  { name: 'Facebook Reels', href: '/facebook-reels-downloader' },
+  { name: 'Instagram Downloader', href: '/instagram-video-downloader' },
+  { name: 'Instagram Reels', href: '/instagram-reels-downloader' },
+  { name: 'Pinterest Downloader', href: '/pinterest-video-downloader' },
+  { name: 'YouTube to MP3', href: '/youtube-mp3' },
+  { name: 'All-in-One Downloader', href: '/video-downloader' },
+];
 
 export default function Header() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [activeNav, setActiveNav] = useState('home');
 
   useEffect(() => {
@@ -70,23 +85,59 @@ export default function Header() {
         <nav className={styles.navCenter} aria-label="Main Navigation">
           <ul className={styles.navLinks}>
             <li className={styles.navItem}>
-              <a
-                href="#home"
+              <Link
+                href="/"
                 className={`${styles.navLink} ${
                   activeNav === 'home' ? styles.navLinkActive : ''
                 }`}
                 onClick={(e) => {
-                  e.preventDefault();
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                  setActiveNav('home');
+                  if (typeof window !== 'undefined' && window.location.pathname === '/') {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    setActiveNav('home');
+                  }
                 }}
               >
                 Home
-              </a>
+              </Link>
             </li>
+
+            {/* Tools Dropdown */}
+            <li
+              className={styles.navItem}
+              onMouseEnter={() => setIsToolsOpen(true)}
+              onMouseLeave={() => setIsToolsOpen(false)}
+            >
+              <button
+                type="button"
+                className={styles.dropdownTrigger}
+                onClick={() => setIsToolsOpen(!isToolsOpen)}
+                aria-expanded={isToolsOpen}
+              >
+                <span>Tools</span>
+                <ChevronDown size={15} />
+              </button>
+
+              {isToolsOpen && (
+                <div className={styles.dropdownMenu} role="menu">
+                  {toolsList.map((tool, idx) => (
+                    <Link
+                      key={idx}
+                      href={tool.href}
+                      className={styles.dropdownItem}
+                      onClick={() => setIsToolsOpen(false)}
+                      role="menuitem"
+                    >
+                      {tool.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </li>
+
             <li className={styles.navItem}>
               <a
-                href="#how-it-works"
+                href="/#how-it-works"
                 className={`${styles.navLink} ${
                   activeNav === 'how-it-works' ? styles.navLinkActive : ''
                 }`}
@@ -97,7 +148,7 @@ export default function Header() {
             </li>
             <li className={styles.navItem}>
               <a
-                href="#reviews"
+                href="/#reviews"
                 className={`${styles.navLink} ${
                   activeNav === 'reviews' ? styles.navLinkActive : ''
                 }`}
@@ -108,7 +159,7 @@ export default function Header() {
             </li>
             <li className={styles.navItem}>
               <a
-                href="#faq"
+                href="/#faq"
                 className={`${styles.navLink} ${
                   activeNav === 'faq' ? styles.navLinkActive : ''
                 }`}
@@ -119,18 +170,7 @@ export default function Header() {
             </li>
             <li className={styles.navItem}>
               <a
-                href="#disclaimer"
-                className={`${styles.navLink} ${
-                  activeNav === 'disclaimer' ? styles.navLinkActive : ''
-                }`}
-                onClick={() => setActiveNav('disclaimer')}
-              >
-                Disclaimer
-              </a>
-            </li>
-            <li className={styles.navItem}>
-              <a
-                href="#contact"
+                href="/#contact"
                 className={`${styles.navLink} ${
                   activeNav === 'contact' ? styles.navLinkActive : ''
                 }`}
@@ -153,7 +193,7 @@ export default function Header() {
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
 
-          <a href="#downloader" className={styles.fastFreeBtn}>
+          <a href="/#downloader" className={styles.fastFreeBtn}>
             <Zap size={15} fill="#ffffff" />
             <span>Fast &amp; Free</span>
           </a>
@@ -172,75 +212,52 @@ export default function Header() {
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
         <div className={styles.mobileDrawerOpen}>
-          <a
-            href="#home"
+          <Link
+            href="/"
             className={styles.mobileNavLink}
-            onClick={(e) => {
-              e.preventDefault();
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-              setActiveNav('home');
-              setIsMobileMenuOpen(false);
-            }}
+            onClick={() => setIsMobileMenuOpen(false)}
           >
             Home
-          </a>
+          </Link>
+
+          <div className={styles.mobileSectionTitle}>Download Tools</div>
+          {toolsList.map((tool, idx) => (
+            <Link
+              key={idx}
+              href={tool.href}
+              className={styles.mobileSubLink}
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              {tool.name}
+            </Link>
+          ))}
+
+          <div className={styles.mobileSectionTitle}>Explore</div>
           <a
-            href="#how-it-works"
+            href="/#how-it-works"
             className={styles.mobileNavLink}
-            onClick={() => {
-              setActiveNav('how-it-works');
-              setIsMobileMenuOpen(false);
-            }}
+            onClick={() => setIsMobileMenuOpen(false)}
           >
             How It Works
           </a>
           <a
-            href="#reviews"
+            href="/#reviews"
             className={styles.mobileNavLink}
-            onClick={() => {
-              setActiveNav('reviews');
-              setIsMobileMenuOpen(false);
-            }}
+            onClick={() => setIsMobileMenuOpen(false)}
           >
             Reviews
           </a>
           <a
-            href="#faq"
+            href="/#faq"
             className={styles.mobileNavLink}
-            onClick={() => {
-              setActiveNav('faq');
-              setIsMobileMenuOpen(false);
-            }}
+            onClick={() => setIsMobileMenuOpen(false)}
           >
             FAQ
           </a>
           <a
-            href="#disclaimer"
+            href="/#contact"
             className={styles.mobileNavLink}
-            onClick={() => {
-              setActiveNav('disclaimer');
-              setIsMobileMenuOpen(false);
-            }}
-          >
-            Disclaimer
-          </a>
-          <a
-            href="#privacy"
-            className={styles.mobileNavLink}
-            onClick={() => {
-              setActiveNav('privacy');
-              setIsMobileMenuOpen(false);
-            }}
-          >
-            Privacy Policy
-          </a>
-          <a
-            href="#contact"
-            className={styles.mobileNavLink}
-            onClick={() => {
-              setActiveNav('contact');
-              setIsMobileMenuOpen(false);
-            }}
+            onClick={() => setIsMobileMenuOpen(false)}
           >
             Contact
           </a>

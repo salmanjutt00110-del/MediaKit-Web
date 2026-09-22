@@ -44,6 +44,8 @@
   min-height: 220px;
   position: relative;
   overflow: hidden;
+  text-decoration: none;
+  color: inherit;
 }
 
 .platformCard:hover {

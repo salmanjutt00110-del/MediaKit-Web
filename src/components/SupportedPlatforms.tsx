@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon, PinterestIcon } from './PlatformIcons';
 import styles from './SupportedPlatforms.module.css';
@@ -10,6 +11,7 @@ const platforms = [
     id: 'youtube',
     name: 'YouTube',
     description: 'Videos, Shorts, Audio',
+    href: '/youtube-video-downloader',
     icon: <YouTubeIcon size={30} color="#ffffff" />,
     squircleClass: styles.squircleYouTube,
     cardClass: styles.cardYouTube,
@@ -19,6 +21,7 @@ const platforms = [
     id: 'tiktok',
     name: 'TikTok',
     description: 'Videos, No Watermark',
+    href: '/tiktok-video-downloader',
     icon: <TikTokIcon size={26} color="#ffffff" />,
     squircleClass: styles.squircleTikTok,
     cardClass: styles.cardTikTok,
@@ -28,6 +31,7 @@ const platforms = [
     id: 'facebook',
     name: 'Facebook',
     description: 'Videos, Reels, Photos',
+    href: '/facebook-video-downloader',
     icon: <FacebookIcon size={28} color="#ffffff" />,
     squircleClass: styles.squircleFacebook,
     cardClass: styles.cardFacebook,
@@ -37,6 +41,7 @@ const platforms = [
     id: 'instagram',
     name: 'Instagram',
     description: 'Videos, Reels, Stories',
+    href: '/instagram-video-downloader',
     icon: <InstagramIcon size={28} color="#ffffff" />,
     squircleClass: styles.squircleInstagram,
     cardClass: styles.cardInstagram,
@@ -46,6 +51,7 @@ const platforms = [
     id: 'pinterest',
     name: 'Pinterest',
     description: 'Videos, Pins, Ideas',
+    href: '/pinterest-video-downloader',
     icon: <PinterestIcon size={28} color="#ffffff" />,
     squircleClass: styles.squirclePinterest,
     cardClass: styles.cardPinterest,
@@ -62,15 +68,17 @@ export default function SupportedPlatforms() {
             Supported <span className={styles.blueHighlight}>Platforms</span>
           </h2>
           <p className={styles.sectionSubtitle}>
-            Just paste the link — we&apos;ll handle the rest.
+            Click any platform to explore dedicated tools or paste your link above.
           </p>
         </div>
 
         <div className={styles.platformGrid}>
           {platforms.map((platform) => (
-            <div
+            <Link
               key={platform.id}
+              href={platform.href}
               className={`${styles.platformCard} ${platform.cardClass}`}
+              title={`${platform.name} Video Downloader`}
             >
               <div className={styles.cardTop}>
                 <div className={`${styles.iconSquircle} ${platform.squircleClass}`}>
@@ -87,7 +95,7 @@ export default function SupportedPlatforms() {
                   <ChevronRight size={18} />
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </div>
