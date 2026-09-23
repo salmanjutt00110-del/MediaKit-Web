@@ -98,7 +98,7 @@ export default function DownloadResult({
     if (!rawThumb) return undefined;
     // Don't double-wrap URLs already proxied through /api/thumbnail
     if (rawThumb.startsWith('/api/thumbnail')) return rawThumb;
-    if (media.platform === 'pinterest' || media.platform === 'instagram') {
+    if (media.platform === 'pinterest' || media.platform === 'instagram' || media.platform === 'facebook') {
       return `/api/thumbnail?url=${encodeURIComponent(rawThumb)}`;
     }
     return rawThumb;
@@ -108,6 +108,13 @@ export default function DownloadResult({
   const [imgError, setImgError] = useState(!initialThumb);
   const [isImgLoading, setIsImgLoading] = useState(!!initialThumb);
   const [hasTriedProxy, setHasTriedProxy] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+
+  const previewVideoUrl = React.useMemo(() => {
+    const videoFmt = highestVideoFormat || mp4Formats[0];
+    if (!videoFmt?.downloadUrl) return undefined;
+    return videoFmt.downloadUrl;
+  }, [highestVideoFormat, mp4Formats]);
 
   // Dynamic aspect ratio calculation
   const isInitialPortrait =
@@ -210,6 +217,17 @@ export default function DownloadResult({
               style={{ opacity: isImgLoading ? 0 : 1 }}
               onLoad={handleImageLoad}
               onError={handleImageError}
+            />
+          ) : previewVideoUrl && !videoError ? (
+            <video
+              src={previewVideoUrl}
+              preload="metadata"
+              muted
+              playsInline
+              className={styles.thumbnailImg}
+              style={{ objectFit: 'cover' }}
+              onError={() => setVideoError(true)}
+              onLoadedData={() => setIsImgLoading(false)}
             />
           ) : (
             <div className={styles.fallbackThumbnail}>

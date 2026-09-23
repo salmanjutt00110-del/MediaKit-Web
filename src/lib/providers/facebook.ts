@@ -209,14 +209,26 @@ export class FacebookAdapter extends MediaProvider {
         description = cleanAndDecodeTitle(ogDesc[1]);
       }
 
-      // 4. Thumbnail extraction
+      // 4. Thumbnail extraction (expanded multi-attribute search)
       let thumbnailUrl: string | undefined;
       const ogImage =
-        html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
-        html.match(/content="([^"]+)"\s+property="og:image"/i) ||
-        html.match(/"preferred_thumbnail":\{"image":\{"uri":"([^"]+)"/i);
+        html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i) ||
+        html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i) ||
+        html.match(/<link\s+rel=["']image_src["']\s+href=["']([^"']+)["']/i) ||
+        html.match(/\\?"preferred_thumbnail\\?"\s*:\s*\{\\?"image\\?"\s*:\s*\{\\?"uri\\?"\s*:\s*\\?"([^"\\]+)\\?"/i) ||
+        html.match(/"preferred_thumbnail"\s*:\s*\{"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"/i) ||
+        html.match(/\\?"thumbnailUrl\\?"\s*:\s*\\?"([^"\\]+)\\?"/i) ||
+        html.match(/\\?"thumbnail_url\\?"\s*:\s*\\?"([^"\\]+)\\?"/i) ||
+        html.match(/\\?"video_thumbnail\\?"\s*:\s*\{[^}]*?\\?"uri\\?"\s*:\s*\\?"([^"\\]+)\\?"/i);
       if (ogImage) {
-        thumbnailUrl = cleanStr(ogImage[1]);
+        const candidate = cleanStr(ogImage[1]);
+        if (
+          candidate &&
+          !candidate.includes('facebook_share_image') &&
+          !candidate.includes('default_avatar')
+        ) {
+          thumbnailUrl = candidate;
+        }
       }
 
       // 5. Video ID (vikas5914: (\d+)/?$)
@@ -290,27 +302,31 @@ export class FacebookAdapter extends MediaProvider {
     let fbHd = vikasData.hdUrl;
     let fbSd = vikasData.sdUrl;
 
-    // 2. Tier 2: If direct fbcdn streams were not extracted (e.g. dynamic reels/shares), try GetMyFB & SnapSave
+    // 2. Tier 2: If streams are missing OR thumbnail is missing, fetch from GetMyFB & SnapSave
     let getmyfbData: { hdUrl?: string; sdUrl?: string; title?: string; thumb?: string } | null = null;
-    if (!fbHd && !fbSd) {
+    if (!fbHd || !fbSd || !fbThumb) {
       const [gfb, snapItems] = await Promise.all([
         this.extractGetMyFB(resolvedUrl).catch(() => null),
         extractSnapSave(resolvedUrl).catch(() => null),
       ]);
       getmyfbData = gfb;
-      fbHd = getmyfbData?.hdUrl || snapItems?.[0]?.url || undefined;
-      fbSd = getmyfbData?.sdUrl || snapItems?.[1]?.url || snapItems?.[0]?.url || undefined;
-      fbThumb = fbThumb || getmyfbData?.thumb || snapItems?.[0]?.thumbnail || undefined;
+      if (!fbHd) fbHd = getmyfbData?.hdUrl || snapItems?.[0]?.url || undefined;
+      if (!fbSd) fbSd = getmyfbData?.sdUrl || snapItems?.[1]?.url || snapItems?.[0]?.url || undefined;
+      if (!fbThumb) fbThumb = getmyfbData?.thumb || snapItems?.[0]?.thumbnail || undefined;
     }
 
-    // 3. Tier 3: yt-dlp fallback with timeout if web scrapers missed
-    if (!fbHd && !fbSd && ytDlpRunner.isAvailable()) {
+    // 3. Tier 3: yt-dlp fallback with timeout if web scrapers missed streams or thumbnail
+    if ((!fbHd || !fbThumb) && ytDlpRunner.isAvailable()) {
       try {
         const info = await Promise.race([
           ytDlpRunner.getMediaInfo(resolvedUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('yt-dlp timeout')), 6000)),
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('yt-dlp timeout')), 4500)),
         ]);
-        if (info && info.formats && info.formats.length > 0) {
+        if (info) {
+          if (!fbThumb && info.thumbnailUrl) {
+            fbThumb = info.thumbnailUrl;
+          }
+          if (!fbHd && info.formats && info.formats.length > 0) {
           const proxiedThumb = info.thumbnailUrl
             ? `/api/thumbnail?url=${encodeURIComponent(info.thumbnailUrl)}`
             : undefined;
@@ -326,10 +342,11 @@ export class FacebookAdapter extends MediaProvider {
             requiresProviderSetup: false,
           };
 
-          setCachedMedia(resolvedUrl, result);
-          setCachedMedia(rawUrl, result);
-          setCachedMedia(videoId, result);
-          return result;
+            setCachedMedia(resolvedUrl, result);
+            setCachedMedia(rawUrl, result);
+            setCachedMedia(videoId, result);
+            return result;
+          }
         }
       } catch (ytErr: unknown) {
         const error = ytErr as Error;
@@ -344,7 +361,7 @@ export class FacebookAdapter extends MediaProvider {
     const title = vikasData.title || getmyfbData?.title || `Facebook Video (${videoId})`;
     const description = vikasData.description;
     const thumbnailUrl = fbThumb
-      ? `/api/thumbnail?url=${encodeURIComponent(fbThumb)}`
+      ? (fbThumb.startsWith('/api/thumbnail') ? fbThumb : `/api/thumbnail?url=${encodeURIComponent(fbThumb)}`)
       : undefined;
     const isDifferent = Boolean(fbHd && fbSd && fbHd !== fbSd);
 
