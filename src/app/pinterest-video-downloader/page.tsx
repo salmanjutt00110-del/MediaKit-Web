@@ -2,32 +2,31 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'Pinterest Video Downloader — Save Pinterest Videos & Pins HD | MediaKit',
+  title: 'Pinterest Video Downloader — Free Pin & Video Download | MediaKit',
   description:
-    'Download Pinterest video pins, Reels, and high-resolution images in authentic HD quality for free. Fast online Pinterest downloader for pin.it and pinterest.com links.',
+    'Download Pinterest videos and pins for free. Save Pinterest video content in HD quality. No login required. Fast Pinterest video downloader by MediaKit.',
   keywords: [
     'pinterest video downloader',
-    'download pinterest video',
+    'download pinterest videos',
     'pinterest downloader',
-    'save pinterest video',
+    'save pinterest videos',
     'pin it video download',
     'pinterest to mp4',
     'free pinterest video downloader',
   ],
   alternates: {
-    canonical: '/pinterest-video-downloader',
+    canonical: 'https://mediakit.website/pinterest-video-downloader',
   },
   openGraph: {
-    title: 'Pinterest Video Downloader — Save Pinterest Videos & Pins HD | MediaKit',
-    description:
-      'Download Pinterest video pins and full-resolution image pins in original HD quality. 100% free online Pinterest downloader.',
-    url: '/pinterest-video-downloader',
+    title: 'Pinterest Video Downloader Free | MediaKit',
+    description: 'Download Pinterest videos and pins. Free, HD quality, no login.',
+    url: 'https://mediakit.website/pinterest-video-downloader',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Pinterest Video Downloader — MediaKit',
-    description: 'Save Pinterest video pins and DIY clips in original HD quality.',
+    title: 'Pinterest Video Downloader Free | MediaKit',
+    description: 'Download Pinterest videos and pins. Free, HD quality, no login.',
   },
 };
 

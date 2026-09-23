@@ -169,6 +169,17 @@ export default function Header() {
               </a>
             </li>
             <li className={styles.navItem}>
+              <Link
+                href="/blog"
+                className={`${styles.navLink} ${
+                  activeNav === 'blog' ? styles.navLinkActive : ''
+                }`}
+                onClick={() => setActiveNav('blog')}
+              >
+                Blog
+              </Link>
+            </li>
+            <li className={styles.navItem}>
               <a
                 href="/#contact"
                 className={`${styles.navLink} ${
@@ -254,6 +265,13 @@ export default function Header() {
           >
             FAQ
           </a>
+          <Link
+            href="/blog"
+            className={styles.mobileNavLink}
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            Blog &amp; Guides
+          </Link>
           <a
             href="/#contact"
             className={styles.mobileNavLink}

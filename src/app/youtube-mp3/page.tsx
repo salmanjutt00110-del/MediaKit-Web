@@ -2,32 +2,31 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'YouTube to MP3 Converter — Free 320kbps Audio Downloader | MediaKit',
+  title: 'YouTube to MP3 Converter — Free 320kbps Download | MediaKit',
   description:
-    'Convert and download YouTube videos to high-bitrate 320kbps MP3 audio files for free. Fast, online YouTube to MP3 converter with no software and no limits.',
+    'Convert YouTube videos to MP3 free. Download high quality 320kbps MP3 audio from any YouTube video. Fast, free, no registration. Best YouTube to MP3 converter.',
   keywords: [
     'youtube to mp3',
     'youtube mp3 converter',
-    'youtube to mp3 320kbps',
-    'download youtube audio',
     'youtube to mp3 free',
-    'convert youtube to mp3',
+    'convert youtube to mp3 320kbps',
+    'download youtube audio',
     'youtube audio downloader',
+    'youtube to mp3 320kbps',
   ],
   alternates: {
-    canonical: '/youtube-mp3',
+    canonical: 'https://mediakit.website/youtube-mp3',
   },
   openGraph: {
-    title: 'YouTube to MP3 Converter — Free 320kbps Audio Downloader | MediaKit',
-    description:
-      'Convert and download YouTube videos to high-bitrate MP3 audio files. Free, lightning-fast YouTube to MP3 converter.',
-    url: '/youtube-mp3',
+    title: 'YouTube to MP3 Converter Free 320kbps | MediaKit',
+    description: 'Convert any YouTube video to MP3. Free, 320kbps quality, instant download.',
+    url: 'https://mediakit.website/youtube-mp3',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'YouTube to MP3 Converter — MediaKit',
-    description: 'Extract studio-grade 320kbps MP3 audio from any YouTube video.',
+    title: 'YouTube to MP3 Converter Free 320kbps | MediaKit',
+    description: 'Convert any YouTube video to MP3. Free, 320kbps quality, instant download.',
   },
 };
 

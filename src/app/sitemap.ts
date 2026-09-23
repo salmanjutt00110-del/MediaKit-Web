@@ -4,96 +4,34 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mediakit.website';
   const now = new Date();
 
-  return [
-    {
-      url: `${baseUrl}/`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/free-video-downloader-without-watermark`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/youtube-video-downloader`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.95,
-    },
-    {
-      url: `${baseUrl}/tiktok-video-downloader`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.95,
-    },
-    {
-      url: `${baseUrl}/facebook-video-downloader`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.95,
-    },
-    {
-      url: `${baseUrl}/instagram-video-downloader`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.95,
-    },
-    {
-      url: `${baseUrl}/video-downloader`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/youtube-shorts-downloader`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/instagram-reels-downloader`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/facebook-reels-downloader`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/pinterest-video-downloader`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/youtube-mp3`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/faq`,
-      lastModified: now,
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/terms`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-    {
-      url: `${baseUrl}/privacy`,
-      lastModified: now,
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
+  const routes = [
+    { url: '/', priority: 1.0, changeFrequency: 'daily' },
+    { url: '/free-video-downloader-without-watermark', priority: 0.95, changeFrequency: 'daily' },
+    { url: '/tiktok-video-downloader', priority: 0.95, changeFrequency: 'daily' },
+    { url: '/youtube-video-downloader', priority: 0.95, changeFrequency: 'daily' },
+    { url: '/youtube-mp3', priority: 0.95, changeFrequency: 'daily' },
+    { url: '/instagram-video-downloader', priority: 0.95, changeFrequency: 'daily' },
+    { url: '/facebook-video-downloader', priority: 0.95, changeFrequency: 'daily' },
+    { url: '/youtube-shorts-downloader', priority: 0.9, changeFrequency: 'daily' },
+    { url: '/instagram-reels-downloader', priority: 0.9, changeFrequency: 'daily' },
+    { url: '/facebook-reels-downloader', priority: 0.9, changeFrequency: 'daily' },
+    { url: '/pinterest-video-downloader', priority: 0.9, changeFrequency: 'daily' },
+    { url: '/video-downloader', priority: 0.85, changeFrequency: 'daily' },
+    { url: '/blog', priority: 0.85, changeFrequency: 'daily' },
+    { url: '/blog/how-to-download-tiktok-videos-without-watermark', priority: 0.8, changeFrequency: 'weekly' },
+    { url: '/blog/youtube-to-mp3-converter-guide', priority: 0.8, changeFrequency: 'weekly' },
+    { url: '/blog/how-to-download-instagram-reels-iphone-android', priority: 0.8, changeFrequency: 'weekly' },
+    { url: '/blog/facebook-video-download-guide', priority: 0.8, changeFrequency: 'weekly' },
+    { url: '/blog/best-free-video-downloaders-2026', priority: 0.8, changeFrequency: 'weekly' },
+    { url: '/faq', priority: 0.7, changeFrequency: 'weekly' },
+    { url: '/terms', priority: 0.5, changeFrequency: 'monthly' },
+    { url: '/privacy', priority: 0.5, changeFrequency: 'monthly' },
   ];
+
+  return routes.map((route) => ({
+    url: `${baseUrl}${route.url}`,
+    lastModified: now,
+    changeFrequency: route.changeFrequency as 'daily' | 'weekly' | 'monthly',
+    priority: route.priority,
+  }));
 }

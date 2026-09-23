@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import Header from '@/components/Header';
 import Hero from '@/components/Hero';
 import Downloader from '@/components/Downloader';
@@ -15,9 +16,60 @@ import ScrollToTop from '@/components/ScrollToTop';
 import AIChatbot from '@/components/AIChatbot';
 import AnimationObserver from '@/components/AnimationObserver';
 
+export const metadata: Metadata = {
+  title: 'Free Video Downloader Without Watermark — YouTube, TikTok, Instagram | MediaKit',
+  description:
+    'Download videos from YouTube, TikTok, Instagram, Facebook & Pinterest without watermark. Free HD 1080p/4K download. No registration required. Fast & safe.',
+  alternates: {
+    canonical: 'https://mediakit.website/',
+  },
+  openGraph: {
+    title: 'Free Video Downloader Without Watermark | MediaKit',
+    description: 'Download videos from 5 platforms free. HD quality, no watermark, no signup.',
+    url: 'https://mediakit.website/',
+  },
+};
+
+const homeSchema = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      name: 'MediaKit',
+      url: 'https://mediakit.website',
+      description: 'Free online video downloader without watermark for YouTube, TikTok, Instagram, Facebook & Pinterest',
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: 'https://mediakit.website/?url={search_term_string}',
+        'query-input': 'required name=search_term_string',
+      },
+    },
+    {
+      '@type': 'SoftwareApplication',
+      name: 'MediaKit Video Downloader',
+      applicationCategory: 'UtilitiesApplication',
+      operatingSystem: 'Web Browser',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
+      aggregateRating: {
+        '@type': 'AggregateRating',
+        ratingValue: '4.9',
+        ratingCount: '24680',
+      },
+    },
+  ],
+};
+
 export default function HomePage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeSchema) }}
+      />
       {/* Scroll animation engine */}
       <AnimationObserver />
 

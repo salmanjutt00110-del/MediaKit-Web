@@ -2,37 +2,33 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'YouTube Video Downloader — Free 1080p, 4K & MP3 (No Watermark) | MediaKit',
+  title: 'YouTube Video Downloader — Free HD & 4K Download | MediaKit',
   description:
-    'Download YouTube videos in 1080p Full HD, 4K, and 720p MP4 or convert YouTube to 320kbps MP3 audio for free. Fast, online, no watermark, and no software required.',
+    'Download YouTube videos free in HD 1080p and 4K quality. Save YouTube videos as MP4 or MP3. No registration needed. Fast YouTube downloader by MediaKit.',
   keywords: [
     'youtube video downloader',
-    'youtube downloader',
-    'youtube video download',
-    'download youtube video',
+    'download youtube videos',
     'youtube to mp4',
+    'free youtube downloader',
     'youtube 1080p download',
     'youtube 4k downloader',
-    'free youtube video downloader',
     'youtube to mp3',
+    'download youtube video',
     'youtube downloader online',
-    'download youtube video without watermark',
   ],
   alternates: {
-    canonical: '/youtube-video-downloader',
+    canonical: 'https://mediakit.website/youtube-video-downloader',
   },
   openGraph: {
-    title: 'YouTube Video Downloader — Free 1080p, 4K & MP3 | MediaKit',
-    description:
-      'Download YouTube videos in high definition (1080p, 720p, 4K) or extract clear audio with MediaKit. 100% free, fast, and no registration required.',
-    url: '/youtube-video-downloader',
+    title: 'YouTube Video Downloader Free HD | MediaKit',
+    description: 'Download YouTube videos in HD, 4K quality. Free, fast, no signup.',
+    url: 'https://mediakit.website/youtube-video-downloader',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'YouTube Video Downloader — Free 1080p & 4K MP4 | MediaKit',
-    description:
-      'Download YouTube videos in original HD quality with full audio synchronization for free.',
+    title: 'YouTube Video Downloader Free HD | MediaKit',
+    description: 'Download YouTube videos in HD, 4K quality. Free, fast, no signup.',
   },
 };
 

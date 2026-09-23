@@ -2,36 +2,31 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'Facebook Video Downloader — Download FB Videos & Reels 1080p HD Free | MediaKit',
+  title: 'Facebook Video Downloader — Reels & Videos Free | MediaKit',
   description:
-    'Download Facebook videos, Reels, and Watch clips in 1080p Full HD & SD quality for free. Fast online FB video downloader with no watermarks and no registration.',
+    'Download Facebook videos and reels for free. Save Facebook HD videos easily. No registration needed. Download public Facebook videos instantly with MediaKit.',
   keywords: [
     'facebook video downloader',
-    'fb video download',
-    'download facebook video',
-    'facebook reels downloader',
+    'download facebook videos',
+    'fb video downloader',
+    'facebook reels download',
     'download fb reels',
-    'facebook watch downloader',
-    'facebook video downloader hd',
-    'fb video download online',
-    'download facebook video without watermark',
     'free facebook video downloader',
+    'facebook video download hd',
   ],
   alternates: {
-    canonical: '/facebook-video-downloader',
+    canonical: 'https://mediakit.website/facebook-video-downloader',
   },
   openGraph: {
-    title: 'Facebook Video Downloader — Download FB Videos & Reels 1080p HD Free | MediaKit',
-    description:
-      'Download Facebook videos in HD and SD quality for free. Fast online FB video downloader for public videos, watch clips, and Reels on mobile and PC.',
-    url: '/facebook-video-downloader',
+    title: 'Facebook Video Downloader Free | MediaKit',
+    description: 'Download Facebook videos and reels. Free, HD quality, instant.',
+    url: 'https://mediakit.website/facebook-video-downloader',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Facebook Video Downloader — Save FB Videos in 1080p HD | MediaKit',
-    description:
-      'Fast, free, and watermark-free online Facebook video and reels downloader.',
+    title: 'Facebook Video Downloader Free | MediaKit',
+    description: 'Download Facebook videos and reels. Free, HD quality, instant.',
   },
 };
 

@@ -2,29 +2,26 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'Free Video Downloader Without Watermark — HD MP4 & MP3 | MediaKit',
+  title: 'Free Video Downloader Without Watermark — All Platforms | MediaKit',
   description:
-    'Download videos without watermark from TikTok, Instagram Reels, Facebook, YouTube, and Pinterest for free in 1080p and 4K HD MP4. Fast, online, and 100% clean.',
+    'Best free video downloader without watermark. Download videos from TikTok, YouTube, Instagram, Facebook & Pinterest without watermark. HD quality, free forever.',
   keywords: [
-    'free without watermark downloader',
     'free video downloader without watermark',
-    'video downloader without watermark',
-    'download video without watermark',
-    'no watermark video downloader',
+    'video downloader no watermark',
+    'download videos without watermark free',
+    'free without watermark downloader',
     'tiktok downloader without watermark',
     'instagram reels downloader no watermark',
     'facebook video download no watermark',
-    'online video downloader free without watermark',
-    'hd video downloader without watermark',
   ],
   alternates: {
-    canonical: '/free-video-downloader-without-watermark',
+    canonical: 'https://mediakit.website/free-video-downloader-without-watermark',
   },
   openGraph: {
-    title: 'Free Video Downloader Without Watermark — HD MP4 & MP3 | MediaKit',
+    title: 'Free Video Downloader Without Watermark — All Platforms | MediaKit',
     description:
-      'Download videos without watermark from TikTok, Instagram, Facebook, YouTube, and Pinterest in 1080p / 4K MP4 and MP3 audio.',
-    url: '/free-video-downloader-without-watermark',
+      'Best free video downloader without watermark. Download videos from TikTok, YouTube, Instagram, Facebook & Pinterest without watermark. HD quality, free forever.',
+    url: 'https://mediakit.website/free-video-downloader-without-watermark',
     type: 'website',
   },
   twitter: {

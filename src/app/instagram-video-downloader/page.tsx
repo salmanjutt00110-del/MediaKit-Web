@@ -2,36 +2,31 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'Instagram Video Downloader — Download Reels, Stories & Posts Free | MediaKit',
+  title: 'Instagram Video Downloader — Reels, Stories, Posts | MediaKit',
   description:
-    'Download Instagram videos, Reels, and carousel posts in full 1080p HD MP4 for free. Fast online Instagram downloader with no watermarks and no login required.',
+    'Download Instagram videos, reels, and stories for free. Save Instagram content in HD quality. No login required. Fast Instagram downloader by MediaKit.',
   keywords: [
     'instagram video downloader',
-    'ig video download',
-    'download instagram video',
     'instagram reels downloader',
-    'download instagram reels without watermark',
+    'download instagram videos',
     'instagram story downloader',
-    'instagram to mp4',
-    'ig downloader online',
+    'download instagram reels without watermark',
     'free instagram video downloader',
     'instagram video download hd',
   ],
   alternates: {
-    canonical: '/instagram-video-downloader',
+    canonical: 'https://mediakit.website/instagram-video-downloader',
   },
   openGraph: {
-    title: 'Instagram Video Downloader — Download Reels, Stories & Posts Free | MediaKit',
-    description:
-      'Download Instagram videos and carousel posts in full quality. Free, fast online Instagram downloader for reels, posts, and IG video content.',
-    url: '/instagram-video-downloader',
+    title: 'Instagram Video Downloader Free | MediaKit',
+    description: 'Download Instagram videos, reels & stories. Free, HD quality, no login.',
+    url: 'https://mediakit.website/instagram-video-downloader',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Instagram Video Downloader — Save IG Posts in HD | MediaKit',
-    description:
-      'Download Instagram videos, reels, and stories in original quality without watermarks.',
+    title: 'Instagram Video Downloader Free | MediaKit',
+    description: 'Download Instagram videos, reels & stories. Free, HD quality, no login.',
   },
 };
 

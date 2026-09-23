@@ -126,6 +126,11 @@ export default function Footer() {
             <h4 className={styles.footerColTitle}>Help & Legal</h4>
             <ul className={styles.footerColLinks}>
               <li>
+                <Link href="/blog" className={styles.footerLink}>
+                  Blog & Articles
+                </Link>
+              </li>
+              <li>
                 <Link href="/faq" className={styles.footerLink}>
                   FAQ & Guides
                 </Link>

@@ -2,36 +2,32 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'TikTok Video Downloader Without Watermark — HD MP4 & MP3 Audio | MediaKit',
+  title: 'TikTok Video Downloader Without Watermark — Free HD Download | MediaKit',
   description:
-    'Download TikTok videos without watermark in original HD resolution (1080p). Fast, 100% free, supports vt.tiktok and tiktok.com links. Save clean TikTok MP4 or MP3 audio easily.',
+    'Download TikTok videos without watermark for free. Save TikTok videos in HD quality on any device. No app needed, no registration. Fast & free with MediaKit.',
   keywords: [
     'tiktok video downloader without watermark',
-    'tiktok downloader no watermark',
+    'tiktok downloader without watermark',
+    'tiktok video download',
+    'save tiktok videos',
+    'tiktok mp4 downloader',
     'download tiktok video without watermark',
-    'tiktok video download hd',
     'tiktok to mp3',
     'free tiktok downloader',
-    'tiktok watermark remover online',
-    'save tiktok without watermark',
-    'tiktok no watermark download iphone',
-    'tiktok no watermark download android',
   ],
   alternates: {
-    canonical: '/tiktok-video-downloader',
+    canonical: 'https://mediakit.website/tiktok-video-downloader',
   },
   openGraph: {
-    title: 'TikTok Video Downloader Without Watermark — HD MP4 | MediaKit',
-    description:
-      'Download TikTok videos without watermark in original HD resolution. Fast, free, supports vt.tiktok and tiktok.com links.',
-    url: '/tiktok-video-downloader',
+    title: 'TikTok Video Downloader Without Watermark | MediaKit',
+    description: 'Download TikTok videos without watermark. Free, fast, HD quality.',
+    url: 'https://mediakit.website/tiktok-video-downloader',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TikTok Video Downloader Without Watermark — MediaKit',
-    description:
-      'Save clean TikTok videos without watermark or extract viral MP3 audio.',
+    title: 'TikTok Video Downloader Without Watermark | MediaKit',
+    description: 'Download TikTok videos without watermark. Free, fast, HD quality.',
   },
 };
 
