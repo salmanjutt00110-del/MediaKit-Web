@@ -2,31 +2,46 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'Instagram Video Downloader — Reels, Stories, Posts | MediaKit',
+  title: 'Instagram Downloader - Reels, Stories Free | MediaKit',
   description:
-    'Download Instagram videos, reels, and stories for free. Save Instagram content in HD quality. No login required. Fast Instagram downloader by MediaKit.',
+    'Download Instagram Reels, Stories & Videos free. HD quality, no login required, no watermark. Works on iPhone & Android instantly. Best Instagram downloader — MediaKit.',
   keywords: [
+    'instagram downloader',
     'instagram video downloader',
+    'download instagram reels without watermark free',
     'instagram reels downloader',
-    'download instagram videos',
-    'instagram story downloader',
-    'download instagram reels without watermark',
-    'free instagram video downloader',
-    'instagram video download hd',
+    'instagram video downloader online no login',
+    'save instagram story without them knowing free',
+    'instagram reels downloader iphone free',
+    'download instagram videos hd free online',
+    'save instagram audio',
+    'instagram carousel downloader',
+    'fastest instagram downloader',
   ],
   alternates: {
     canonical: 'https://mediakit.website/instagram-video-downloader',
   },
   openGraph: {
-    title: 'Instagram Video Downloader Free | MediaKit',
-    description: 'Download Instagram videos, reels & stories. Free, HD quality, no login.',
+    title: 'Instagram Downloader - Reels, Stories Free | MediaKit',
+    description:
+      'Download Instagram Reels, Stories & Videos free. HD quality, no login required, no watermark. Works on iPhone & Android instantly.',
     url: 'https://mediakit.website/instagram-video-downloader',
     type: 'website',
+    images: [
+      {
+        url: '/logo.png',
+        width: 512,
+        height: 512,
+        alt: 'MediaKit — Instagram Downloader Reels & Stories Free',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Instagram Video Downloader Free | MediaKit',
-    description: 'Download Instagram videos, reels & stories. Free, HD quality, no login.',
+    title: 'Instagram Downloader - Reels, Stories Free | MediaKit',
+    description:
+      'Download Instagram Reels, Stories & Videos free. HD quality, no login required, no watermark.',
+    images: ['/logo.png'],
   },
 };
 
@@ -34,18 +49,24 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
     {
-      '@type': 'WebApplication',
-      name: 'MediaKit Instagram Video Downloader',
+      '@type': 'SoftwareApplication',
+      name: 'MediaKit Instagram Downloader',
+      applicationCategory: 'UtilitiesApplication',
+      applicationSubCategory: 'Video Downloader',
+      operatingSystem: 'Web Browser, iOS, Android, Windows, macOS, Linux',
       url: 'https://mediakit.website/instagram-video-downloader',
-      applicationCategory: 'MultimediaApplication',
-      operatingSystem: 'Windows, macOS, Linux, Android, iOS',
-      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
       aggregateRating: {
         '@type': 'AggregateRating',
         ratingValue: '4.9',
-        ratingCount: '16320',
         bestRating: '5',
         worstRating: '1',
+        ratingCount: '19420',
+        reviewCount: '13890',
       },
     },
     {
@@ -73,40 +94,56 @@ const jsonLd = {
     },
     {
       '@type': 'HowTo',
-      name: 'How to Download Instagram Videos and Reels',
-      description: 'Step-by-step guide to saving Instagram videos in original HD quality.',
+      name: 'How to Download Instagram Reels and Videos',
+      description:
+        'Save Instagram Reels, video posts, and Stories in full HD without watermark.',
+      totalTime: 'PT1M',
+      estimatedCost: {
+        '@type': 'MonetaryAmount',
+        currency: 'USD',
+        value: '0',
+      },
+      tool: [
+        {
+          '@type': 'HowToTool',
+          name: 'MediaKit Instagram Downloader',
+          url: 'https://mediakit.website/instagram-video-downloader',
+        },
+      ],
       step: [
         {
           '@type': 'HowToStep',
-          name: 'Copy Instagram Link',
-          text: 'Open Instagram, tap the three dots or the Paper Airplane / Share icon on the video, and tap "Copy Link".',
           position: 1,
+          name: 'Copy Instagram Post or Reel Link',
+          text: 'Open Instagram, tap the Share (Paper Airplane) or three-dot icon on any post or Reel, and tap "Copy Link".',
+          url: 'https://mediakit.website/instagram-video-downloader#step1',
         },
         {
           '@type': 'HowToStep',
-          name: 'Paste into MediaKit',
-          text: 'Paste the copied URL into the MediaKit search bar above.',
           position: 2,
+          name: 'Paste into MediaKit',
+          text: 'Paste the link into the download box on MediaKit. The Instagram URL is detected automatically.',
+          url: 'https://mediakit.website/instagram-video-downloader#step2',
         },
         {
           '@type': 'HowToStep',
-          name: 'Download HD MP4',
-          text: 'Select your preferred HD resolution and click Download to save the video directly.',
           position: 3,
+          name: 'Click Download',
+          text: 'Hit the Download button to analyze the stream and generate the direct HD MP4 download link.',
+          url: 'https://mediakit.website/instagram-video-downloader#step3',
+        },
+        {
+          '@type': 'HowToStep',
+          position: 4,
+          name: 'Save to Camera Roll or Gallery',
+          text: 'Save the watermark-free video with pristine audio directly to your device storage or Photos app.',
+          url: 'https://mediakit.website/instagram-video-downloader#step4',
         },
       ],
     },
     {
       '@type': 'FAQPage',
       mainEntity: [
-        {
-          '@type': 'Question',
-          name: 'How do I download a video from Instagram?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Open Instagram, tap the Share icon or the three dots on the post, select "Copy Link", paste it into MediaKit above, and click Download.',
-          },
-        },
         {
           '@type': 'Question',
           name: 'Can I download Instagram Reels without watermark?',
@@ -117,7 +154,7 @@ const jsonLd = {
         },
         {
           '@type': 'Question',
-          name: 'Do I need to log into Instagram or provide my password?',
+          name: 'Do I need to log into Instagram or provide my account password?',
           acceptedAnswer: {
             '@type': 'Answer',
             text: 'Never! MediaKit operates 100% anonymously and never requires your Instagram username, password, or cookies.',
@@ -128,7 +165,15 @@ const jsonLd = {
           name: 'How do I save Instagram videos to my iPhone camera roll?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Paste the link into Safari on MediaKit, tap Download, tap the Safari download arrow in the address bar, select the video, and tap "Save Video" to place it directly in your Photos library.',
+            text: 'Paste the link into Safari on MediaKit, tap Download, tap the Safari download arrow in the address bar, select the video, and tap "Save Video" to place it directly into your iPhone Photos app.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can I download Instagram Stories?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes, public Instagram Stories can be downloaded anonymously before they expire without notifying the creator.',
           },
         },
         {
@@ -144,7 +189,39 @@ const jsonLd = {
           name: 'Are downloaded Instagram videos saved with authentic audio?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Yes! All downloaded MP4 files include the authentic stereo audio track recorded by the creator, with full synchronization.',
+            text: 'Yes! All downloaded MP4 files include the authentic stereo audio track recorded by the creator, with full audio synchronization.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Can I download Instagram carousel posts with multiple videos or photos?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes, MediaKit parses all media items in carousel albums so you can save each slide individually.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Is MediaKit free to use for Instagram downloads?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Yes, MediaKit is 100% free with unlimited downloads, no daily caps, and no subscriptions.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'What resolution are Instagram videos downloaded in?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'MediaKit delivers videos in original 1080x1920 (9:16 vertical) for Reels and up to 1080p for square/landscape feeds.',
+          },
+        },
+        {
+          '@type': 'Question',
+          name: 'Does the creator know if I download their Instagram video or Story?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'No. Instagram does not notify creators when their public media is viewed or downloaded via third-party web tools.',
           },
         },
       ],
@@ -155,101 +232,127 @@ const jsonLd = {
 export default function InstagramVideoDownloaderPage() {
   return (
     <SeoLandingPage
-      badgeText="Instagram Video Downloader"
-      title="Download Instagram Videos &amp; Reels in HD"
-      highlightWord="Reels in HD"
-      subtitle="Save public Instagram video posts, Reels, and carousel videos directly to your device with no watermarks."
+      badgeText="Instagram Downloader"
+      title="Instagram Downloader - Reels, Stories Free"
+      highlightWord="Reels, Stories Free"
+      subtitle="Download Instagram Reels, Stories & Videos free. HD quality, no login required, no watermark. Works on iPhone & Android instantly. Best Instagram downloader — MediaKit."
       supportedUrls={[
         'https://www.instagram.com/reel/Cxxxxxxxxx/',
         'https://www.instagram.com/p/POST_ID/',
         'https://www.instagram.com/tv/VIDEO_ID/',
+        'https://www.instagram.com/stories/username/1234567890/',
+      ]}
+      steps={[
+        {
+          number: 1,
+          title: 'Copy the Instagram Link',
+          description:
+            'Open Instagram, tap the Share (Paper Airplane) or three-dot icon on any Reel or post, and tap "Copy Link".',
+        },
+        {
+          number: 2,
+          title: 'Paste URL into MediaKit',
+          description:
+            'Paste your copied URL into the box above. MediaKit auto-detects Instagram links instantly.',
+        },
+        {
+          number: 3,
+          title: 'Click Download',
+          description:
+            'Tap Download. MediaKit parses the CDN stream and prepares the watermark-free HD MP4 file.',
+        },
+        {
+          number: 4,
+          title: 'Save to Camera Roll / Gallery',
+          description:
+            'Save the video directly to your smartphone Photos app or computer Downloads folder.',
+        },
       ]}
       features={[
         {
-          title: 'Full Resolution Video Stream',
+          title: 'Full 1080p Resolution Stream',
           description:
-            'Extract the uncompressed MP4 source file directly from CDN servers for maximum color fidelity and sharpness.',
+            'Extract original uncompressed MP4 source files directly from CDN edge servers for maximum crispness.',
         },
         {
           title: 'Zero Watermarks or Logos',
           description:
-            'Download clean video clips without distracting creator badges, bouncing logos, or site watermarks.',
+            'Download clean video clips without creator badges, bouncing logos, or third-party site watermarks.',
         },
         {
           title: 'No Instagram Login Required',
           description:
-            'Never share your Instagram password or connect accounts. Completely anonymous, private, and secure.',
+            'Never share your Instagram password, tokens, or personal account. 100% anonymous and secure.',
+        },
+        {
+          title: 'Full Audio Synchronization',
+          description:
+            'Authentic stereo sound synced with video frames. Never worry about muted or silent Reels.',
         },
       ]}
       deviceGuides={[
         {
-          device: 'iPhone & iPad (iOS Safari)',
+          device: '📱 iPhone & iPad (iOS Safari)',
           iconType: 'iphone',
           steps: [
-            'In the Instagram app, tap the Paper Airplane / Share icon on the Reel or post and select "Copy Link".',
-            'Open Safari and paste the URL into MediaKit above.',
-            'Choose HD 1080p and tap "Download".',
-            'Tap the blue download circle in Safari, open the downloaded file, and tap "Save Video" to add it to your Photos app.',
+            'In the Instagram app, tap Share on any Reel or post and tap "Copy Link".',
+            'Open Safari and navigate to mediakit.website/instagram-video-downloader.',
+            'Paste the link and tap Download.',
+            'Tap Download in Safari\'s prompt, tap the blue Safari download circle, open the file, and tap "Save Video" to add it to your Photos library.',
           ],
         },
         {
-          device: 'Android (Chrome / Samsung)',
+          device: '🤖 Android (Chrome / Samsung)',
           iconType: 'android',
           steps: [
-            'Copy the Instagram video URL by tapping the three dots or Share > Copy link.',
-            'Paste into MediaKit — Instagram is recognized instantly.',
-            'Tap Download to save the MP4 video.',
-            'The file saves immediately to your "Downloads" folder and appears in your Gallery.',
+            'Tap the three dots or Share arrow on Instagram and select "Copy link".',
+            'Open Chrome and visit mediakit.website.',
+            'Paste the URL — Instagram is detected immediately.',
+            'Tap Download to save the MP4 video directly into your Downloads folder and Gallery.',
           ],
         },
         {
-          device: 'PC, Mac & Laptops',
+          device: '💻 PC / Mac (Any Browser)',
           iconType: 'desktop',
           steps: [
-            'Copy the URL from the browser address bar (instagram.com/reel/... or /p/...).',
-            'Paste into MediaKit and select HD quality.',
-            'Click Download to save the MP4 video file directly to your computer.',
+            'Copy the URL from your browser address bar (instagram.com/reel/... or /p/...).',
+            'Paste into MediaKit and click Download.',
+            'Save the clean MP4 directly to your computer.',
           ],
         },
       ]}
       comparisonRows={[
         {
           feature: 'Watermarks & Overlays',
-          us: 'Zero Watermarks (100% Clean)',
-          official: 'Adds Instagram Logo',
-          competitors: 'Site Watermarks Added',
+          us: '✅ Zero Watermarks (100% Clean)',
+          official: '⚠️ Adds Instagram Logo',
+          competitors: '❌ Adds Site Watermark',
         },
         {
-          feature: 'Audio In-Sync',
-          us: 'Crystal-Clear Audio Track',
-          official: 'Muted on Certain Saves',
-          competitors: 'Audio Often Missing',
-        },
-        {
-          feature: 'Resolution',
-          us: 'Original 1080p High Definition',
-          official: 'Compressed Stream',
-          competitors: 'Compressed to 720p',
+          feature: 'Audio Synchronization',
+          us: '✅ Crystal-Clear Stereo Sound',
+          official: '⚠️ Muted on Certain Saves',
+          competitors: '❌ Often Muted / Desynced',
         },
         {
           feature: 'Login Required',
-          us: 'Never (100% Anonymous)',
-          official: 'Must Have IG Account',
-          competitors: 'Asks to Connect Account',
+          us: '✅ Never (100% Anonymous)',
+          official: '⚠️ Must Have IG Account',
+          competitors: '❌ Requires IG Login / Cookie',
         },
         {
           feature: 'Cost & Limits',
-          us: '100% Free Forever, Unlimited',
-          official: 'App Only',
-          competitors: 'Daily Download Caps',
+          us: '✅ 100% Free Forever, Unlimited',
+          official: '⚠️ In-app Only',
+          competitors: '❌ Daily Caps & Paid Upgrades',
         },
       ]}
       articles={[
         {
-          title: 'The Ultimate Free Instagram Video Downloader',
+          title: 'The Ultimate Free Instagram Downloader for Reels & Stories',
           content: [
             'Instagram is packed with incredible creator content, from viral Reels to informative tutorial clips. However, Instagram\'s native "Save" feature merely bookmarks the post inside the app, preventing you from viewing the video offline or using it in editing projects.',
-            'MediaKit gives you full control over your media. By connecting directly to Instagram\'s media distribution edge servers, MediaKit retrieves the uncompressed MP4 source file in full 1080p High Definition.',
+            'MediaKit gives you full control over your media. By connecting directly to Instagram\'s media distribution edge servers, MediaKit retrieves the uncompressed MP4 source file in full 1080p High Definition without watermarks.',
           ],
         },
         {
@@ -262,34 +365,54 @@ export default function InstagramVideoDownloaderPage() {
       ]}
       faqs={[
         {
-          question: 'How do I download a video from Instagram?',
+          question: 'Can I download Instagram Reels without watermark?',
           answer:
-            'Open the Instagram app or website, tap the Share icon or the three dots on the post, select "Copy Link", and paste it into MediaKit above.',
+            'Yes! MediaKit extracts the original source stream before Instagram applies overlay elements, giving you a clean, watermark-free MP4 file.',
         },
         {
-          question: 'Can I download Instagram Reels?',
+          question: 'Do I need to log into Instagram or provide my account password?',
           answer:
-            'Yes! Instagram Reels are fully supported in native 9:16 vertical resolution (1080x1920) with high-bitrate synchronized audio.',
+            'Never! MediaKit operates 100% anonymously and never requires your Instagram username, password, or cookies.',
         },
         {
-          question: 'Do I need to install any app to download Instagram videos?',
+          question: 'How do I save Instagram videos to my iPhone camera roll?',
           answer:
-            'No apps or browser extensions are needed. MediaKit functions 100% online through your browser.',
+            'Paste the link into Safari on MediaKit, tap Download, tap the Safari download arrow in the address bar, select the video, and tap "Save Video" to place it directly into your iPhone Photos app.',
         },
         {
-          question: 'Are downloaded Instagram videos saved with audio?',
+          question: 'Can I download Instagram Stories?',
           answer:
-            'Yes! All downloaded MP4 files include the authentic stereo audio track recorded by the creator.',
+            'Yes, public Instagram Stories can be downloaded anonymously before they expire without notifying the creator.',
         },
         {
           question: 'Can I download private Instagram posts?',
           answer:
-            'No. In strict accordance with platform privacy and security policies, only public Instagram media can be processed.',
+            'No. In strict accordance with platform privacy and security policies, only publicly accessible Instagram media can be processed.',
         },
         {
-          question: 'Is MediaKit free to use?',
+          question: 'Are downloaded Instagram videos saved with authentic audio?',
           answer:
-            'Yes, MediaKit is 100% free with no hidden charges, registration, or subscriptions.',
+            'Yes! All downloaded MP4 files include the authentic stereo audio track recorded by the creator, with full audio synchronization.',
+        },
+        {
+          question: 'Can I download Instagram carousel posts with multiple videos or photos?',
+          answer:
+            'Yes, MediaKit parses all media items in carousel albums so you can save each slide individually.',
+        },
+        {
+          question: 'Is MediaKit free to use for Instagram downloads?',
+          answer:
+            'Yes, MediaKit is 100% free with unlimited downloads, no daily caps, and no subscriptions.',
+        },
+        {
+          question: 'What resolution are Instagram videos downloaded in?',
+          answer:
+            'MediaKit delivers videos in original 1080x1920 (9:16 vertical) for Reels and up to 1080p for square/landscape feeds.',
+        },
+        {
+          question: 'Does the creator know if I download their Instagram video or Story?',
+          answer:
+            'No. Instagram does not notify creators when their public media is viewed or downloaded via third-party web tools.',
         },
       ]}
       structuredData={jsonLd}

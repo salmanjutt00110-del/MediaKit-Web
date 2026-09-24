@@ -32,30 +32,34 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://mediakit.website';
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: 'MediaKit — Free Video Downloader Without Watermark',
+    default: 'Free Video Downloader Without Watermark | MediaKit',
     template: '%s | MediaKit',
   },
   description:
-    'Free online video downloader without watermark. Download YouTube, TikTok, Instagram, Facebook & Pinterest videos in HD 1080p/4K. Fast, free, no registration.',
+    'Download videos from YouTube, TikTok, Instagram, Facebook & Pinterest without watermark. Free HD 1080p/4K, MP3 audio, batch download. No registration required. Fast & safe.',
   keywords: [
     'video downloader without watermark',
-    'tiktok downloader without watermark',
+    'tiktok video downloader without watermark',
     'youtube video downloader',
-    'instagram reels downloader',
+    'instagram video downloader',
     'facebook video downloader',
-    'youtube to mp3',
+    'pinterest video downloader',
+    'youtube to mp3 converter',
     'free video downloader',
-    'online video downloader',
     'hd video downloader',
-    'free without watermark downloader',
-    'fb reels download',
-    'pinterest video download',
+    'online video downloader',
+    'download tiktok without watermark',
+    'save instagram reels free',
   ],
-  authors: [{ name: 'MediaKit Team', url: baseUrl }],
+  authors: [{ name: 'MediaKit', url: baseUrl }],
   creator: 'MediaKit',
   publisher: 'MediaKit',
   alternates: {
-    canonical: '/',
+    canonical: 'https://mediakit.website',
+    languages: {
+      en: 'https://mediakit.website',
+      'x-default': 'https://mediakit.website',
+    },
   },
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || '',
@@ -72,27 +76,27 @@ export const metadata: Metadata = {
     apple: [{ url: '/logo.png' }],
   },
   openGraph: {
-    title: 'MediaKit — Free Online Video Downloader Without Watermark',
-    description:
-      'Fast, free, and watermark-free online media downloader for YouTube, TikTok, Facebook, Instagram, and Pinterest with direct MP4 and MP3 streams.',
-    url: baseUrl,
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://mediakit.website',
     siteName: 'MediaKit',
+    title: 'Free Video Downloader Without Watermark | MediaKit',
+    description:
+      'Download YouTube, TikTok, Instagram, Facebook & Pinterest videos free. HD quality, no watermark, no registration.',
     images: [
       {
         url: '/logo.png',
         width: 512,
         height: 512,
-        alt: 'MediaKit — Universal Video and Audio Downloader',
+        alt: 'MediaKit — Universal Video Downloader Without Watermark',
       },
     ],
-    locale: 'en_US',
-    type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'MediaKit — Free Online Video Downloader (No Watermark)',
+    title: 'Free Video Downloader Without Watermark | MediaKit',
     description:
-      'Fast, free, and watermark-free online media downloader for YouTube, TikTok, Facebook, Instagram, and Pinterest.',
+      'Download YouTube, TikTok, Instagram, Facebook & Pinterest videos free.',
     images: ['/logo.png'],
   },
   robots: {

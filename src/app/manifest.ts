@@ -2,13 +2,14 @@ import { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'MediaKit — All-In-One Universal Media Downloader',
+    name: 'MediaKit — Free Video Downloader',
     short_name: 'MediaKit',
-    description: 'Download HD videos, reels, stories, shorts, and MP3 audio from YouTube, TikTok, Facebook, Instagram, and Pinterest.',
+    description:
+      'Download videos from YouTube, TikTok, Instagram, Facebook & Pinterest without watermark. Free, HD quality, no registration.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#0b0f17',
-    theme_color: '#3b82f6',
+    background_color: '#0a0a0a',
+    theme_color: '#0a0a0a',
     icons: [
       {
         src: '/favicon.png',

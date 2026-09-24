@@ -17,15 +17,16 @@ import AIChatbot from '@/components/AIChatbot';
 import AnimationObserver from '@/components/AnimationObserver';
 
 export const metadata: Metadata = {
-  title: 'Free Video Downloader Without Watermark — YouTube, TikTok, Instagram | MediaKit',
+  title: 'Free Video Downloader Without Watermark | MediaKit',
   description:
-    'Download videos from YouTube, TikTok, Instagram, Facebook & Pinterest without watermark. Free HD 1080p/4K download. No registration required. Fast & safe.',
+    'Download videos from YouTube, TikTok, Instagram, Facebook & Pinterest without watermark. Free HD 1080p/4K, MP3 audio, batch download. No registration required. Fast & safe.',
   alternates: {
     canonical: 'https://mediakit.website/',
   },
   openGraph: {
     title: 'Free Video Downloader Without Watermark | MediaKit',
-    description: 'Download videos from 5 platforms free. HD quality, no watermark, no signup.',
+    description:
+      'Download videos from YouTube, TikTok, Instagram, Facebook & Pinterest without watermark. Free HD 1080p/4K, MP3 audio, batch download.',
     url: 'https://mediakit.website/',
   },
 };
