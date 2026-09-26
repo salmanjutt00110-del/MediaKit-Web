@@ -1,5 +1,10 @@
 .sectionWrapper {
   padding: 60px 0 50px 0;
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .sectionHeader {
@@ -27,8 +32,9 @@
 
 .platformGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
 }
 
 .platformCard {
@@ -214,45 +220,46 @@
 
 @media (max-width: 980px) {
   .platformGrid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (max-width: 768px) {
   .sectionWrapper {
-    padding: 40px 0 36px 0;
+    padding: 36px 0 32px 0;
   }
 
   .sectionHeader {
-    margin-bottom: 28px;
+    margin-bottom: 24px;
   }
 
   .sectionTitle {
-    font-size: 1.6rem;
+    font-size: 1.55rem;
   }
 
   .sectionSubtitle {
-    font-size: 0.9rem;
+    font-size: 0.88rem;
   }
 
   .platformGrid {
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
 
   .platformCard {
-    padding: 22px 18px;
-    min-height: 180px;
+    padding: 20px 16px;
+    min-height: 160px;
     border-radius: var(--radius-lg);
   }
 
   .iconSquircle {
-    width: 46px;
-    height: 46px;
-    border-radius: 14px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
   }
 
   .platformName {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
   }
 
   .platformDesc {
@@ -262,23 +269,42 @@
 
 @media (max-width: 520px) {
   .platformGrid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
 
   .platformCard {
-    padding: 18px 14px;
-    min-height: 160px;
+    padding: 16px 14px;
+    min-height: 140px;
+  }
+
+  .platformCard:last-child {
+    grid-column: span 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 72px;
+    padding: 14px 18px;
+  }
+
+  .platformCard:last-child .cardTop {
+    margin-bottom: 0;
+  }
+
+  .platformCard:last-child .cardBottom {
+    flex: 1;
+    margin-left: 14px;
+    align-items: center;
   }
 
   .cardTop {
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
 
   .iconSquircle {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
   }
 
   .platformName {
@@ -292,5 +318,23 @@
   .arrowCircleBtn {
     width: 28px;
     height: 28px;
+  }
+}
+
+@media (max-width: 360px) {
+  .platformGrid {
+    gap: 8px;
+  }
+
+  .platformCard {
+    padding: 12px 10px;
+  }
+
+  .platformName {
+    font-size: 0.88rem;
+  }
+
+  .platformDesc {
+    font-size: 0.68rem;
   }
 }

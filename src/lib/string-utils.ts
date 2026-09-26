@@ -71,13 +71,35 @@ const WINDOWS_RESERVED_NAMES = new Set([
  * - Enforces safe max filename length (up to 100 characters before extension)
  * - Guarantees safe final lowercase extension
  */
+/**
+ * Safely encodes URI component without throwing URIError on lone/broken Unicode surrogates.
+ */
+export function safeEncodeURIComponent(str: string): string {
+  if (!str) return '';
+  try {
+    const wellFormed = typeof (str as any).toWellFormed === 'function'
+      ? (str as any).toWellFormed()
+      : str.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
+    return encodeURIComponent(wellFormed);
+  } catch {
+    return encodeURIComponent(str.replace(/[\uD800-\uDFFF]/g, ''));
+  }
+}
+
 export function sanitizeFilename(title: string, ext: string = 'mp4', maxLength: number = 100): string {
   const safeExt = (ext || 'mp4')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '')
     .slice(0, 8) || 'mp4';
 
-  let clean = (title || 'media')
+  let raw = title || 'media';
+  if (typeof (raw as any).toWellFormed === 'function') {
+    raw = (raw as any).toWellFormed();
+  } else {
+    raw = raw.replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
+  }
+
+  let clean = raw
     // Remove control characters and non-printable characters
     .replace(/[\x00-\x1f\x7f-\x9f]/g, '')
     // Remove directory traversal characters
@@ -107,9 +129,13 @@ export function sanitizeFilename(title: string, ext: string = 'mp4', maxLength: 
     clean = `_${clean}`;
   }
 
-  // Enforce maximum length before extension
+  // Enforce maximum length before extension safely without splitting Unicode surrogate pairs
   if (clean.length > maxLength) {
-    clean = clean.slice(0, maxLength).trim();
+    clean = Array.from(clean).slice(0, maxLength).join('').trim();
+  }
+
+  if (typeof (clean as any).toWellFormed === 'function') {
+    clean = (clean as any).toWellFormed();
   }
 
   return `${clean}.${safeExt}`;

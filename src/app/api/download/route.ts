@@ -98,6 +98,19 @@ export async function POST(request: NextRequest) {
       url: detection.normalizedUrl,
     });
 
+    const resolvedMediaInfo = clientMediaInfo
+      ? {
+          id: clientMediaInfo.id || detection.normalizedUrl,
+          platform: detection.platform,
+          title: clientMediaInfo.title || 'Media Video',
+          author: clientMediaInfo.author || 'Creator',
+          duration: clientMediaInfo.duration,
+          thumbnailUrl: clientMediaInfo.thumbnailUrl,
+          sourceUrl: detection.normalizedUrl,
+          formats: [],
+        }
+      : await provider.getMediaInfo(detection.normalizedUrl);
+
     const isEventStream = request.headers.get('accept')?.includes('text/event-stream');
 
     if (isEventStream) {
@@ -111,13 +124,10 @@ export async function POST(request: NextRequest) {
           };
 
           try {
-            sendEvent({ type: 'progress', percent: 5, stage: 'Connecting to media server...' });
-
-            const mediaInfo = await provider.getMediaInfo(detection.normalizedUrl);
-            sendEvent({ type: 'progress', percent: 8, stage: 'Stream metadata resolved...' });
+            sendEvent({ type: 'progress', percent: 8, stage: 'Connecting to media server...' });
 
             const downloadResult = await provider.download(
-              mediaInfo,
+              resolvedMediaInfo,
               formatId,
               (prog) => {
                 sendEvent({
@@ -171,20 +181,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const mediaInfo = clientMediaInfo
-      ? {
-          id: clientMediaInfo.id || detection.normalizedUrl,
-          platform: detection.platform,
-          title: clientMediaInfo.title || 'Media Video',
-          author: clientMediaInfo.author || 'Creator',
-          duration: clientMediaInfo.duration,
-          thumbnailUrl: clientMediaInfo.thumbnailUrl,
-          sourceUrl: detection.normalizedUrl,
-          formats: [],
-        }
-      : await provider.getMediaInfo(detection.normalizedUrl);
-
-    const downloadResult = await provider.download(mediaInfo, formatId);
+    const downloadResult = await provider.download(resolvedMediaInfo, formatId);
 
     if (!downloadResult.success) {
       return NextResponse.json(
@@ -205,7 +202,7 @@ export async function POST(request: NextRequest) {
     logger.diagnostic({
       platform: detection.platform,
       normalizedUrl: detection.normalizedUrl,
-      videoId: mediaInfo.id,
+      videoId: resolvedMediaInfo.id,
       operation: 'download',
       providerUsed: provider.displayName,
       responseStatus: 'success',

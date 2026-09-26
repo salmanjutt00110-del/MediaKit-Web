@@ -321,22 +321,12 @@ export class YouTubeDownloadProvider {
    * Returns empty array if downloader is unavailable or rate-limited.
    */
   static async getAvailableFormats(canonicalUrl: string): Promise<{ formats: MediaFormat[]; duration?: string }> {
-    if (ytDlpRunner.isAvailable()) {
-      try {
-        const info = await ytDlpRunner.getMediaInfo(canonicalUrl);
-        if (info.formats && info.formats.length > 0) {
-          return {
-            formats: info.formats,
-            duration: info.duration,
-          };
-        }
-      } catch (err: unknown) {
-        const error = err as Error;
-        logger.warn('YouTubeDownloadProvider format extraction warning', {
-          canonicalUrl,
-          msg: error.message,
-        });
-      }
+    const cached = youtubeMetadataCache.get(canonicalUrl);
+    if (cached && cached.expiry > Date.now() && cached.info.formats && cached.info.formats.length > 0) {
+      return {
+        formats: cached.info.formats,
+        duration: cached.info.duration,
+      };
     }
 
     // High-definition formats universally supported by the media conversion engine

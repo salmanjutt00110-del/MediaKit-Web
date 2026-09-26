@@ -469,7 +469,7 @@ export default function YouTubeSearch() {
             <span className={styles.statusSubText}>
               {isSlow
                 ? 'Connecting to YouTube servers for high-quality media streams, please wait a moment...'
-                : 'Fetching authentic HD videos and direct media formats...'}
+                : 'Loading high-definition videos and available formats...'}
             </span>
           </div>
         </div>

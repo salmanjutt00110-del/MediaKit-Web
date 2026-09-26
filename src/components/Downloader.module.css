@@ -1601,6 +1601,9 @@
     align-items: center;
     margin-bottom: 12px;
     width: 100%;
+    max-width: 100%;
+    padding: 0 2px;
+    box-sizing: border-box;
   }
 
   .modeTabsCapsule {
@@ -1611,22 +1614,27 @@
     align-items: center;
     justify-content: space-between;
     padding: 3px;
+    gap: 3px;
     box-sizing: border-box;
   }
 
   .modeTab {
-    padding: 7px 8px;
-    font-size: 0.8rem;
-    flex: 1;
+    padding: 7px 4px;
+    font-size: clamp(0.72rem, 3vw, 0.78rem);
+    flex: 1 1 0;
+    min-width: 0;
     justify-content: center;
     gap: 4px;
     white-space: nowrap;
   }
 
-  .modeBadgePill,
+  .modeBadgePill {
+    display: none;
+  }
+
   .newBadgePill {
-    padding: 2px 5px;
-    font-size: 0.62rem;
+    padding: 1px 4px;
+    font-size: 0.58rem;
     margin-right: 1px;
   }
 
@@ -1749,11 +1757,25 @@
 
   .modeTabsCapsule {
     max-width: 100%;
+    padding: 2px;
+    gap: 2px;
   }
 
   .modeTab {
-    padding: 6px 8px;
-    font-size: 0.78rem;
+    padding: 6px 3px;
+    font-size: 0.72rem;
+    gap: 3px;
+  }
+}
+
+@media (max-width: 350px) {
+  .modeTab {
+    padding: 5px 2px;
+    font-size: 0.68rem;
+    gap: 2px;
+  }
+  .newBadgePill {
+    display: none;
   }
 }
 
@@ -1956,48 +1978,7 @@
   transition: max-width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.modeTabsWrapper {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 22px;
-}
 
-.modeTabsCapsule {
-  display: inline-flex;
-  align-items: center;
-  background: #f1f5f9;
-  padding: 5px;
-  border-radius: 9999px;
-  border: 1px solid #e2e8f0;
-  gap: 4px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-}
-
-.modeTab {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 18px;
-  border-radius: 9999px;
-  border: none;
-  background: transparent;
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.modeTab:hover:not(.modeTabActive) {
-  color: #0f172a;
-  background: rgba(255, 255, 255, 0.6);
-}
-
-.modeTabActive {
-  background: #ffffff;
-  color: #0284c7;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
-}
 
 .modeBadgePill {
   font-size: 0.68rem;

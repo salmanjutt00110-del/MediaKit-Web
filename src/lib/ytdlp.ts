@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import crypto from 'crypto';
 import { MediaFormat, MediaMetadata, PlatformType } from './types';
-import { sanitizeFilename, cleanAndDecodeTitle } from './string-utils';
+import { sanitizeFilename, cleanAndDecodeTitle, safeEncodeURIComponent } from './string-utils';
 import { validateMediaFile, probeMediaFile } from './media-validator';
 import { logger } from './logger';
 
@@ -289,7 +289,7 @@ export const ytDlpRunner = {
       args.push(targetUrl);
 
       execFile(
-        runner.cmd,
+        /*turbopackIgnore: true*/ runner.cmd,
         [...runner.prefixArgs, ...args],
         { maxBuffer: 25 * 1024 * 1024, timeout: 35000 },
         (error, stdout, stderr) => {
@@ -637,7 +637,7 @@ export const ytDlpRunner = {
               const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
               onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
               return {
-                serveUrl: `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`,
+                serveUrl: `/api/download/serve?token=${safeEncodeURIComponent(cacheToken)}&title=${safeEncodeURIComponent(cleanTitle)}&ext=${targetExt}`,
                 fileSizeBytes: stats.size,
                 fileSizeFormatted: formatBytes(stats.size) || 'Size unavailable',
                 resolution: knownHeight ? `${knownHeight}p` : undefined,
@@ -659,7 +659,7 @@ export const ytDlpRunner = {
                 const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
                 onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
                 return {
-                  serveUrl: `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`,
+                  serveUrl: `/api/download/serve?token=${safeEncodeURIComponent(cacheToken)}&title=${safeEncodeURIComponent(cleanTitle)}&ext=${targetExt}`,
                   fileSizeBytes: stats.size,
                   fileSizeFormatted: formatBytes(stats.size) || 'Size unavailable',
                   resolution: cachedProbe.resolution,
@@ -674,7 +674,7 @@ export const ytDlpRunner = {
           const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
           onProgress?.({ percent: 100, stage: 'Retrieved from cache ✓' });
           return {
-            serveUrl: `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`,
+            serveUrl: `/api/download/serve?token=${safeEncodeURIComponent(cacheToken)}&title=${safeEncodeURIComponent(cleanTitle)}&ext=${targetExt}`,
             fileSizeBytes: stats.size,
             fileSizeFormatted: formatBytes(stats.size) || 'Size unavailable',
           };
@@ -711,6 +711,10 @@ export const ytDlpRunner = {
         '--js-runtimes',
         nodeRuntime,
         '--no-playlist',
+        '--no-warnings',
+        '--no-check-certificates',
+        '--prefer-free-formats',
+        '--no-mtime',
         '--no-part',
         '--newline',
         '--socket-timeout',
@@ -744,13 +748,15 @@ export const ytDlpRunner = {
 
       if (isMp3) {
         args.push(
+          '-f',
+          'ba[ext=m4a]/ba[ext=opus]/ba/bestaudio/best',
           '-x',
           '--audio-format',
           'mp3',
           '--audio-quality',
           '0',
           '--concurrent-fragments',
-          '12',
+          '16',
           '-o',
           tempOutputFile,
           media.sourceUrl
@@ -789,7 +795,7 @@ export const ytDlpRunner = {
           '--merge-output-format',
           'mp4',
           '--concurrent-fragments',
-          '12',
+          '16',
           '-o',
           tempOutputFile,
           media.sourceUrl
@@ -803,16 +809,17 @@ export const ytDlpRunner = {
 
       onProgress?.({ percent: 8, stage: 'Connecting to media server...' });
 
-      const child = spawn(runner.cmd, [...runner.prefixArgs, ...args]);
+      const child = spawn(/*turbopackIgnore: true*/ runner.cmd, [...runner.prefixArgs, ...args]);
       let isAudioStream = false;
       let stderrOutput = '';
 
-      // Safety timeout: kill child if it hangs longer than 120s (prevents stuck UI)
+      // Safety timeout: kill child if it hangs longer than 75s (prevents stuck UI)
       const downloadTimeout = setTimeout(() => {
         try { child.kill('SIGKILL'); } catch {}
         try { if (fs.existsSync(tempOutputFile)) fs.unlinkSync(tempOutputFile); } catch {}
-        logger.warn('Download killed by safety timeout (120s)', { cacheToken });
-      }, 120_000);
+        logger.warn('Download killed by safety timeout (75s)', { cacheToken });
+        reject(new Error('Media stream processing timed out.'));
+      }, 75_000);
 
       child.stdout.on('data', (chunk) => {
         const text = chunk.toString();
@@ -941,7 +948,7 @@ export const ytDlpRunner = {
               total: validation.fileSizeFormatted,
             });
             return resolve({
-              serveUrl: `/api/download/serve?token=${encodeURIComponent(cacheToken)}&title=${encodeURIComponent(cleanTitle)}&ext=${targetExt}`,
+              serveUrl: `/api/download/serve?token=${safeEncodeURIComponent(cacheToken)}&title=${safeEncodeURIComponent(cleanTitle)}&ext=${targetExt}`,
               fileSizeBytes: validation.fileSizeBytes,
               fileSizeFormatted: validation.fileSizeFormatted,
               resolution: validation.probe.resolution,
@@ -1060,7 +1067,7 @@ export const ytDlpRunner = {
       }
 
       execFile(
-        runner.cmd,
+        /*turbopackIgnore: true*/ runner.cmd,
         [...runner.prefixArgs, ...args],
         { timeout: 18000 },
         (error, stdout, stderr) => {

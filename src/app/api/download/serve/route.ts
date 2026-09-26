@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { sanitizeAsciiFilename, sanitizeFilename } from '@/lib/string-utils';
+import { sanitizeAsciiFilename, sanitizeFilename, safeEncodeURIComponent } from '@/lib/string-utils';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
           'Accept-Ranges': 'bytes',
           'Content-Length': chunkSize.toString(),
           'Content-Type': contentType,
-          'Content-Disposition': `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(safeUtf8)}`,
+          'Content-Disposition': `attachment; filename="${safeAscii}"; filename*=UTF-8''${safeEncodeURIComponent(safeUtf8)}`,
           'Cache-Control': 'no-cache',
         },
       });
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
         'Accept-Ranges': 'bytes',
         'Content-Length': fileSize.toString(),
         'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(safeUtf8)}`,
+        'Content-Disposition': `attachment; filename="${safeAscii}"; filename*=UTF-8''${safeEncodeURIComponent(safeUtf8)}`,
         'Cache-Control': 'no-cache',
       },
     });

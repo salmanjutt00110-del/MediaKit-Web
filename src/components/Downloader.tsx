@@ -921,7 +921,7 @@ export default function Downloader() {
       case 'detecting_platform':
         return 'Detecting platform...';
       case 'fetching_media':
-        return 'Fetching video information...';
+        return 'Connecting to video...';
       case 'preparing_downloads':
         return 'Preparing available downloads...';
       case 'ready':
@@ -937,7 +937,7 @@ export default function Downloader() {
     <section id="downloader" className={styles.downloaderSection} aria-label="Media Downloader">
       <div className="app-container">
         <div className={`${styles.downloaderContainer} ${mainMode === 'youtube_search' ? styles.downloaderContainerWide : ''}`}>
-          {/* Mode Switcher Tabs (Paste URL | Search YouTube | Batch Links) */}
+          {/* Mode Switcher Tabs (Single Video | Search YouTube | Batch Download) */}
           <div className={styles.modeTabsWrapper}>
             <div className={styles.modeTabsCapsule}>
               <button
@@ -947,17 +947,19 @@ export default function Downloader() {
                   setActiveTab('single');
                 }}
                 className={`${styles.modeTab} ${mainMode === 'url' && activeTab === 'single' ? styles.modeTabActive : ''}`}
+                title="Single Video Downloader"
               >
-                <LinkIcon size={14} />
-                <span>Paste URL</span>
+                <LinkIcon size={14} className={styles.tabIcon} />
+                <span className={styles.tabLabel}>Single Video</span>
               </button>
               <button
                 type="button"
                 onClick={() => setMainMode('youtube_search')}
                 className={`${styles.modeTab} ${mainMode === 'youtube_search' ? styles.modeTabActive : ''}`}
+                title="Search YouTube & Batch Select"
               >
-                <Search size={14} />
-                <span>Search YouTube</span>
+                <Search size={14} className={styles.tabIcon} />
+                <span className={styles.tabLabel}>Search YouTube</span>
                 <span className={styles.newBadgePill}>NEW</span>
               </button>
               <button
@@ -967,9 +969,10 @@ export default function Downloader() {
                   setActiveTab('batch');
                 }}
                 className={`${styles.modeTab} ${mainMode === 'url' && activeTab === 'batch' ? styles.modeTabActive : ''}`}
+                title="Batch Multi-Link Download"
               >
-                <BookOpen size={14} />
-                <span>Batch Links</span>
+                <BookOpen size={14} className={styles.tabIcon} />
+                <span className={styles.tabLabel}>Batch Download</span>
                 <span className={styles.modeBadgePill}>25 MAX</span>
               </button>
             </div>
@@ -1153,7 +1156,7 @@ export default function Downloader() {
                     </span>
                     <span className={styles.modernLoaderSubtitle}>
                       {loadingStage === 'fetching_media'
-                        ? (autoDownload ? 'Fetching stream — highest HD quality will download automatically...' : 'Fetching authentic media stream & real formats...')
+                        ? (autoDownload ? 'Connecting to stream — highest HD quality will download automatically...' : 'Connecting to authentic media stream & real formats...')
                         : loadingStage === 'preparing_downloads'
                         ? 'Resolving quality & file sizes...'
                         : 'Detecting platform and link...'}

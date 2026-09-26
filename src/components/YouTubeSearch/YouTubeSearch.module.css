@@ -2926,3 +2926,138 @@
     display: none !important;
   }
 }
+
+/* Docked Sticky Bottom Action Bar for Mobile and Desktop */
+.stickyBarSpacer {
+  height: 80px;
+  width: 100%;
+}
+
+.stickyActionBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 990;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1.5px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.08), 0 -1px 3px rgba(15, 23, 42, 0.04);
+  padding: 12px 20px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  animation: slideUpSticky 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+:global([data-theme='dark']) .stickyActionBar {
+  background: rgba(15, 23, 42, 0.96);
+  border-top-color: rgba(51, 65, 85, 0.8);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes slideUpSticky {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.stickyCountGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stickyCountBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 9999px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.stickyCountText {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+
+.stickyBtnGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stickyClearBtn {
+  background: transparent;
+  border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: 9999px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.stickyClearBtn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.stickyDownloadBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 9999px;
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stickyDownloadBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+}
+
+@media (max-width: 480px) {
+  .stickyActionBar {
+    padding: 10px 14px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .stickyCountText {
+    font-size: 0.82rem;
+  }
+
+  .stickyClearBtn {
+    padding: 7px 10px;
+    font-size: 0.78rem;
+  }
+
+  .stickyDownloadBtn {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    gap: 6px;
+  }
+}

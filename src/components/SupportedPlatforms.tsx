@@ -28,16 +28,6 @@ const platforms = [
     btnClass: styles.btnBlue,
   },
   {
-    id: 'facebook',
-    name: 'Facebook',
-    description: 'Videos, Reels, Photos',
-    href: '/facebook-video-downloader',
-    icon: <FacebookIcon size={28} color="#ffffff" />,
-    squircleClass: styles.squircleFacebook,
-    cardClass: styles.cardFacebook,
-    btnClass: styles.btnBlue,
-  },
-  {
     id: 'instagram',
     name: 'Instagram',
     description: 'Videos, Reels, Stories',
@@ -46,6 +36,16 @@ const platforms = [
     squircleClass: styles.squircleInstagram,
     cardClass: styles.cardInstagram,
     btnClass: styles.btnPurple,
+  },
+  {
+    id: 'facebook',
+    name: 'Facebook',
+    description: 'Videos, Reels, Photos',
+    href: '/facebook-video-downloader',
+    icon: <FacebookIcon size={28} color="#ffffff" />,
+    squircleClass: styles.squircleFacebook,
+    cardClass: styles.cardFacebook,
+    btnClass: styles.btnBlue,
   },
   {
     id: 'pinterest',

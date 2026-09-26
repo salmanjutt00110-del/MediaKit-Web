@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { YouTubeSearchResult } from '@/lib/youtube-search-service';
 import { FormatSelectionResult } from './FormatSelectionModal';
-import { sanitizeFilename } from '@/lib/string-utils';
+import { sanitizeFilename, safeEncodeURIComponent } from '@/lib/string-utils';
 import styles from './YouTubeSearch.module.css';
 
 export type QueueItemStatus =
@@ -201,24 +201,28 @@ export default function BatchDownloadQueueModal({
     const controller = new AbortController();
     activeAbortControllersRef.current.set(item.id, controller);
 
+    // Timeout protection: prevent any batch job from remaining stuck/pending forever
+    const timeoutId = setTimeout(() => {
+      try {
+        controller.abort();
+      } catch {}
+    }, 75000);
+
     try {
       // 1. Preparing stage
       updateItem(item.id, {
         status: 'preparing',
-        stageMessage: 'Preparing request...',
+        stageMessage: 'Connecting...',
       });
 
       if (isCanceledRef.current) return false;
 
-      // 2. Fetching & Processing stream with fast client metadata fast-path
-      updateItem(item.id, {
-        status: 'fetching',
-        stageMessage: 'Fetching media stream...',
-      });
-
       const res = await fetch('/api/download', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream, application/json',
+        },
         body: JSON.stringify({
           url: item.video.videoUrl,
           formatId: item.formatId,
@@ -237,8 +241,55 @@ export default function BatchDownloadQueueModal({
 
       if (isCanceledRef.current) return false;
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.success || !data.data?.downloadUrl) {
+      let dlResultData: any = null;
+
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('text/event-stream') && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+
+          for (const chunk of parts) {
+            const trimmed = chunk.trim();
+            if (!trimmed.startsWith('data:')) continue;
+            try {
+              const payload = JSON.parse(trimmed.slice(5).trim());
+              if (payload.type === 'progress') {
+                updateItem(item.id, {
+                  status: 'downloading',
+                  stageMessage: payload.stage || 'Downloading stream...',
+                  progressPercent: payload.percent,
+                });
+              } else if (payload.type === 'complete') {
+                dlResultData = payload.data;
+              } else if (payload.type === 'error') {
+                throw new Error(payload.message || 'Media stream generation failed');
+              }
+            } catch (pErr: any) {
+              if (pErr.message && !pErr.message.includes('JSON')) throw pErr;
+            }
+          }
+        }
+      } else {
+        updateItem(item.id, {
+          status: 'downloading',
+          stageMessage: 'Downloading stream...',
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success || !data.data?.downloadUrl) {
+          throw new Error(data?.error?.message || 'Media stream generation failed');
+        }
+        dlResultData = data.data;
+      }
+
+      if (!dlResultData || !dlResultData.downloadUrl) {
         // Auto-retry up to 2 times with a slight delay
         if (item.retryCount < 2 && !isCanceledRef.current) {
           updateItem(item.id, {
@@ -249,11 +300,11 @@ export default function BatchDownloadQueueModal({
           await new Promise((r) => setTimeout(r, 1000));
           return processSingleItem({ ...item, retryCount: item.retryCount + 1 });
         }
-        throw new Error(data?.error?.message || 'Media stream generation failed');
+        throw new Error('Media stream generation failed');
       }
 
-      const rawDlUrl = data.data.downloadUrl;
-      const preliminarySize = data.data.fileSize || data.data.fileSizeFormatted;
+      const rawDlUrl = dlResultData.downloadUrl;
+      const preliminarySize = dlResultData.fileSize || dlResultData.fileSizeFormatted;
 
       // 3. Downloading stage
       updateItem(item.id, {
@@ -264,9 +315,17 @@ export default function BatchDownloadQueueModal({
 
       const safeBaseTitle = item.filename.replace(/\.[^/.]+$/, '');
       const ext = item.isAudio ? 'mp3' : 'mp4';
-      const finalDownloadUrl = (rawDlUrl.startsWith('/api/download/file') || rawDlUrl.startsWith('/api/download/serve'))
-        ? rawDlUrl
-        : `/api/download/file?url=${encodeURIComponent(rawDlUrl)}&title=${encodeURIComponent(safeBaseTitle)}&ext=${ext}`;
+
+      let finalDownloadUrl = rawDlUrl;
+      if (rawDlUrl.startsWith('/api/download/serve')) {
+        try {
+          const u = new URL(rawDlUrl, typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+          u.searchParams.set('title', safeBaseTitle);
+          finalDownloadUrl = u.pathname + u.search;
+        } catch {}
+      } else if (!rawDlUrl.startsWith('/api/download/file')) {
+        finalDownloadUrl = `/api/download/file?url=${safeEncodeURIComponent(rawDlUrl)}&title=${safeEncodeURIComponent(safeBaseTitle)}&ext=${ext}`;
+      }
 
       // 4. Completed state (Immediate fast handover)
       updateItem(item.id, {
@@ -274,7 +333,7 @@ export default function BatchDownloadQueueModal({
         stageMessage: 'Completed ✓',
         downloadUrl: finalDownloadUrl,
         fileSizeFormatted: preliminarySize || (item.isAudio ? 'Audio HQ' : 'HD Ready'),
-        actualResolution: data.data.resolution || (item.isAudio ? 'Audio HQ' : item.formatId),
+        actualResolution: dlResultData.resolution || (item.isAudio ? 'Audio HQ' : item.formatId),
       });
 
       // Safely enqueue into staggered download dispatcher
@@ -290,7 +349,7 @@ export default function BatchDownloadQueueModal({
         return false;
       }
 
-      const errMsg = err?.message || 'Download failed';
+      const errMsg = err?.message || 'Unable to download this file right now.';
       updateItem(item.id, {
         status: 'failed',
         stageMessage: '✕ Download Failed',
@@ -298,6 +357,7 @@ export default function BatchDownloadQueueModal({
       });
       return false;
     } finally {
+      clearTimeout(timeoutId);
       activeAbortControllersRef.current.delete(item.id);
     }
   };
@@ -306,8 +366,8 @@ export default function BatchDownloadQueueModal({
     setIsRunning(true);
     setIsDone(false);
 
-    // Controlled concurrency of 2 workers: yields ~1s per fetch, no socket exhaustion or rate limits
-    const concurrency = 2;
+    // Controlled concurrency of 3 workers: fast throughput without overloading network
+    const concurrency = 3;
     let index = 0;
 
     const worker = async () => {
