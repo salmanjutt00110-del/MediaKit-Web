@@ -260,18 +260,18 @@ async function fetchSavenowStream(
       const init = await initRes.json().catch(() => null);
       if (!init || !init.success) continue;
 
-      if (init.download_url) {
+      if (!init.progress_url && init.download_url && !init.download_url.includes('p.savenow.to/api/v2/download/')) {
         onProgress?.({ percent: 100, stage: 'Stream ready ✓' });
         return init.download_url;
       }
 
       if (!init.progress_url) continue;
 
-      // Fast polling with 400ms interval (max 10 iterations = ~4s max per mirror)
-      for (let i = 0; i < 10; i++) {
+      // Poll progress endpoint: 400ms interval, up to 30 iterations (~12s max) to guarantee full encoding of long videos/Naats
+      for (let i = 0; i < 30; i++) {
         await new Promise((r) => setTimeout(r, 400));
-        const pct = Math.min(95, 30 + i * 6.5);
-        onProgress?.({ percent: pct, stage: 'Preparing media stream...' });
+        const pct = Math.min(95, 25 + i * 2.5);
+        onProgress?.({ percent: pct, stage: 'Encoding media stream...' });
 
         try {
           const pRes = await fetch(init.progress_url, {
@@ -280,14 +280,15 @@ async function fetchSavenowStream(
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
               Referer: mirror.referer,
             },
-            signal: AbortSignal.timeout(4000),
+            signal: AbortSignal.timeout(6000),
           });
 
           if (!pRes.ok) continue;
           const p = await pRes.json().catch(() => null);
           if (!p) continue;
 
-          if (p.download_url || (p.success === 1 && p.download_url)) {
+          // Only accept when the conversion is finished (success === 1 or progress === 1000) with a valid download_url
+          if ((p.success === 1 || p.progress === 1000) && p.download_url) {
             onProgress?.({ percent: 100, stage: 'Download ready ✓' });
             return p.download_url;
           }
