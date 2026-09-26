@@ -82,61 +82,124 @@ async function getInnertube() {
   return innertubeInstance;
 }
 
+interface InnertubeSearchSession {
+  allVideos: YouTubeSearchResult[];
+  lastSearchObj: any;
+  expiry: number;
+}
+const innertubeSessions = new Map<string, InnertubeSearchSession>();
+
+function parseInnertubeVideo(v: any): YouTubeSearchResult | null {
+  const id = v.id || v.video_id;
+  if (!id || typeof id !== 'string') return null;
+
+  const title = (v.title?.text || v.title || 'YouTube Video')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'");
+
+  const channelTitle = v.author?.name || v.channel?.name || 'YouTube Creator';
+  const channelId = v.author?.id || v.channel?.id;
+  const duration = v.duration?.text || 'Video';
+  const durationSeconds = v.duration?.seconds || 0;
+  const viewCount = v.view_count?.text || (v.views ? `${v.views} views` : undefined);
+  const thumb =
+    v.thumbnails?.[v.thumbnails.length - 1]?.url ||
+    v.thumbnails?.[0]?.url ||
+    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+  const publishedTimeAgo = v.published?.text || '';
+
+  return {
+    id,
+    title,
+    channelTitle,
+    channelId,
+    thumbnailUrl: thumb,
+    duration,
+    durationSeconds,
+    publishedTimeAgo,
+    viewCount,
+    videoUrl: `https://www.youtube.com/watch?v=${id}`,
+    definition: 'hd',
+    maxQuality: '720p',
+    availableQualities: ['720p', '480p', '360p', 'mp3'],
+  };
+}
+
 export async function searchYouTubeWithInnertube(
   query: string,
-  maxResults: number = 12
-): Promise<YouTubeSearchResult[]> {
+  pageToken?: string,
+  maxResults: number = 16
+): Promise<{
+  results: YouTubeSearchResult[];
+  nextPageToken?: string;
+  totalResults?: number;
+}> {
   try {
-    const yt = await getInnertube();
-    const searchRes = await yt.search(query);
-    const videos = searchRes.videos || searchRes.results || [];
-
-    const results: YouTubeSearchResult[] = [];
-    for (const v of videos) {
-      if (results.length >= maxResults) break;
-      const id = v.id || v.video_id;
-      if (!id || typeof id !== 'string') continue;
-
-      const title = (v.title?.text || v.title || 'YouTube Video')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;|&apos;/g, "'");
-
-      const channelTitle = v.author?.name || v.channel?.name || 'YouTube Creator';
-      const channelId = v.author?.id || v.channel?.id;
-      const duration = v.duration?.text || 'Video';
-      const durationSeconds = v.duration?.seconds || 0;
-      const viewCount = v.view_count?.text || (v.views ? `${v.views} views` : undefined);
-      const thumb =
-        v.thumbnails?.[v.thumbnails.length - 1]?.url ||
-        v.thumbnails?.[0]?.url ||
-        `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-      const publishedTimeAgo = v.published?.text || '';
-
-      results.push({
-        id,
-        title,
-        channelTitle,
-        channelId,
-        thumbnailUrl: thumb,
-        duration,
-        durationSeconds,
-        publishedTimeAgo,
-        viewCount,
-        videoUrl: `https://www.youtube.com/watch?v=${id}`,
-        definition: 'hd',
-        maxQuality: '720p',
-        availableQualities: ['720p', '480p', '360p', 'mp3'],
-      });
+    const cleanKey = query.trim().toLowerCase();
+    let pageNum = 1;
+    if (pageToken && pageToken.startsWith('p_')) {
+      pageNum = parseInt(pageToken.replace('p_', ''), 10) || 1;
     }
 
-    return results;
+    let session = innertubeSessions.get(cleanKey);
+
+    // Initial search or expired session
+    if (!session || session.expiry < Date.now() || pageNum === 1) {
+      const yt = await getInnertube();
+      const searchRes = await yt.search(query);
+      const rawVideos = searchRes.videos || searchRes.results || [];
+      const parsed: YouTubeSearchResult[] = [];
+      for (const v of rawVideos) {
+        const item = parseInnertubeVideo(v);
+        if (item) parsed.push(item);
+      }
+
+      session = {
+        allVideos: parsed,
+        lastSearchObj: searchRes,
+        expiry: Date.now() + 30 * 60 * 1000,
+      };
+      innertubeSessions.set(cleanKey, session);
+    }
+
+    // If requesting subsequent pages and we need more videos
+    const startIndex = (pageNum - 1) * maxResults;
+    const targetEndIndex = startIndex + maxResults;
+
+    if (targetEndIndex > session.allVideos.length && session.lastSearchObj?.has_continuation) {
+      try {
+        const nextCont = await session.lastSearchObj.getContinuation();
+        session.lastSearchObj = nextCont;
+        const contVideos = nextCont.videos || nextCont.results || [];
+        for (const v of contVideos) {
+          const item = parseInnertubeVideo(v);
+          if (item && !session.allVideos.some((existing) => existing.id === item.id)) {
+            session.allVideos.push(item);
+          }
+        }
+      } catch (contErr) {
+        logger.warn('Error fetching Innertube continuation', { error: (contErr as any)?.message });
+      }
+    }
+
+    const pageResults = session.allVideos.slice(startIndex, targetEndIndex);
+    const hasMore =
+      targetEndIndex < session.allVideos.length ||
+      session.lastSearchObj?.has_continuation === true;
+    const nextPageToken = hasMore ? `p_${pageNum + 1}` : undefined;
+
+    return {
+      results: pageResults,
+      nextPageToken,
+      totalResults: Math.max(100, session.allVideos.length),
+    };
   } catch (err: unknown) {
     const e = err as Error;
     logger.warn('Innertube search fallback failed', { error: e.message });
-    return [];
+    return { results: [], totalResults: 0 };
   }
 }
 
@@ -150,7 +213,7 @@ export async function searchYouTubeVideos(options: SearchOptions): Promise<{
   nextPageToken?: string;
   totalResults?: number;
 }> {
-  const { query, pageToken, maxResults = 12, order = 'relevance', videoDuration = 'any' } = options;
+  const { query, pageToken, maxResults = 16, order = 'relevance', videoDuration = 'any' } = options;
   const cleanQuery = query.trim();
   if (!cleanQuery) {
     return { results: [] };
@@ -166,11 +229,10 @@ export async function searchYouTubeVideos(options: SearchOptions): Promise<{
   const apiKey = process.env.YOUTUBE_API_KEY?.trim();
   if (!apiKey) {
     logger.info('YOUTUBE_API_KEY not configured, using resilient Innertube search engine', { query: cleanQuery });
-    const fallbackResults = await searchYouTubeWithInnertube(cleanQuery, maxResults);
-    if (fallbackResults.length > 0) {
-      const responseData = { results: fallbackResults, totalResults: fallbackResults.length };
-      searchCache.set(cacheKey, { data: responseData, expiry: Date.now() + 15 * 60 * 1000 });
-      return responseData;
+    const fallbackData = await searchYouTubeWithInnertube(cleanQuery, pageToken, maxResults);
+    if (fallbackData.results.length > 0) {
+      searchCache.set(cacheKey, { data: fallbackData, expiry: Date.now() + 15 * 60 * 1000 });
+      return fallbackData;
     }
     throw new Error('Search is temporarily unavailable. Please try again shortly.');
   }
@@ -204,11 +266,10 @@ export async function searchYouTubeVideos(options: SearchOptions): Promise<{
     logger.warn('YouTube Data API search failed, attempting Innertube fallback', {
       status: res.status,
     });
-    const fallbackResults = await searchYouTubeWithInnertube(cleanQuery, maxResults);
-    if (fallbackResults.length > 0) {
-      const responseData = { results: fallbackResults, totalResults: fallbackResults.length };
-      searchCache.set(cacheKey, { data: responseData, expiry: Date.now() + 15 * 60 * 1000 });
-      return responseData;
+    const fallbackData = await searchYouTubeWithInnertube(cleanQuery, pageToken, maxResults);
+    if (fallbackData.results.length > 0) {
+      searchCache.set(cacheKey, { data: fallbackData, expiry: Date.now() + 15 * 60 * 1000 });
+      return fallbackData;
     }
 
     const errorBody = await res.json().catch(() => ({}));

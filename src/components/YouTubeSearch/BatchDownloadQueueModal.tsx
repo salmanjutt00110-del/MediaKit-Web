@@ -208,47 +208,6 @@ export default function BatchDownloadQueueModal({
         downloadUrl: rawDlUrl,
       });
 
-      // 4. Real File & Quality Validation (Section 14 & 15)
-      updateItem(item.id, {
-        status: 'validating',
-        stageMessage: 'Validating media file...',
-      });
-
-      let verifiedSize = preliminarySize;
-      let verifiedResolution = data.data.resolution;
-
-      try {
-        const valRes = await fetch('/api/youtube/validate-media', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            downloadUrl: rawDlUrl,
-            expectedFormat: item.isAudio ? 'mp3' : item.formatId,
-            expectedDurationSeconds: item.video.durationSeconds,
-          }),
-          signal: controller.signal,
-        });
-
-        const valData = await valRes.json();
-        if (valData.valid) {
-          if (valData.fileSizeFormatted && valData.fileSizeFormatted !== '0 Bytes') {
-            verifiedSize = valData.fileSizeFormatted;
-          }
-          if (valData.resolution) {
-            verifiedResolution = valData.resolution;
-          }
-        } else if (valData.error) {
-          // Explicit validation failure
-          throw new Error(valData.error);
-        }
-      } catch (valErr: any) {
-        if (valErr.name === 'AbortError') throw valErr;
-        // If validation reported explicit failure, fail item
-        if (valErr.message && valErr.message.includes('Truncation')) {
-          throw valErr;
-        }
-      }
-
       // Format final URL
       const isInternal =
         rawDlUrl.startsWith('/api/download/file') ||
@@ -263,13 +222,13 @@ export default function BatchDownloadQueueModal({
         ? rawDlUrl
         : `/api/download/file?url=${encodeURIComponent(rawDlUrl)}&title=${encodeURIComponent(safeBaseTitle)}&ext=${ext}`;
 
-      // 5. Completed state
+      // 4. Completed state (Immediate fast handover)
       updateItem(item.id, {
         status: 'completed',
         stageMessage: 'Completed ✓',
         downloadUrl: finalDownloadUrl,
-        fileSizeFormatted: verifiedSize || 'HD Verified',
-        actualResolution: verifiedResolution || (item.isAudio ? 'Audio HQ' : item.formatId),
+        fileSizeFormatted: preliminarySize || (item.isAudio ? 'Audio HQ' : 'HD Ready'),
+        actualResolution: data.data.resolution || (item.isAudio ? 'Audio HQ' : item.formatId),
       });
 
       // Automatically trigger direct browser file download
@@ -286,15 +245,9 @@ export default function BatchDownloadQueueModal({
       }
 
       const errMsg = err?.message || 'Download failed';
-      const isValidationFail =
-        errMsg.toLowerCase().includes('validation') ||
-        errMsg.toLowerCase().includes('mismatch') ||
-        errMsg.toLowerCase().includes('truncated') ||
-        errMsg.toLowerCase().includes('corrupt');
-
       updateItem(item.id, {
         status: 'failed',
-        stageMessage: isValidationFail ? '✕ Validation Failed' : '✕ Download Failed',
+        stageMessage: '✕ Download Failed',
         error: errMsg,
       });
       return false;
@@ -307,8 +260,8 @@ export default function BatchDownloadQueueModal({
     setIsRunning(true);
     setIsDone(false);
 
-    // Controlled concurrency: 2 downloads at a time to prevent server/browser throttling
-    const concurrency = 2;
+    // Concurrency of 4 downloads simultaneously for rapid queue completion
+    const concurrency = 4;
     let index = 0;
 
     const worker = async () => {
@@ -317,8 +270,8 @@ export default function BatchDownloadQueueModal({
         const item = items[currentIndex];
         if (item && item.status !== 'completed' && item.status !== 'cancelled') {
           await processSingleItem(item);
-          // 400ms gentle delay between queue tasks
-          await new Promise((r) => setTimeout(r, 400));
+          // Small 100ms interval between starting new queue tasks
+          await new Promise((r) => setTimeout(r, 100));
         }
       }
     };
@@ -486,23 +439,17 @@ export default function BatchDownloadQueueModal({
                     className={styles.queueItemThumb}
                   />
                   <div className={styles.queueItemText}>
-                    <span className={styles.queueItemTitle} title={item.filename}>
-                      {idx + 1}. {item.filename}
+                    <span className={styles.queueItemTitle} title={item.video.title}>
+                      {idx + 1}. {item.video.title}
                     </span>
                     <div className={styles.queueItemMeta}>
                       <span>{item.video.channelTitle}</span>
                       <span>•</span>
-                      <span>{item.formatLabel}</span>
-                      {item.actualResolution && (
-                        <>
-                          <span>•</span>
-                          <span style={{ fontWeight: 600 }}>{item.actualResolution}</span>
-                        </>
-                      )}
+                      <span className={styles.queueFormatBadge}>{item.formatLabel}</span>
                       {item.fileSizeFormatted && (
                         <>
                           <span>•</span>
-                          <span style={{ fontWeight: 600, color: '#0284c7' }}>
+                          <span style={{ fontWeight: 600, color: '#2563eb' }}>
                             {item.fileSizeFormatted}
                           </span>
                         </>

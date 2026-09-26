@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
     const pageToken = searchParams.get('pageToken') || undefined;
     const order = (searchParams.get('order') as any) || 'relevance';
     const videoDuration = (searchParams.get('duration') as any) || 'any';
-    const maxResultsParam = parseInt(searchParams.get('maxResults') || '12', 10);
-    const maxResults = isNaN(maxResultsParam) ? 12 : Math.min(24, Math.max(1, maxResultsParam));
+    const maxResultsParam = parseInt(searchParams.get('maxResults') || '16', 10);
+    const maxResults = isNaN(maxResultsParam) ? 16 : Math.min(24, Math.max(1, maxResultsParam));
 
     const cleanQuery = q.trim();
     if (!cleanQuery) {

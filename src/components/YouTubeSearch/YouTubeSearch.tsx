@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Search,
   X,
@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  ChevronDown,
 } from 'lucide-react';
 import { YouTubeSearchResult } from '@/lib/youtube-search-service';
 import SearchResultCard from './SearchResultCard';
@@ -64,6 +65,7 @@ export default function YouTubeSearch() {
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const slowTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollSentinelRef = useRef<HTMLDivElement>(null);
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -102,6 +104,18 @@ export default function YouTubeSearch() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Manage body class for mobile floating element collision prevention
+  useEffect(() => {
+    if (selectedCount > 0) {
+      document.body.classList.add('has-yt-selection');
+    } else {
+      document.body.classList.remove('has-yt-selection');
+    }
+    return () => {
+      document.body.classList.remove('has-yt-selection');
+    };
+  }, [selectedCount]);
 
   // Fetch suggestions with debounce
   useEffect(() => {
@@ -155,7 +169,7 @@ export default function YouTubeSearch() {
 
       const params = new URLSearchParams({
         q: clean,
-        maxResults: '12',
+        maxResults: '16',
         order: customSort || sortBy,
         duration: customDuration || durationFilter,
       });
@@ -213,11 +227,29 @@ export default function YouTubeSearch() {
     executeSearch(term);
   };
 
-  const handleLoadMore = () => {
-    if (nextPageToken && !isLoadingMore && activeQuery) {
+  const handleLoadMore = useCallback(() => {
+    if (nextPageToken && !isLoadingMore && !isLoading && activeQuery) {
       executeSearch(activeQuery, nextPageToken, true);
     }
-  };
+  }, [nextPageToken, isLoadingMore, isLoading, activeQuery, sortBy, durationFilter]);
+
+  // Infinite Scroll: IntersectionObserver triggers auto-load when sentinel enters viewport
+  useEffect(() => {
+    const sentinel = scrollSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [handleLoadMore]);
 
   const handleSortChange = (newSort: 'relevance' | 'date' | 'viewCount') => {
     setSortBy(newSort);
@@ -555,13 +587,17 @@ export default function YouTubeSearch() {
             ))}
           </div>
 
-          {/* Load More Button */}
+          {/* Show More Videos Button & Infinite Scroll Sentinel */}
           {nextPageToken && (
-            <div className={styles.loadMoreWrapper}>
+            <div className={styles.showMoreContainer}>
               <button
                 type="button"
-                className={styles.loadMoreBtn}
-                onClick={handleLoadMore}
+                className={styles.showMoreBtn}
+                onClick={() => {
+                  if (activeQuery && nextPageToken && !isLoadingMore) {
+                    executeSearch(activeQuery, nextPageToken, true);
+                  }
+                }}
                 disabled={isLoadingMore}
               >
                 {isLoadingMore ? (
@@ -570,9 +606,13 @@ export default function YouTubeSearch() {
                     <span>Loading more videos...</span>
                   </>
                 ) : (
-                  <span>Load More Videos</span>
+                  <>
+                    <ChevronDown size={18} />
+                    <span>Show More Videos (مزید نتائج دیکھیں)</span>
+                  </>
                 )}
               </button>
+              <div ref={scrollSentinelRef} className={styles.infiniteScrollSentinel} />
             </div>
           )}
         </>
@@ -596,6 +636,29 @@ export default function YouTubeSearch() {
           </p>
         </div>
       ) : null}
+
+      {/* 5. Comprehensive How to Use Guide */}
+      <div className={styles.howToUse}>
+        <span className={styles.howToUseTitle}>📖 یوٹیوب ڈاؤنلوڈر استعمال کرنے کا طریقہ (How to Use)</span>
+        <div className={styles.howToUseSteps}>
+          <div className={styles.howToUseStep}>
+            <span className={styles.howToUseStepNum}>1</span>
+            <span><strong>سرچ کریں (Search):</strong> اوپر سرچ بار میں کوئی بھی لفظ (مثلاً نعت، بیان، تلاوت یا گانا) لکھ کر سرچ کریں۔</span>
+          </div>
+          <div className={styles.howToUseStep}>
+            <span className={styles.howToUseStepNum}>2</span>
+            <span><strong>سلیکٹ کریں (Select):</strong> مطلوبہ ویڈیوز کے کارڈ یا 'Select' بٹن پر ٹیپ کریں، ایک ساتھ متعدد ویڈیوز منتخب ہو جائیں گی۔</span>
+          </div>
+          <div className={styles.howToUseStep}>
+            <span className={styles.howToUseStepNum}>3</span>
+            <span><strong>ڈاؤن لوڈ (Download):</strong> نیچے فلوٹنگ بار میں 'Download Selected' دبائیں اور MP4 (ویڈیو) یا MP3 (آڈیو) کا انتخاب کریں۔</span>
+          </div>
+          <div className={styles.howToUseStep}>
+            <span className={styles.howToUseStepNum}>4</span>
+            <span><strong>مزید رزلٹس (Show More):</strong> مزید ویڈیوز دیکھنے کے لیے نیچے اسکرول کریں یا 'Show More Videos' بٹن پر کلک کریں۔</span>
+          </div>
+        </div>
+      </div>
 
       {/* 6. Sticky Action Bar Spacer & Bar */}
       {selectedCount > 0 && <div className={styles.stickyBarSpacer} aria-hidden="true" />}

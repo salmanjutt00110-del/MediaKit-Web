@@ -256,10 +256,10 @@ async function fetchSavenowStream(
 
     if (!init.progress_url) return null;
 
-    // Poll progress endpoint
-    for (let i = 0; i < 22; i++) {
-      await new Promise((r) => setTimeout(r, 1200));
-      const pct = Math.min(95, 30 + i * 3);
+    // Poll progress endpoint with fast 600ms interval for rapid stream detection
+    for (let i = 0; i < 30; i++) {
+      await new Promise((r) => setTimeout(r, 600));
+      const pct = Math.min(95, 30 + i * 2.5);
       onProgress?.({ percent: pct, stage: 'Preparing media stream...' });
 
       try {

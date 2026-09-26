@@ -262,3 +262,15 @@ section[id] {
   transform: translateY(0);
 }
 
+/* Prevent floating chatbot and back-to-top buttons from overlapping sticky selection bar on mobile */
+@media (max-width: 640px) {
+  body.has-yt-selection [class*="chatbotRoot"],
+  body.has-yt-selection [class*="scrollBtn"],
+  body.has-yt-selection #chatbot-root {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(20px) !important;
+    transition: opacity 0.25s ease, transform 0.25s ease !important;
+  }
+}
+

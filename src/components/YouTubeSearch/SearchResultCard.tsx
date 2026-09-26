@@ -27,15 +27,24 @@ export default function SearchResultCard({
     <div
       className={`${styles.resultCard} ${isSelected ? styles.resultCardSelected : ''}`}
       onClick={() => onToggleSelect(video)}
+      role="button"
+      tabIndex={0}
+      aria-label={`Select ${video.title}`}
+      onKeyDown={(e) => {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          onToggleSelect(video);
+        }
+      }}
     >
-      {/* Thumbnail Container */}
+      {/* Thumbnail Container (Left) */}
       <div
         className={styles.cardThumbnailContainer}
         onClick={(e) => {
           e.stopPropagation();
           onPreview(video);
         }}
-        title="Click to preview video"
+        title="Click to preview video in floating mini-player"
       >
         {!imageLoaded && !imageFailed && <div className={styles.skeletonThumb} />}
 
@@ -59,31 +68,17 @@ export default function SearchResultCard({
         {/* Hover play overlay */}
         <div className={styles.cardPlayOverlay}>
           <div className={styles.cardPlayCircle}>
-            <Play size={20} fill="#0284c7" strokeWidth={0} style={{ marginLeft: '3px' }} />
+            <Play size={18} fill="#2563eb" strokeWidth={0} style={{ marginLeft: '2px' }} />
           </div>
         </div>
       </div>
 
-      {/* Card Body */}
+      {/* Card Body (Right) */}
       <div className={styles.cardBody}>
-        {/* Selection checkbox + title */}
-        <div className={styles.cardSelectionRow}>
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onToggleSelect(video)}
-            onClick={(e) => e.stopPropagation()}
-            className={styles.cardCheckbox}
-            aria-label={`Select ${video.title}`}
-          />
-          <h4
-            className={styles.cardTitle}
-            title={video.title}
-            onClick={() => onToggleSelect(video)}
-          >
-            {video.title}
-          </h4>
-        </div>
+        {/* Title */}
+        <h4 className={styles.cardTitle} title={video.title}>
+          {video.title}
+        </h4>
 
         {/* Channel and Metadata */}
         <div className={styles.cardMetaRow}>
@@ -110,9 +105,9 @@ export default function SearchResultCard({
             type="button"
             className={styles.previewBtn}
             onClick={() => onPreview(video)}
-            title="Preview video without downloading"
+            title="Preview video in mini-player"
           >
-            <Play size={13} fill="currentColor" strokeWidth={0} />
+            <Play size={12} fill="currentColor" strokeWidth={0} />
             <span>Preview</span>
           </button>
 
@@ -125,12 +120,12 @@ export default function SearchResultCard({
           >
             {isSelected ? (
               <>
-                <CheckSquare size={14} strokeWidth={2.2} />
+                <CheckSquare size={13} strokeWidth={2.4} />
                 <span>Selected</span>
               </>
             ) : (
               <>
-                <Square size={14} strokeWidth={2} />
+                <Square size={13} strokeWidth={2} />
                 <span>Select</span>
               </>
             )}

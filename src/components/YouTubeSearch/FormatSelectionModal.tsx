@@ -267,43 +267,40 @@ export default function FormatSelectionModal({
               </strong>
             </div>
 
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
-              Expected:
-            </div>
-
-            {/* Per-video expected resolution list */}
-            <div className={styles.formatPerVideoList}>
-              {selectedVideos.map((video, idx) => {
-                const exp = getItemExpectedQuality(video);
-                return (
-                  <div key={video.id} className={styles.formatPerVideoItem}>
-                    <span className={styles.formatPerVideoTitle} title={video.title}>
-                      {idx + 1}. {video.title}
-                    </span>
-                    {exp.isUnavailable ? (
-                      <span className={styles.formatFallbackBadge} style={{ background: '#fef2f2', color: '#dc2626' }}>
-                        Unavailable (Will skip)
+            <details className={styles.formatPerVideoDetails}>
+              <summary className={styles.formatDetailsSummary}>
+                <span>View {selectedVideos.length} videos format preview</span>
+              </summary>
+              <div className={styles.formatPerVideoList}>
+                {selectedVideos.map((video, idx) => {
+                  const exp = getItemExpectedQuality(video);
+                  return (
+                    <div key={video.id} className={styles.formatPerVideoItem}>
+                      <span className={styles.formatPerVideoTitle} title={video.title}>
+                        {idx + 1}. {video.title}
                       </span>
-                    ) : exp.isFallback ? (
-                      <span
-                        className={styles.formatFallbackBadge}
-                        title={`${targetQuality} unavailable for this video; using Best Available (${exp.quality})`}
-                      >
-                        {targetQuality} unavailable &rarr; {exp.quality}
-                      </span>
-                    ) : (
-                      <span className={styles.formatQualityBadge}>&rarr; {exp.quality}</span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      {exp.isUnavailable ? (
+                        <span className={styles.formatFallbackBadge} style={{ background: '#fef2f2', color: '#dc2626' }}>
+                          Skip
+                        </span>
+                      ) : exp.isFallback ? (
+                        <span className={styles.formatFallbackBadge}>
+                          {exp.quality}
+                        </span>
+                      ) : (
+                        <span className={styles.formatQualityBadge}>{exp.quality}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
 
             {hasAnyFallback && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#b45309', marginTop: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#b45309', marginTop: '8px' }}>
                 <AlertTriangle size={14} color="#f59e0b" style={{ flexShrink: 0 }} />
                 <span>
-                  Videos where {targetQuality} is not published by creator will use their highest real available quality.
+                  Videos where {targetQuality} is unavailable will use their highest real quality.
                 </span>
               </div>
             )}
@@ -315,7 +312,8 @@ export default function FormatSelectionModal({
             Cancel
           </button>
           <button type="button" className={styles.modalPrimaryBtn} onClick={handleStart}>
-            Start Download ({count})
+            <Download size={16} />
+            <span>Start Download ({count})</span>
           </button>
         </div>
       </div>
