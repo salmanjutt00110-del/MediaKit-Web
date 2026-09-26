@@ -208,17 +208,9 @@ export default function BatchDownloadQueueModal({
         downloadUrl: rawDlUrl,
       });
 
-      // Format final URL
-      const isInternal =
-        rawDlUrl.startsWith('/api/download/file') ||
-        rawDlUrl.startsWith('/api/download/serve');
-      const isDirectCdn =
-        rawDlUrl.includes('savenow.to') ||
-        rawDlUrl.includes('loader.to');
-
       const safeBaseTitle = item.filename.replace(/\.[^/.]+$/, '');
       const ext = item.isAudio ? 'mp3' : 'mp4';
-      const finalDownloadUrl = (isInternal || isDirectCdn)
+      const finalDownloadUrl = (rawDlUrl.startsWith('/api/download/file') || rawDlUrl.startsWith('/api/download/serve'))
         ? rawDlUrl
         : `/api/download/file?url=${encodeURIComponent(rawDlUrl)}&title=${encodeURIComponent(safeBaseTitle)}&ext=${ext}`;
 

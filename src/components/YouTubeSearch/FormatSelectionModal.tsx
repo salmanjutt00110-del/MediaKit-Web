@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Sparkles, Video, Music, Check, Info, AlertTriangle } from 'lucide-react';
+import { X, Sparkles, Video, Music, Check, Info, AlertTriangle, Download } from 'lucide-react';
 import { YouTubeSearchResult } from '@/lib/youtube-search-service';
 import styles from './YouTubeSearch.module.css';
 

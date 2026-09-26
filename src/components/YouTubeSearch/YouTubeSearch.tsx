@@ -107,7 +107,7 @@ export default function YouTubeSearch() {
 
   // Manage body class for mobile floating element collision prevention
   useEffect(() => {
-    if (selectedCount > 0) {
+    if (selectedMap.size > 0) {
       document.body.classList.add('has-yt-selection');
     } else {
       document.body.classList.remove('has-yt-selection');
@@ -115,7 +115,7 @@ export default function YouTubeSearch() {
     return () => {
       document.body.classList.remove('has-yt-selection');
     };
-  }, [selectedCount]);
+  }, [selectedMap.size]);
 
   // Fetch suggestions with debounce
   useEffect(() => {
@@ -169,7 +169,7 @@ export default function YouTubeSearch() {
 
       const params = new URLSearchParams({
         q: clean,
-        maxResults: '16',
+        maxResults: '20',
         order: customSort || sortBy,
         duration: customDuration || durationFilter,
       });
@@ -581,13 +581,16 @@ export default function YouTubeSearch() {
                 key={video.id}
                 video={video}
                 isSelected={selectedMap.has(video.id)}
+                isPreviewing={previewVideo?.id === video.id}
                 onToggleSelect={handleToggleSelect}
-                onPreview={(v) => setPreviewVideo(v)}
+                onTogglePreview={(v) => {
+                  setPreviewVideo((prev) => (prev?.id === v.id ? null : v));
+                }}
               />
             ))}
           </div>
 
-          {/* Show More Videos Button & Infinite Scroll Sentinel */}
+          {/* See More Videos Button & Infinite Scroll Sentinel */}
           {nextPageToken && (
             <div className={styles.showMoreContainer}>
               <button
@@ -602,13 +605,13 @@ export default function YouTubeSearch() {
               >
                 {isLoadingMore ? (
                   <>
-                    <Loader2 size={16} className={styles.loadingSpinnerSmall} />
-                    <span>Loading more videos...</span>
+                    <Loader2 size={18} className={styles.loadingSpinnerSmall} />
+                    <span>Loading next page... (مزید ویڈیوز لوڈ ہو رہی ہیں)</span>
                   </>
                 ) : (
                   <>
-                    <ChevronDown size={18} />
-                    <span>Show More Videos (مزید نتائج دیکھیں)</span>
+                    <ChevronDown size={20} strokeWidth={2.4} />
+                    <span>See More Videos / مزید نتائج دیکھیں</span>
                   </>
                 )}
               </button>
@@ -689,14 +692,6 @@ export default function YouTubeSearch() {
             </button>
           </div>
         </div>
-      )}
-
-      {/* 7. Video Preview Modal */}
-      {previewVideo && (
-        <VideoPreviewModal
-          video={previewVideo}
-          onClose={() => setPreviewVideo(null)}
-        />
       )}
 
       {/* 8. Format Selection Modal */}

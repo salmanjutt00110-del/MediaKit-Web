@@ -81,12 +81,6 @@ export async function GET(request: NextRequest) {
       return Response.redirect(serveUrl.toString(), 302);
     }
 
-    // Direct high-speed CDN streams (savenow.to, loader.to) serve authenticated attachments directly.
-    // Redirect cleanly (302) to bypass serverless memory/payload limits and provide maximum ISP bandwidth.
-    if (targetUrl.includes('savenow.to') || targetUrl.includes('loader.to')) {
-      return Response.redirect(targetUrl, 302);
-    }
-
     const reqHost = request.headers.get('host')?.toLowerCase();
     const isSelfHost = reqHost && (targetUrl.includes(`://${reqHost}/`) || targetUrl.startsWith('/'));
 

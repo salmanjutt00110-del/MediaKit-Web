@@ -1,22 +1,24 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Play, Check, Square, CheckSquare } from 'lucide-react';
+import { Play, Check, Square, CheckSquare, X } from 'lucide-react';
 import { YouTubeSearchResult } from '@/lib/youtube-search-service';
 import styles from './YouTubeSearch.module.css';
 
 interface SearchResultCardProps {
   video: YouTubeSearchResult;
   isSelected: boolean;
+  isPreviewing: boolean;
   onToggleSelect: (video: YouTubeSearchResult) => void;
-  onPreview: (video: YouTubeSearchResult) => void;
+  onTogglePreview: (video: YouTubeSearchResult) => void;
 }
 
 export default function SearchResultCard({
   video,
   isSelected,
+  isPreviewing,
   onToggleSelect,
-  onPreview,
+  onTogglePreview,
 }: SearchResultCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -25,7 +27,9 @@ export default function SearchResultCard({
 
   return (
     <div
-      className={`${styles.resultCard} ${isSelected ? styles.resultCardSelected : ''}`}
+      className={`${styles.resultCard} ${isSelected ? styles.resultCardSelected : ''} ${
+        isPreviewing ? styles.resultCardPreviewing : ''
+      }`}
       onClick={() => onToggleSelect(video)}
       role="button"
       tabIndex={0}
@@ -37,43 +41,73 @@ export default function SearchResultCard({
         }
       }}
     >
-      {/* Thumbnail Container (Left) */}
+      {/* Thumbnail or Inline Player Container */}
       <div
-        className={styles.cardThumbnailContainer}
+        className={`${styles.cardThumbnailContainer} ${
+          isPreviewing ? styles.cardThumbnailWithPlayer : ''
+        }`}
         onClick={(e) => {
-          e.stopPropagation();
-          onPreview(video);
+          if (!isPreviewing) {
+            e.stopPropagation();
+            onTogglePreview(video);
+          }
         }}
-        title="Click to preview video in floating mini-player"
+        title={isPreviewing ? 'Video playing inline' : 'Click to preview right here'}
       >
-        {!imageLoaded && !imageFailed && <div className={styles.skeletonThumb} />}
-
-        <img
-          src={imageFailed ? fallbackThumb : video.thumbnailUrl}
-          alt={video.title}
-          className={styles.cardThumbnailImage}
-          loading="lazy"
-          onLoad={() => setImageLoaded(true)}
-          onError={() => {
-            if (!imageFailed) {
-              setImageFailed(true);
-            }
-          }}
-          style={{ opacity: imageLoaded || imageFailed ? 1 : 0 }}
-        />
-
-        {/* Duration badge */}
-        {video.duration && <span className={styles.cardDurationBadge}>{video.duration}</span>}
-
-        {/* Hover play overlay */}
-        <div className={styles.cardPlayOverlay}>
-          <div className={styles.cardPlayCircle}>
-            <Play size={18} fill="#2563eb" strokeWidth={0} style={{ marginLeft: '2px' }} />
+        {isPreviewing ? (
+          <div className={styles.inlinePlayerWrapper} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className={styles.closeInlinePreviewBtn}
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePreview(video);
+              }}
+              title="Close preview"
+            >
+              <X size={12} strokeWidth={2.5} />
+              <span>Close</span>
+            </button>
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${video.id}?autoplay=1&enablejsapi=1&rel=0&modestbranding=1&playsinline=1`}
+              title={video.title}
+              className={styles.inlinePlayerIframe}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
           </div>
-        </div>
+        ) : (
+          <>
+            {!imageLoaded && !imageFailed && <div className={styles.skeletonThumb} />}
+
+            <img
+              src={imageFailed ? fallbackThumb : video.thumbnailUrl}
+              alt={video.title}
+              className={styles.cardThumbnailImage}
+              loading="lazy"
+              onLoad={() => setImageLoaded(true)}
+              onError={() => {
+                if (!imageFailed) {
+                  setImageFailed(true);
+                }
+              }}
+              style={{ opacity: imageLoaded || imageFailed ? 1 : 0 }}
+            />
+
+            {/* Duration badge */}
+            {video.duration && <span className={styles.cardDurationBadge}>{video.duration}</span>}
+
+            {/* Hover play overlay */}
+            <div className={styles.cardPlayOverlay}>
+              <div className={styles.cardPlayCircle}>
+                <Play size={18} fill="#2563eb" strokeWidth={0} style={{ marginLeft: '2px' }} />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Card Body (Right) */}
+      {/* Card Body */}
       <div className={styles.cardBody}>
         {/* Title */}
         <h4 className={styles.cardTitle} title={video.title}>
@@ -103,12 +137,21 @@ export default function SearchResultCard({
         <div className={styles.cardFooterActions} onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
-            className={styles.previewBtn}
-            onClick={() => onPreview(video)}
-            title="Preview video in mini-player"
+            className={`${styles.previewBtn} ${isPreviewing ? styles.previewBtnActive : ''}`}
+            onClick={() => onTogglePreview(video)}
+            title={isPreviewing ? 'Stop preview' : 'Play video right here'}
           >
-            <Play size={12} fill="currentColor" strokeWidth={0} />
-            <span>Preview</span>
+            {isPreviewing ? (
+              <>
+                <X size={12} strokeWidth={2.5} />
+                <span>Stop</span>
+              </>
+            ) : (
+              <>
+                <Play size={12} fill="currentColor" strokeWidth={0} />
+                <span>Preview</span>
+              </>
+            )}
           </button>
 
           <button
