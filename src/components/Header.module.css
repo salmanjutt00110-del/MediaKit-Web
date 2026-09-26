@@ -270,6 +270,36 @@
   }
 }
 
+@media (max-width: 480px) {
+  .headerContainer {
+    height: 56px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .brandTagline {
+    display: none;
+  }
+
+  .fastFreeBtn {
+    display: none;
+  }
+
+  .brandName {
+    font-size: 1.15rem;
+  }
+
+  .actionIconBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .mobileMenuBtn {
+    width: 36px;
+    height: 36px;
+  }
+}
+
 /* Tools Dropdown Menu */
 .dropdownTrigger {
   display: flex;

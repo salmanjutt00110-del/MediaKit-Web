@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Play, Check, Square, CheckSquare, X } from 'lucide-react';
+import { Play, Check, Square, CheckSquare, X, Download } from 'lucide-react';
 import { YouTubeSearchResult } from '@/lib/youtube-search-service';
 import styles from './YouTubeSearch.module.css';
 
@@ -9,16 +9,22 @@ interface SearchResultCardProps {
   video: YouTubeSearchResult;
   isSelected: boolean;
   isPreviewing: boolean;
+  index?: number;
+  selectedCount?: number;
   onToggleSelect: (video: YouTubeSearchResult) => void;
   onTogglePreview: (video: YouTubeSearchResult) => void;
+  onDirectDownload: (video: YouTubeSearchResult) => void;
 }
 
 export default function SearchResultCard({
   video,
   isSelected,
   isPreviewing,
+  index = 0,
+  selectedCount = 0,
   onToggleSelect,
   onTogglePreview,
+  onDirectDownload,
 }: SearchResultCardProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
@@ -30,6 +36,9 @@ export default function SearchResultCard({
       className={`${styles.resultCard} ${isSelected ? styles.resultCardSelected : ''} ${
         isPreviewing ? styles.resultCardPreviewing : ''
       }`}
+      style={{
+        animationDelay: `${Math.min(index * 0.045, 0.5)}s`,
+      }}
       onClick={() => onToggleSelect(video)}
       role="button"
       tabIndex={0}
@@ -172,6 +181,26 @@ export default function SearchResultCard({
                 <span>Select</span>
               </>
             )}
+          </button>
+
+          <button
+            type="button"
+            className={`${styles.cardDirectDownloadBtn} ${
+              isSelected && selectedCount > 1 ? styles.cardDirectDownloadBtnBatch : ''
+            }`}
+            onClick={() => onDirectDownload(video)}
+            title={
+              isSelected && selectedCount > 1
+                ? `Download all ${selectedCount} selected videos`
+                : 'Download this video'
+            }
+          >
+            <Download size={13} strokeWidth={2.4} />
+            <span>
+              {isSelected && selectedCount > 1
+                ? `Download (${selectedCount})`
+                : 'Download'}
+            </span>
           </button>
         </div>
       </div>

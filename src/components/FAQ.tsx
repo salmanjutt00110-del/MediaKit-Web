@@ -11,39 +11,39 @@ interface FAQEntry {
 
 const faqList: FAQEntry[] = [
   {
+    question: 'Is MediaKit free to use in the United States and United Kingdom?',
+    answer:
+      'Yes, MediaKit is 100% free with no registration, paid tiers, or hidden subscriptions. Users in the US, UK, Canada, and globally can download unlimited videos and MP3 audio streams at full gigabit speeds.',
+  },
+  {
+    question: 'Can I download videos without watermark in HD 1080p and 4K?',
+    answer:
+      'Absolutely! MediaKit extracts the original source stream without watermarks, promotional stamps, or logos for TikTok, Instagram Reels, Facebook videos, and YouTube. High-resolution streams up to 1080p Full HD and 4K 60fps are fully supported.',
+  },
+  {
+    question: 'How fast are downloads from US and UK cloud servers?',
+    answer:
+      'Our distributed cloud architecture runs on high-speed edge nodes in North America (US East, US West) and Western Europe (London, UK). Video streams and audio muxing are handled with dedicated low-latency pipelines, delivering downloads in seconds.',
+  },
+  {
+    question: 'How do I save videos directly to iPhone Camera Roll or Android Gallery?',
+    answer:
+      'On iPhone (iOS Safari): paste your link into MediaKit, tap Download, tap the Safari address bar download arrow, open the MP4 file, tap the Share icon, and choose "Save Video" to place it into your Photos camera roll. On Android: files download directly into your device Downloads folder and appear in your Gallery automatically.',
+  },
+  {
+    question: 'Can I convert YouTube videos to 320kbps MP3 audio?',
+    answer:
+      'Yes! MediaKit includes a built-in high-bitrate audio extractor that converts YouTube videos into studio-grade 320kbps MP3 files, ideal for offline listening on mobile phones and cars.',
+  },
+  {
     question: 'What platforms does MediaKit support?',
     answer:
-      'MediaKit is built to support YouTube, TikTok, Facebook, and Instagram. When you enter a link, MediaKit identifies which platform it belongs to and handles extraction accordingly.',
+      'MediaKit supports YouTube (videos, Shorts, playlists), TikTok (no watermark), Instagram (Reels, stories, posts), Facebook (public videos, Reels), and Pinterest pins.',
   },
   {
-    question: 'Do I need to select a platform?',
+    question: 'Do I need to install any app or browser extension?',
     answer:
-      'No. MediaKit features smart auto-detection. You simply paste your link, and our URL analysis engine automatically recognizes the platform without any manual dropdown or button selection.',
-  },
-  {
-    question: 'What formats are available?',
-    answer:
-      'Available formats depend directly on what the media provider offers for that specific content (commonly MP4 video in various resolutions and MP3 audio). MediaKit only shows formats actually available from the provider.',
-  },
-  {
-    question: "Why can't some links be processed?",
-    answer:
-      'Links may fail to process if the URL is mistyped, the media was deleted, access is restricted by region, or the content violates platform terms. Ensure your link points directly to public media.',
-  },
-  {
-    question: 'Can private content be downloaded?',
-    answer:
-      'No. MediaKit strictly respects platform privacy and access controls. It does not bypass paywalls, authentication, or private account restrictions. Only publicly viewable content can be processed.',
-  },
-  {
-    question: 'Do I need an account?',
-    answer:
-      'No registration is required to use the basic downloader. You can paste public links and process media directly from the homepage.',
-  },
-  {
-    question: 'How does automatic platform detection work?',
-    answer:
-      'MediaKit analyzes the URL structure, host domain, path hierarchy, and query parameters to verify genuine platform signatures from YouTube, TikTok, Facebook, or Instagram, normalizing the link in real time.',
+      'No. MediaKit is 100% web-based and runs in any modern browser (Safari, Chrome, Firefox, Edge) on mobile and desktop without downloading any suspicious software or extensions.',
   },
 ];
 

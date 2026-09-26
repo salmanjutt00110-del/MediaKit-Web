@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Mail, MessageCircle, Send, CheckCircle2, Clock, Globe } from 'lucide-react';
-import { WhatsAppIcon, FacebookIcon } from './PlatformIcons';
+import { Mail, MessageCircle, Send, CheckCircle2, Clock, Globe, ShieldCheck, Headphones } from 'lucide-react';
+import { FacebookIcon } from './PlatformIcons';
 import styles from './ContactSection.module.css';
 
 export default function ContactSection() {
@@ -30,8 +30,8 @@ export default function ContactSection() {
         {/* Header */}
         <div className={styles.sectionHeader}>
           <div className={styles.badge}>
-            <MessageCircle size={14} />
-            <span>Direct Support</span>
+            <Headphones size={14} />
+            <span>Dedicated Support</span>
           </div>
           <h2 id="contact-heading" className={styles.sectionTitle}>
             Get in Touch With Us
@@ -44,35 +44,33 @@ export default function ContactSection() {
         <div className={styles.contactGrid}>
           {/* Left Column: Contact Methods */}
           <div className={styles.infoCol}>
-            {/* WhatsApp Quick Card */}
-            <div className={`${styles.channelCard} ${styles.whatsappCard}`}>
+            {/* Professional Helpdesk Support Card */}
+            <div className={`${styles.channelCard} ${styles.helpdeskCard}`}>
               <div className={styles.channelIconBox}>
-                <WhatsAppIcon size={28} color="#ffffff" />
+                <Headphones size={28} color="#ffffff" />
               </div>
               <div className={styles.channelDetails}>
-                <span className={styles.channelBadge}>Instant Chat</span>
-                <h3 className={styles.channelTitle}>WhatsApp Support</h3>
+                <span className={styles.channelBadge}>Instant Help</span>
+                <h3 className={styles.channelTitle}>24/7 Digital Assistant</h3>
                 <p className={styles.channelDesc}>
-                  Chat directly with our support team on WhatsApp at <strong>+92 310 0128702</strong> for instant query resolution.
+                  Encountered an issue with a video download, format conversion, or batch speed? Use our instant web form or the AI Help button below.
                 </p>
                 <a
-                  href="https://wa.me/923100128702?text=Hello%20MediaKit%20Support!%20I%20have%20a%20question."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.whatsappBtn}
+                  href="#contact-form"
+                  className={styles.helpdeskBtn}
                 >
-                  <WhatsAppIcon size={18} color="#ffffff" />
-                  <span>Chat (+92 310 0128702)</span>
+                  <MessageCircle size={16} color="#ffffff" />
+                  <span>Send Direct Feedback</span>
                 </a>
               </div>
             </div>
 
-            {/* Email & Facebook Channels */}
+            {/* Response Time & Community Channels */}
             <div className={styles.subChannelsGrid}>
               <div className={styles.miniCard}>
-                <div className={styles.miniIcon}><Mail size={20} /></div>
-                <h4 className={styles.miniTitle}>Email Us</h4>
-                <p className={styles.miniText}>support@mediakit-web.com</p>
+                <div className={styles.miniIcon}><Clock size={20} color="#2563eb" /></div>
+                <h4 className={styles.miniTitle}>Live Support</h4>
+                <p className={styles.miniText}>Instant AI Assistant Available</p>
               </div>
 
               <div className={styles.miniCard}>
@@ -103,7 +101,7 @@ export default function ContactSection() {
           </div>
 
           {/* Right Column: Interactive Contact Form */}
-          <div className={styles.formCol}>
+          <div className={styles.formCol} id="contact-form">
             <div className={styles.formCard}>
               <h3 className={styles.formTitle}>Send Us a Message</h3>
               <p className={styles.formSubtitle}>

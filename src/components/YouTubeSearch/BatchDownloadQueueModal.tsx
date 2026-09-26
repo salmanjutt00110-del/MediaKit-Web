@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   CheckCircle2,
@@ -60,6 +61,7 @@ export default function BatchDownloadQueueModal({
   formatConfig,
   onClose,
 }: BatchDownloadQueueModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [isDone, setIsDone] = useState(false);
@@ -68,6 +70,18 @@ export default function BatchDownloadQueueModal({
   const queueRef = useRef<QueueItem[]>([]);
   const isCanceledRef = useRef(false);
   const activeAbortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const downloadQueueRef = useRef<{ url: string; filename: string }[]>([]);
+  const isDispatchingRef = useRef(false);
+
+  // Body scroll lock on mount to maintain viewport focus
+  useEffect(() => {
+    setMounted(true);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
 
   // Generate safe sanitized filenames with unique duplicate numbering (Section 17)
   const generateUniqueFilenames = (videos: YouTubeSearchResult[], isAudio: boolean): string[] => {
@@ -129,6 +143,7 @@ export default function BatchDownloadQueueModal({
         ctrl.abort();
       }
       activeAbortControllersRef.current.clear();
+      downloadQueueRef.current = [];
     };
   }, []);
 
@@ -146,7 +161,6 @@ export default function BatchDownloadQueueModal({
       const a = document.createElement('a');
       a.href = url;
       a.setAttribute('download', filename);
-      a.rel = 'noopener noreferrer';
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
@@ -154,10 +168,31 @@ export default function BatchDownloadQueueModal({
         try {
           document.body.removeChild(a);
         } catch {}
-      }, 3000);
-    } catch {
-      window.open(url, '_blank');
+      }, 4000);
+    } catch (err) {
+      console.error('Download trigger error:', err);
     }
+  };
+
+  // Staggered browser download dispatcher: triggers 1 file every 1000ms to prevent browser socket drops
+  const enqueueBrowserDownload = (url: string, filename: string) => {
+    downloadQueueRef.current.push({ url, filename });
+    processDownloadDispatcher();
+  };
+
+  const processDownloadDispatcher = async () => {
+    if (isDispatchingRef.current) return;
+    isDispatchingRef.current = true;
+
+    while (downloadQueueRef.current.length > 0 && !isCanceledRef.current) {
+      const next = downloadQueueRef.current.shift();
+      if (next) {
+        triggerBrowserFileDownload(next.url, next.filename);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+
+    isDispatchingRef.current = false;
   };
 
   const processSingleItem = async (item: QueueItem): Promise<boolean> => {
@@ -170,12 +205,12 @@ export default function BatchDownloadQueueModal({
       // 1. Preparing stage
       updateItem(item.id, {
         status: 'preparing',
-        stageMessage: 'Preparing media request...',
+        stageMessage: 'Preparing request...',
       });
 
       if (isCanceledRef.current) return false;
 
-      // 2. Fetching & Processing stream
+      // 2. Fetching & Processing stream with fast client metadata fast-path
       updateItem(item.id, {
         status: 'fetching',
         stageMessage: 'Fetching media stream...',
@@ -187,6 +222,15 @@ export default function BatchDownloadQueueModal({
         body: JSON.stringify({
           url: item.video.videoUrl,
           formatId: item.formatId,
+          mediaInfo: {
+            id: item.video.id,
+            title: item.video.title,
+            author: item.video.channelTitle,
+            duration: item.video.duration,
+            thumbnailUrl: item.video.thumbnailUrl,
+            sourceUrl: item.video.videoUrl,
+            platform: 'youtube',
+          },
         }),
         signal: controller.signal,
       });
@@ -195,6 +239,16 @@ export default function BatchDownloadQueueModal({
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success || !data.data?.downloadUrl) {
+        // Auto-retry up to 2 times with a slight delay
+        if (item.retryCount < 2 && !isCanceledRef.current) {
+          updateItem(item.id, {
+            status: 'preparing',
+            stageMessage: 'Retrying stream connection...',
+            retryCount: item.retryCount + 1,
+          });
+          await new Promise((r) => setTimeout(r, 1000));
+          return processSingleItem({ ...item, retryCount: item.retryCount + 1 });
+        }
         throw new Error(data?.error?.message || 'Media stream generation failed');
       }
 
@@ -204,7 +258,7 @@ export default function BatchDownloadQueueModal({
       // 3. Downloading stage
       updateItem(item.id, {
         status: 'downloading',
-        stageMessage: 'Downloading...',
+        stageMessage: 'Saving...',
         downloadUrl: rawDlUrl,
       });
 
@@ -223,8 +277,8 @@ export default function BatchDownloadQueueModal({
         actualResolution: data.data.resolution || (item.isAudio ? 'Audio HQ' : item.formatId),
       });
 
-      // Automatically trigger direct browser file download
-      triggerBrowserFileDownload(finalDownloadUrl, item.filename);
+      // Safely enqueue into staggered download dispatcher
+      enqueueBrowserDownload(finalDownloadUrl, item.filename);
 
       return true;
     } catch (err: any) {
@@ -252,8 +306,8 @@ export default function BatchDownloadQueueModal({
     setIsRunning(true);
     setIsDone(false);
 
-    // Concurrency of 4 downloads simultaneously for rapid queue completion
-    const concurrency = 4;
+    // Controlled concurrency of 2 workers: yields ~1s per fetch, no socket exhaustion or rate limits
+    const concurrency = 2;
     let index = 0;
 
     const worker = async () => {
@@ -262,8 +316,8 @@ export default function BatchDownloadQueueModal({
         const item = items[currentIndex];
         if (item && item.status !== 'completed' && item.status !== 'cancelled') {
           await processSingleItem(item);
-          // Small 100ms interval between starting new queue tasks
-          await new Promise((r) => setTimeout(r, 100));
+          // 200ms spacing between starting new items
+          await new Promise((r) => setTimeout(r, 200));
         }
       }
     };
@@ -337,7 +391,9 @@ export default function BatchDownloadQueueModal({
 
   const totalProgressPercent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className={styles.modalOverlay} onClick={onClose} role="dialog" aria-modal="true">
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
         <div className={styles.bottomSheetHandle} aria-hidden="true" />
@@ -561,6 +617,7 @@ export default function BatchDownloadQueueModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

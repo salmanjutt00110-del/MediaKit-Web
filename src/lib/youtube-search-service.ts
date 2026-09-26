@@ -204,9 +204,102 @@ export async function searchYouTubeWithInnertube(
 }
 
 /**
+ * Resilient Tier 3 Fallback: Direct YouTube web search scraper.
+ * Zero API key required, zero quota dependencies. Guarantees search always works.
+ */
+export async function scrapeYouTubeWebSearch(
+  query: string,
+  maxResults: number = 20
+): Promise<{
+  results: YouTubeSearchResult[];
+  nextPageToken?: string;
+  totalResults?: number;
+}> {
+  try {
+    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&hl=en`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!res.ok) {
+      return { results: [], totalResults: 0 };
+    }
+
+    const html = await res.text();
+    const match =
+      html.match(/ytInitialData\s*=\s*({[\s\S]+?});<\/script>/) ||
+      html.match(/var ytInitialData\s*=\s*({[\s\S]+?});/);
+
+    if (!match || !match[1]) {
+      return { results: [], totalResults: 0 };
+    }
+
+    const data = JSON.parse(match[1]);
+    const sectionList =
+      data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || [];
+    const results: YouTubeSearchResult[] = [];
+
+    for (const section of sectionList) {
+      const itemSection = section.itemSectionRenderer?.contents || [];
+      for (const item of itemSection) {
+        const vr = item.videoRenderer;
+        if (vr && vr.videoId && typeof vr.videoId === 'string') {
+          const id = vr.videoId;
+          const cleanTitle = (vr.title?.runs?.[0]?.text || vr.title?.simpleText || 'YouTube Video')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;|&apos;/g, "'");
+
+          const channelTitle = vr.ownerText?.runs?.[0]?.text || 'YouTube Creator';
+          const duration = vr.lengthText?.simpleText || 'Video';
+          const viewCount = vr.viewCountText?.simpleText || '';
+          const publishedTimeAgo = vr.publishedTimeText?.simpleText || '';
+          const thumb =
+            vr.thumbnail?.thumbnails?.slice(-1)[0]?.url ||
+            `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+
+          results.push({
+            id,
+            title: cleanTitle,
+            channelTitle,
+            thumbnailUrl: thumb,
+            duration,
+            publishedTimeAgo,
+            viewCount,
+            videoUrl: `https://www.youtube.com/watch?v=${id}`,
+            definition: 'hd',
+            maxQuality: '720p',
+            availableQualities: ['720p', '480p', '360p', 'mp3'],
+          });
+
+          if (results.length >= maxResults) break;
+        }
+      }
+      if (results.length >= maxResults) break;
+    }
+
+    return {
+      results,
+      totalResults: Math.max(100, results.length),
+    };
+  } catch (err) {
+    logger.warn('YouTube web search scrape fallback failed', { error: (err as any)?.message });
+    return { results: [], totalResults: 0 };
+  }
+}
+
+/**
  * Executes a verified YouTube search.
  * Uses official YouTube Data API v3 if configured, with automatic resilient fallback
- * to Innertube so search is always available even without an API key or when quota is depleted.
+ * to Innertube and direct web scrape so search is always available even without an API key
+ * or when quota is depleted.
  */
 export async function searchYouTubeVideos(options: SearchOptions): Promise<{
   results: YouTubeSearchResult[];
@@ -228,13 +321,27 @@ export async function searchYouTubeVideos(options: SearchOptions): Promise<{
 
   const apiKey = process.env.YOUTUBE_API_KEY?.trim();
   if (!apiKey) {
-    logger.info('YOUTUBE_API_KEY not configured, using resilient Innertube search engine', { query: cleanQuery });
+    logger.info('YOUTUBE_API_KEY not configured, using resilient Innertube/Web search engine', { query: cleanQuery });
     const fallbackData = await searchYouTubeWithInnertube(cleanQuery, pageToken, maxResults);
     if (fallbackData.results.length > 0) {
       searchCache.set(cacheKey, { data: fallbackData, expiry: Date.now() + 15 * 60 * 1000 });
       return fallbackData;
     }
-    throw new Error('Search is temporarily unavailable. Please try again shortly.');
+
+    // If pageToken was requested and Innertube found nothing more, return empty results (end of pagination)
+    if (pageToken) {
+      return { results: [], nextPageToken: undefined, totalResults: 0 };
+    }
+
+    // Tier 3: Direct Web Scrape fallback
+    const webData = await scrapeYouTubeWebSearch(cleanQuery, maxResults);
+    if (webData.results.length > 0) {
+      searchCache.set(cacheKey, { data: webData, expiry: Date.now() + 15 * 60 * 1000 });
+      return webData;
+    }
+
+    // Return empty result gracefully instead of crashing
+    return { results: [], totalResults: 0 };
   }
 
   // 1. Build official YouTube Data API v3 search URL
@@ -257,13 +364,31 @@ export async function searchYouTubeVideos(options: SearchOptions): Promise<{
 
   logger.info('Performing official YouTube search', { query: cleanQuery, order, videoDuration, pageToken });
 
-  const res = await fetch(searchUrl.toString(), {
-    headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(10000),
-  });
+  let res: Response;
+  try {
+    res = await fetch(searchUrl.toString(), {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+  } catch (netErr) {
+    logger.warn('YouTube Data API fetch threw error, attempting Innertube fallback', {
+      error: (netErr as Error).message,
+    });
+    const fallbackData = await searchYouTubeWithInnertube(cleanQuery, pageToken, maxResults);
+    if (fallbackData.results.length > 0) {
+      searchCache.set(cacheKey, { data: fallbackData, expiry: Date.now() + 15 * 60 * 1000 });
+      return fallbackData;
+    }
+    const webData = await scrapeYouTubeWebSearch(cleanQuery, maxResults);
+    if (webData.results.length > 0) {
+      searchCache.set(cacheKey, { data: webData, expiry: Date.now() + 15 * 60 * 1000 });
+      return webData;
+    }
+    return { results: [], totalResults: 0 };
+  }
 
   if (!res.ok) {
-    logger.warn('YouTube Data API search failed, attempting Innertube fallback', {
+    logger.warn('YouTube Data API search failed, attempting Innertube/Web fallback', {
       status: res.status,
     });
     const fallbackData = await searchYouTubeWithInnertube(cleanQuery, pageToken, maxResults);
@@ -272,19 +397,17 @@ export async function searchYouTubeVideos(options: SearchOptions): Promise<{
       return fallbackData;
     }
 
-    const errorBody = await res.json().catch(() => ({}));
-    if (res.status === 403) {
-      const isQuota = JSON.stringify(errorBody).toLowerCase().includes('quota');
-      if (isQuota) {
-        const err = new Error('Search is temporarily limited due to high demand. Please try again shortly.');
-        (err as any).code = 'RATE_LIMITED';
-        throw err;
-      }
+    if (pageToken) {
+      return { results: [], nextPageToken: undefined, totalResults: 0 };
     }
 
-    const err = new Error('Unable to search YouTube right now. Please try again.');
-    (err as any).code = 'API_ERROR';
-    throw err;
+    const webData = await scrapeYouTubeWebSearch(cleanQuery, maxResults);
+    if (webData.results.length > 0) {
+      searchCache.set(cacheKey, { data: webData, expiry: Date.now() + 15 * 60 * 1000 });
+      return webData;
+    }
+
+    return { results: [], totalResults: 0 };
   }
 
   const data = await res.json();

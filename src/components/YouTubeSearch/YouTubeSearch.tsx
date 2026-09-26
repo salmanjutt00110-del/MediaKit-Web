@@ -184,34 +184,59 @@ export default function YouTubeSearch() {
         if (code === 'RATE_LIMITED') {
           msg = 'Search is temporarily limited. Please try again shortly.';
         }
-        setError({ code, message: msg });
-        if (!append) setResults([]);
-      } else {
-        setError(null);
-        if (append) {
-          // Append without duplicate IDs
-          setResults((prev) => {
-            const existingIds = new Set(prev.map((v) => v.id));
-            const newUnique = (data.results || []).filter((v: YouTubeSearchResult) => !existingIds.has(v.id));
-            return [...prev, ...newUnique];
-          });
+        if (!append) {
+          setError({ code, message: msg });
+          setResults([]);
         } else {
+          // Pagination reached the end or failed quietly - never destroy already loaded results or show error banner
+          setNextPageToken(undefined);
+        }
+      } else {
+        if (!append) {
+          setError(null);
           setResults(data.results || []);
+        } else {
+          // Append without duplicate IDs
+          if (!data.results || data.results.length === 0) {
+            setNextPageToken(undefined);
+          } else {
+            setResults((prev) => {
+              const existingIds = new Set(prev.map((v) => v.id));
+              const newUnique = (data.results || []).filter((v: YouTubeSearchResult) => !existingIds.has(v.id));
+              return [...prev, ...newUnique];
+            });
+          }
         }
         setNextPageToken(data.nextPageToken || undefined);
       }
     } catch {
-      setError({
-        code: 'NETWORK_ERROR',
-        message: 'Check your connection and try again.',
-      });
-      if (!append) setResults([]);
+      if (!append) {
+        setError({
+          code: 'NETWORK_ERROR',
+          message: 'Check your connection and try again.',
+        });
+        setResults([]);
+      } else {
+        setNextPageToken(undefined);
+      }
     } finally {
       if (slowTimerRef.current) clearTimeout(slowTimerRef.current);
       setIsLoading(false);
       setIsSlow(false);
       setIsLoadingMore(false);
     }
+  };
+
+  const handleDirectDownload = (video: YouTubeSearchResult) => {
+    // If clicking Download on a video that is already part of selection, keep all selected videos!
+    if (selectedMap.has(video.id) && selectedMap.size > 1) {
+      setShowFormatModal(true);
+      return;
+    }
+
+    // Otherwise, select this specific video and open format modal
+    setSelectedMap(new Map([[video.id, video]]));
+    setShowFormatModal(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -435,8 +460,18 @@ export default function YouTubeSearch() {
       {/* 2. Global Loading Status */}
       {isLoading && (
         <div className={styles.statusMessageBanner}>
+          <div className={styles.pulseDot} />
           <Loader2 size={18} className={styles.loadingSpinnerSmall} />
-          <span>{isSlow ? 'Still searching YouTube...' : 'Searching YouTube...'}</span>
+          <div className={styles.statusTextGroup}>
+            <span className={styles.statusMainText}>
+              {isSlow ? 'Searching YouTube streams...' : 'Searching YouTube videos...'}
+            </span>
+            <span className={styles.statusSubText}>
+              {isSlow
+                ? 'Connecting to YouTube servers for high-quality media streams, please wait a moment...'
+                : 'Fetching authentic HD videos and direct media formats...'}
+            </span>
+          </div>
         </div>
       )}
 
@@ -515,43 +550,50 @@ export default function YouTubeSearch() {
           </div>
 
           <div className={styles.selectionControls}>
-            {selectedCount > 0 && (
-              <span className={styles.selectionCountBadge}>
-                {selectedCount} {selectedCount === 1 ? 'video selected' : 'videos selected'}
-              </span>
-            )}
+            <div className={styles.selectionInfoPills}>
+              {selectedCount > 0 ? (
+                <span className={styles.selectionCountBadge}>
+                  {selectedCount} {selectedCount === 1 ? 'selected' : 'selected'}
+                </span>
+              ) : (
+                <span className={styles.selectionHintBadge}>
+                  Select videos
+                </span>
+              )}
 
+              <button
+                type="button"
+                className={styles.textActionBtn}
+                onClick={handleSelectAll}
+                title="Select all loaded results"
+              >
+                Select All
+              </button>
+
+              {selectedCount > 0 && (
+                <button
+                  type="button"
+                  className={styles.textActionBtn}
+                  onClick={handleClearSelection}
+                  title="Clear all selections"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+
+            {/* Prominent Action Download Button - ALWAYS clearly visible on Mobile & Desktop */}
             <button
               type="button"
-              className={styles.textActionBtn}
-              onClick={handleSelectAll}
-              title="Select all loaded results"
-            >
-              Select All
-            </button>
-
-            <button
-              type="button"
-              className={styles.textActionBtn}
-              onClick={handleClearSelection}
-              disabled={selectedCount === 0}
-              title="Clear all selections"
-            >
-              Clear All
-            </button>
-
-            {/* Desktop Download Selected Button (Section 4) */}
-            <button
-              type="button"
-              className={styles.desktopDownloadBtn}
+              className={`${styles.actionDownloadBtn} ${selectedCount > 0 ? styles.actionDownloadBtnActive : ''}`}
               disabled={selectedCount === 0}
               onClick={() => setShowFormatModal(true)}
-              title={selectedCount === 0 ? 'Select at least 1 video to download' : `Download ${selectedCount} selected videos`}
+              title={selectedCount === 0 ? 'Select videos to download' : `Download ${selectedCount} selected videos`}
             >
-              <Download size={15} />
+              <Download size={15} strokeWidth={2.4} />
               <span>
                 {selectedCount > 0
-                  ? `Download Selected (${selectedCount})`
+                  ? `Download (${selectedCount})`
                   : 'Download Selected'}
               </span>
             </button>
@@ -576,16 +618,19 @@ export default function YouTubeSearch() {
       ) : results.length > 0 ? (
         <>
           <div className={styles.resultsGrid}>
-            {results.map((video) => (
+            {results.map((video, idx) => (
               <SearchResultCard
                 key={video.id}
                 video={video}
+                index={idx}
                 isSelected={selectedMap.has(video.id)}
+                selectedCount={selectedCount}
                 isPreviewing={previewVideo?.id === video.id}
                 onToggleSelect={handleToggleSelect}
                 onTogglePreview={(v) => {
                   setPreviewVideo((prev) => (prev?.id === v.id ? null : v));
                 }}
+                onDirectDownload={handleDirectDownload}
               />
             ))}
           </div>
@@ -606,12 +651,12 @@ export default function YouTubeSearch() {
                 {isLoadingMore ? (
                   <>
                     <Loader2 size={18} className={styles.loadingSpinnerSmall} />
-                    <span>Loading next page... (مزید ویڈیوز لوڈ ہو رہی ہیں)</span>
+                    <span>Loading more videos...</span>
                   </>
                 ) : (
                   <>
                     <ChevronDown size={20} strokeWidth={2.4} />
-                    <span>See More Videos / مزید نتائج دیکھیں</span>
+                    <span>Load More Results</span>
                   </>
                 )}
               </button>
@@ -640,30 +685,77 @@ export default function YouTubeSearch() {
         </div>
       ) : null}
 
-      {/* 5. Comprehensive How to Use Guide */}
+      {/* 5. Comprehensive How to Use Guide - International SaaS English */}
       <div className={styles.howToUse}>
-        <span className={styles.howToUseTitle}>📖 یوٹیوب ڈاؤنلوڈر استعمال کرنے کا طریقہ (How to Use)</span>
-        <div className={styles.howToUseSteps}>
-          <div className={styles.howToUseStep}>
-            <span className={styles.howToUseStepNum}>1</span>
-            <span><strong>سرچ کریں (Search):</strong> اوپر سرچ بار میں کوئی بھی لفظ (مثلاً نعت، بیان، تلاوت یا گانا) لکھ کر سرچ کریں۔</span>
+        <div className={styles.howToUseHeader}>
+          <div className={styles.howToUseIconPill}>
+            <Sparkles size={15} />
           </div>
-          <div className={styles.howToUseStep}>
-            <span className={styles.howToUseStepNum}>2</span>
-            <span><strong>سلیکٹ کریں (Select):</strong> مطلوبہ ویڈیوز کے کارڈ یا 'Select' بٹن پر ٹیپ کریں، ایک ساتھ متعدد ویڈیوز منتخب ہو جائیں گی۔</span>
+          <div className={styles.howToUseTitleGroup}>
+            <span className={styles.howToUseTitle}>HOW TO DOWNLOAD IN 4 SIMPLE STEPS</span>
+            <span className={styles.howToUseSubtitle}>Fast, high-definition, and 100% free with no watermarks</span>
           </div>
-          <div className={styles.howToUseStep}>
-            <span className={styles.howToUseStepNum}>3</span>
-            <span><strong>ڈاؤن لوڈ (Download):</strong> نیچے فلوٹنگ بار میں 'Download Selected' دبائیں اور MP4 (ویڈیو) یا MP3 (آڈیو) کا انتخاب کریں۔</span>
+        </div>
+        <div className={styles.howToUseGrid}>
+          <div className={styles.howToUseCard}>
+            <div className={styles.howToUseStepNum}>1</div>
+            <div className={styles.howToUseCardContent}>
+              <strong className={styles.howToUseStepTitle}>Search Video</strong>
+              <p className={styles.howToUseStepDesc}>Type any video name, artist, channel, or topic into the search bar above.</p>
+            </div>
           </div>
-          <div className={styles.howToUseStep}>
-            <span className={styles.howToUseStepNum}>4</span>
-            <span><strong>مزید رزلٹس (Show More):</strong> مزید ویڈیوز دیکھنے کے لیے نیچے اسکرول کریں یا 'Show More Videos' بٹن پر کلک کریں۔</span>
+          <div className={styles.howToUseCard}>
+            <div className={styles.howToUseStepNum}>2</div>
+            <div className={styles.howToUseCardContent}>
+              <strong className={styles.howToUseStepTitle}>Instant or Batch Select</strong>
+              <p className={styles.howToUseStepDesc}>Tap <strong>Download</strong> for one-click save, or <strong>Select</strong> multiple videos to download together.</p>
+            </div>
+          </div>
+          <div className={styles.howToUseCard}>
+            <div className={styles.howToUseStepNum}>3</div>
+            <div className={styles.howToUseCardContent}>
+              <strong className={styles.howToUseStepTitle}>Pick Preferred Format</strong>
+              <p className={styles.howToUseStepDesc}>Choose <strong>Best Available HD</strong> (1080p / 720p), universal <strong>MP4</strong>, or high-bitrate <strong>MP3</strong> audio.</p>
+            </div>
+          </div>
+          <div className={styles.howToUseCard}>
+            <div className={styles.howToUseStepNum}>4</div>
+            <div className={styles.howToUseCardContent}>
+              <strong className={styles.howToUseStepTitle}>Direct Device Save</strong>
+              <p className={styles.howToUseStepDesc}>Your video or audio file saves straight to your device&apos;s Downloads folder instantly.</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* 6. Sticky Action Bar Spacer & Bar */}
+      {/* 6. Persistent Floating Side Action Button (Always travels with scroll on mobile & desktop) */}
+      {selectedCount > 0 && (
+        <div className={styles.floatingFabContainer} role="region" aria-label="Floating download actions">
+          <button
+            type="button"
+            className={styles.floatingFabBtn}
+            onClick={() => setShowFormatModal(true)}
+            aria-label={`Download all ${selectedCount} selected videos`}
+            title={`Download all ${selectedCount} selected videos`}
+          >
+            <div className={styles.fabPulseGlow} />
+            <Download size={18} strokeWidth={2.6} />
+            <span className={styles.fabMainLabel}>Download All</span>
+            <span className={styles.fabCountPill}>{selectedCount}</span>
+          </button>
+          <button
+            type="button"
+            className={styles.floatingFabClearBtn}
+            onClick={handleClearSelection}
+            title="Clear all selections"
+            aria-label="Clear all selections"
+          >
+            <X size={15} strokeWidth={2.5} />
+          </button>
+        </div>
+      )}
+
+      {/* 7. Docked Bottom Action Bar */}
       {selectedCount > 0 && <div className={styles.stickyBarSpacer} aria-hidden="true" />}
       {selectedCount > 0 && (
         <div className={styles.stickyActionBar} role="region" aria-label="Batch actions">
@@ -688,7 +780,7 @@ export default function YouTubeSearch() {
               onClick={() => setShowFormatModal(true)}
             >
               <Download size={16} />
-              <span>Download Selected ({selectedCount})</span>
+              <span>Download All ({selectedCount})</span>
             </button>
           </div>
         </div>

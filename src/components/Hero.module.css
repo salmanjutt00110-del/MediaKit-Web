@@ -264,15 +264,9 @@
     margin-bottom: 0;
   }
 
-  /* 3D Composition Artwork on Mobile — Balanced & Elegant */
+  /* Decorative Artwork Hidden on Mobile to prioritize instant download input above the fold */
   .visualWrapper {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: auto;
-    width: 100%;
-    margin-top: 6px;
-    margin-bottom: 6px;
+    display: none;
   }
 }
 

@@ -211,7 +211,7 @@ export class YouTubeMetadataProvider {
 }
 
 /**
- * Fetches high-definition video or audio stream via the Savenow conversion engine.
+ * Fetches high-definition video or audio stream via the Savenow / Loader conversion engine.
  * Generates direct CDN download URLs with Content-Disposition attachments.
  */
 async function fetchSavenowStream(
@@ -233,70 +233,77 @@ async function fetchSavenowStream(
     ? '360'
     : '1080';
 
-  try {
-    onProgress?.({ percent: 25, stage: 'Connecting to media engine...' });
-    const initUrl = `https://p.savenow.to/ajax/download.php?format=${targetFmt}&url=${encodeURIComponent(canonicalUrl)}`;
-    const initRes = await fetch(initUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        Referer: 'https://loader.to/',
-      },
-      signal: AbortSignal.timeout(12000),
-    });
+  const mirrors = [
+    {
+      initUrl: `https://p.savenow.to/ajax/download.php?format=${targetFmt}&url=${encodeURIComponent(canonicalUrl)}`,
+      referer: 'https://loader.to/',
+    },
+    {
+      initUrl: `https://loader.to/ajax/download.php?format=${targetFmt}&url=${encodeURIComponent(canonicalUrl)}`,
+      referer: 'https://loader.to/',
+    },
+  ];
 
-    if (!initRes.ok) return null;
-    const init = await initRes.json().catch(() => null);
-    if (!init || !init.success) return null;
+  for (const mirror of mirrors) {
+    try {
+      onProgress?.({ percent: 25, stage: 'Connecting to media engine...' });
+      const initRes = await fetch(mirror.initUrl, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Referer: mirror.referer,
+        },
+        signal: AbortSignal.timeout(6000),
+      });
 
-    if (init.download_url) {
-      onProgress?.({ percent: 100, stage: 'Stream ready ✓' });
-      return init.download_url;
+      if (!initRes.ok) continue;
+      const init = await initRes.json().catch(() => null);
+      if (!init || !init.success) continue;
+
+      if (init.download_url) {
+        onProgress?.({ percent: 100, stage: 'Stream ready ✓' });
+        return init.download_url;
+      }
+
+      if (!init.progress_url) continue;
+
+      // Fast polling with 400ms interval (max 10 iterations = ~4s max per mirror)
+      for (let i = 0; i < 10; i++) {
+        await new Promise((r) => setTimeout(r, 400));
+        const pct = Math.min(95, 30 + i * 6.5);
+        onProgress?.({ percent: pct, stage: 'Preparing media stream...' });
+
+        try {
+          const pRes = await fetch(init.progress_url, {
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+              Referer: mirror.referer,
+            },
+            signal: AbortSignal.timeout(4000),
+          });
+
+          if (!pRes.ok) continue;
+          const p = await pRes.json().catch(() => null);
+          if (!p) continue;
+
+          if (p.download_url || (p.success === 1 && p.download_url)) {
+            onProgress?.({ percent: 100, stage: 'Download ready ✓' });
+            return p.download_url;
+          }
+
+          if (p.text && typeof p.text === 'string' && p.text.toLowerCase().includes('error')) {
+            logger.warn('Savenow progress returned error', { text: p.text, canonicalUrl });
+            break;
+          }
+        } catch {}
+      }
+    } catch (err: unknown) {
+      logger.warn('fetchSavenowStream mirror attempt failed', {
+        error: (err as Error).message,
+        canonicalUrl,
+      });
     }
-
-    if (!init.progress_url) return null;
-
-    // Poll progress endpoint with fast 600ms interval for rapid stream detection
-    for (let i = 0; i < 30; i++) {
-      await new Promise((r) => setTimeout(r, 600));
-      const pct = Math.min(95, 30 + i * 2.5);
-      onProgress?.({ percent: pct, stage: 'Preparing media stream...' });
-
-      try {
-        const pRes = await fetch(init.progress_url, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            Referer: 'https://loader.to/',
-          },
-          signal: AbortSignal.timeout(8000),
-        });
-
-        if (!pRes.ok) continue;
-        const p = await pRes.json().catch(() => null);
-        if (!p) continue;
-
-        if (p.download_url) {
-          onProgress?.({ percent: 100, stage: 'Download ready ✓' });
-          return p.download_url;
-        }
-
-        if (p.success === 1 && p.download_url) {
-          onProgress?.({ percent: 100, stage: 'Download ready ✓' });
-          return p.download_url;
-        }
-
-        if (p.text && typeof p.text === 'string' && p.text.toLowerCase().includes('error')) {
-          logger.warn('Savenow progress returned error', { text: p.text, canonicalUrl });
-          return null;
-        }
-      } catch {}
-    }
-  } catch (err: unknown) {
-    logger.warn('fetchSavenowStream failed', {
-      error: (err as Error).message,
-      canonicalUrl,
-    });
   }
 
   return null;
@@ -513,72 +520,57 @@ export class YouTubeAdapter extends MediaProvider {
     // 2. Fetch authentic metadata via YouTubeMetadataProvider (official API key + oEmbed fallback)
     const baseMeta = await YouTubeMetadataProvider.getMetadata(videoId, canonicalUrl);
 
-    // 3. Extract genuinely available formats via YouTubeDownloadProvider
-    let realFormats: MediaFormat[] = [];
-    let detectedDuration = baseMeta.duration;
+    // 3. Fast high-compatibility formats (no blocking yt-dlp binary calls)
+    const detectedDuration = baseMeta.duration;
+    const realFormats: MediaFormat[] = [
+      {
+        id: '1080p',
+        format: 'mp4',
+        quality: '1080p Full HD',
+        resolution: '1920x1080',
+        hasAudio: true,
+        hasVideo: true,
+        container: 'mp4',
+      },
+      {
+        id: '720p',
+        format: 'mp4',
+        quality: '720p HD (Recommended)',
+        resolution: '1280x720',
+        hasAudio: true,
+        hasVideo: true,
+        container: 'mp4',
+      },
+      {
+        id: '480p',
+        format: 'mp4',
+        quality: '480p SD',
+        resolution: '854x480',
+        hasAudio: true,
+        hasVideo: true,
+        container: 'mp4',
+      },
+      {
+        id: '360p',
+        format: 'mp4',
+        quality: '360p Fast Download',
+        resolution: '640x360',
+        hasAudio: true,
+        hasVideo: true,
+        container: 'mp4',
+      },
+      {
+        id: 'mp3',
+        format: 'mp3',
+        quality: 'High Quality Audio (MP3)',
+        hasAudio: true,
+        hasVideo: false,
+        codec: 'mp3',
+        container: 'mp3',
+      },
+    ];
 
-    try {
-      const formatResult = await YouTubeDownloadProvider.getAvailableFormats(canonicalUrl);
-      if (formatResult.formats && formatResult.formats.length > 0) {
-        realFormats = formatResult.formats;
-      }
-      if (!detectedDuration && formatResult.duration) {
-        detectedDuration = formatResult.duration;
-      }
-    } catch (fmtErr: unknown) {
-      logger.warn('YouTube format extraction error', { videoId, error: (fmtErr as Error).message });
-    }
 
-    // Fallback: If format extraction returned empty, guarantee standard high-compatibility formats
-    if (realFormats.length === 0) {
-      realFormats = [
-        {
-          id: '1080p',
-          format: 'mp4',
-          quality: '1080p Full HD',
-          resolution: '1920x1080',
-          hasAudio: true,
-          hasVideo: true,
-          container: 'mp4',
-        },
-        {
-          id: '720p',
-          format: 'mp4',
-          quality: '720p HD (Recommended)',
-          resolution: '1280x720',
-          hasAudio: true,
-          hasVideo: true,
-          container: 'mp4',
-        },
-        {
-          id: '480p',
-          format: 'mp4',
-          quality: '480p SD',
-          resolution: '854x480',
-          hasAudio: true,
-          hasVideo: true,
-          container: 'mp4',
-        },
-        {
-          id: '360p',
-          format: 'mp4',
-          quality: '360p Fast Download',
-          resolution: '640x360',
-          hasAudio: true,
-          hasVideo: true,
-          container: 'mp4',
-        },
-        {
-          id: 'mp3',
-          format: 'mp3',
-          quality: 'High Quality Audio (MP3)',
-          hasAudio: true,
-          hasVideo: false,
-          codec: 'mp3',
-          container: 'mp3',
-        },
-      ];
-    }
 
     const resolved: MediaMetadata = {
       id: videoId,

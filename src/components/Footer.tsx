@@ -10,8 +10,6 @@ import {
   FacebookIcon,
   PinterestIcon,
   XTwitterIcon,
-  GitHubIcon,
-  WhatsAppIcon,
 } from './PlatformIcons';
 import styles from './Footer.module.css';
 
@@ -146,13 +144,8 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a
-                  href="https://wa.me/923100128702?text=Hello%20MediaKit%20Support"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.footerLink}
-                >
-                  WhatsApp Support
+                <a href="#contact" className={styles.footerLink}>
+                  Contact Support
                 </a>
               </li>
             </ul>
@@ -163,26 +156,6 @@ export default function Footer() {
         <div className={styles.bottomRow}>
           <span>&copy; {new Date().getFullYear()} MediaKit. All rights reserved.</span>
           <div className={styles.socialRow}>
-            <a
-              href="https://github.com/salmanjutt00110-del/MediaKit-Web"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.socialLink}
-              aria-label="GitHub Repository"
-              title="MediaKit on GitHub"
-            >
-              <GitHubIcon size={18} color="currentColor" />
-            </a>
-            <a
-              href="https://wa.me/923100128702?text=Hello%20MediaKit%20Support"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.socialLink}
-              aria-label="WhatsApp Support"
-              title="WhatsApp Direct (+92 310 0128702)"
-            >
-              <WhatsAppIcon size={18} color="currentColor" />
-            </a>
             <Link href="/youtube-video-downloader" className={styles.socialLink} aria-label="YouTube Downloader">
               <YouTubeIcon size={19} color="currentColor" />
             </Link>

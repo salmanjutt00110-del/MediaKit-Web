@@ -9,10 +9,10 @@ export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Rate Limiting: 90 requests per minute per IP
+    // 1. High-Capacity Rate Limiting: 5,000 requests per 10 minutes per IP (supports massive batch operations)
     const clientId = getClientIdentifier(request.headers);
-    const rateCheck = checkRateLimit(`download:${clientId}`, { limit: 90, windowMs: 60 * 1000 });
-    if (!rateCheck.allowed) {
+    const rateCheck = checkRateLimit(`download:${clientId}`, { limit: 5000, windowMs: 10 * 60 * 1000 });
+    if (!rateCheck.allowed && clientId !== '127.0.0.1' && clientId !== '::1') {
       logger.warn('Rate limit exceeded on /api/download', { clientId });
       return NextResponse.json(
         {
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     // 2. Parse request body
     const body = await request.json().catch(() => ({}));
-    const { url, formatId, prewarm } = body;
+    const { url, formatId, prewarm, mediaInfo: clientMediaInfo } = body;
 
     if (!url || !formatId || typeof url !== 'string' || typeof formatId !== 'string') {
       return NextResponse.json(
@@ -171,7 +171,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const mediaInfo = await provider.getMediaInfo(detection.normalizedUrl);
+    const mediaInfo = clientMediaInfo
+      ? {
+          id: clientMediaInfo.id || detection.normalizedUrl,
+          platform: detection.platform,
+          title: clientMediaInfo.title || 'Media Video',
+          author: clientMediaInfo.author || 'Creator',
+          duration: clientMediaInfo.duration,
+          thumbnailUrl: clientMediaInfo.thumbnailUrl,
+          sourceUrl: detection.normalizedUrl,
+          formats: [],
+        }
+      : await provider.getMediaInfo(detection.normalizedUrl);
+
     const downloadResult = await provider.download(mediaInfo, formatId);
 
     if (!downloadResult.success) {

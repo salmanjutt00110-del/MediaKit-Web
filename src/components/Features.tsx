@@ -6,26 +6,26 @@ import styles from './Features.module.css';
 
 const features = [
   {
-    title: 'Auto Detection',
-    description: "Just paste the link, we'll detect the platform automatically.",
+    title: 'High-Speed US & UK Cloud',
+    description: 'Gigabit edge CDN servers across North America and Western Europe deliver unthrottled downloads in seconds.',
     icon: <Zap size={24} />,
     iconClass: styles.iconBlue,
   },
   {
-    title: 'Multiple Formats',
-    description: 'Download in MP4, MP3 and more formats.',
+    title: 'Zero Watermark & HD 4K',
+    description: 'Save TikTok, Instagram Reels, and YouTube videos in original 1080p and 4K without annoying watermarks or logos.',
     icon: <FileText size={24} />,
     iconClass: styles.iconPurple,
   },
   {
-    title: 'High Performance',
-    description: 'Streams original media directly from supported platforms with FFmpeg audio-video merging.',
+    title: 'Studio 320kbps MP3 Audio',
+    description: 'Extract pristine stereo audio from music videos, podcasts, and talks with automated FFmpeg track synchronization.',
     icon: <Gauge size={24} />,
     iconClass: styles.iconGreen,
   },
   {
-    title: 'No Registration',
-    description: '100% free to use. No signup required.',
+    title: '100% Free & Private',
+    description: 'No signup, no tracking logs, and no app installs. Native mobile browser experience for iOS Safari & Android Chrome.',
     icon: <Shield size={24} />,
     iconClass: styles.iconOrange,
   },

@@ -1605,7 +1605,7 @@
 
   .modeTabsCapsule {
     width: 100%;
-    max-width: 340px;
+    max-width: 100%;
     margin: 0 auto;
     display: flex;
     align-items: center;
@@ -1615,17 +1615,19 @@
   }
 
   .modeTab {
-    padding: 7px 10px;
-    font-size: 0.82rem;
+    padding: 7px 8px;
+    font-size: 0.8rem;
     flex: 1;
     justify-content: center;
-    gap: 5px;
+    gap: 4px;
+    white-space: nowrap;
   }
 
-  .modeBadgePill {
-    padding: 2px 6px;
-    font-size: 0.65rem;
-    margin-right: 2px;
+  .modeBadgePill,
+  .newBadgePill {
+    padding: 2px 5px;
+    font-size: 0.62rem;
+    margin-right: 1px;
   }
 
   .downloaderForm {
@@ -1681,6 +1683,13 @@
   .autoDownloadBadge {
     font-size: 0.68rem;
     padding: 2px 7px;
+  }
+}
+
+@media (max-width: 375px) {
+  .modeBadgePill,
+  .newBadgePill {
+    display: none;
   }
 }
 
@@ -1822,22 +1831,62 @@
 .toggleText {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.toggleLabelGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggleDesc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.zapIcon {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.pasteBtnAuto {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.32);
+}
+
+.pasteBtnAuto:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.42);
 }
 
 .autoDownloadBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 3px 9px;
+  padding: 4px 10px;
   border-radius: var(--radius-full);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .badgeOn {
-  background: #ecfdf5;
+  background: rgba(16, 185, 129, 0.12);
   color: #059669;
   border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+:global([data-theme='dark']) .badgeOn {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.5);
 }
 
 .badgeOff {

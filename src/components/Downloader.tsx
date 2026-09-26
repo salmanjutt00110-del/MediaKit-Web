@@ -1036,12 +1036,12 @@ export default function Downloader() {
                   <button
                     type="button"
                     onClick={handleClipboardClick}
-                    className={styles.pasteBtn}
-                    aria-label="Paste from clipboard"
-                    title="Paste link from clipboard"
+                    className={`${styles.pasteBtn} ${autoDownload ? styles.pasteBtnAuto : ''}`}
+                    aria-label={autoDownload ? "Paste and download instantly" : "Paste from clipboard"}
+                    title={autoDownload ? "Paste link & download highest HD quality automatically" : "Paste link from clipboard"}
                   >
-                    <ClipboardPaste size={14} />
-                    <span className={styles.pasteBtnText}>Paste</span>
+                    {autoDownload ? <Zap size={14} className={styles.zapIcon} /> : <ClipboardPaste size={14} />}
+                    <span className={styles.pasteBtnText}>{autoDownload ? 'Paste & Download' : 'Paste'}</span>
                   </button>
                 )}
               </div>
@@ -1060,11 +1060,23 @@ export default function Downloader() {
                     className={styles.toggleInput}
                   />
                   <span className={styles.toggleSlider} />
-                  <span className={styles.toggleText}>Auto Download after Paste</span>
+                  <div className={styles.toggleLabelGroup}>
+                    <span className={styles.toggleText}>Auto Download after Paste</span>
+                    <span className={styles.toggleDesc}>
+                      {autoDownload ? 'Grabs highest HD quality immediately without extra clicks' : 'Click to enable instant automatic download'}
+                    </span>
+                  </div>
                 </label>
-                <span className={`${styles.autoDownloadBadge} ${autoDownload ? styles.badgeOn : styles.badgeOff}`}>
-                  {autoDownload ? 'AUTO DOWNLOAD: ON' : 'AUTO DOWNLOAD: OFF'}
-                </span>
+                <div className={`${styles.autoDownloadBadge} ${autoDownload ? styles.badgeOn : styles.badgeOff}`}>
+                  {autoDownload ? (
+                    <>
+                      <Zap size={12} className={styles.zapIcon} />
+                      <span>AUTO-SAVE ON</span>
+                    </>
+                  ) : (
+                    <span>MANUAL</span>
+                  )}
+                </div>
               </div>
 
               {/* Prominent Full-Width Blue Download Button */}
@@ -1136,10 +1148,12 @@ export default function Downloader() {
                 <div className={styles.modernLoaderCard} role="status" aria-live="polite">
                   <div className={styles.modernSpinner} />
                   <div className={styles.modernLoaderContent}>
-                    <span className={styles.modernLoaderTitle}>Preparing media download...</span>
+                    <span className={styles.modernLoaderTitle}>
+                      {autoDownload ? '⚡ Auto-Download Active...' : 'Preparing media download...'}
+                    </span>
                     <span className={styles.modernLoaderSubtitle}>
                       {loadingStage === 'fetching_media'
-                        ? 'Fetching authentic media stream & real formats...'
+                        ? (autoDownload ? 'Fetching stream — highest HD quality will download automatically...' : 'Fetching authentic media stream & real formats...')
                         : loadingStage === 'preparing_downloads'
                         ? 'Resolving quality & file sizes...'
                         : 'Detecting platform and link...'}

@@ -4,58 +4,62 @@
    ============================================================================== */
 
 :root {
-  /* Fonts */
-  --font-sans: var(--font-plus-jakarta), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Fonts - Re-engineered for sleek international standard typography */
+  --font-sans: var(--font-plus-jakarta), 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-handwriting: var(--font-caveat), cursive, sans-serif;
-  /* Colors */
-  --bg-page: #ffffff;
-  --bg-page-mesh: radial-gradient(at 10% 8%, rgba(37, 99, 235, 0.04) 0px, transparent 48%),
-                  radial-gradient(at 90% 12%, rgba(139, 92, 246, 0.035) 0px, transparent 45%),
-                  radial-gradient(at 50% 35%, rgba(248, 250, 252, 0.7) 0px, transparent 100%);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Backgrounds & Meshes */
+  --bg-page: #f8fafc;
+  --bg-page-mesh: radial-gradient(at 15% 10%, rgba(37, 99, 235, 0.07) 0px, transparent 50%),
+                  radial-gradient(at 85% 15%, rgba(124, 58, 237, 0.06) 0px, transparent 50%),
+                  radial-gradient(at 50% 40%, rgba(241, 245, 249, 0.8) 0px, transparent 100%);
   --bg-surface: #ffffff;
   --bg-surface-elevated: #ffffff;
-  --bg-subtle: #f8fafc;
-  --bg-subtle-hover: #f1f5f9;
+  --bg-subtle: #f1f5f9;
+  --bg-subtle-hover: #e2e8f0;
 
-  /* Text & Hierarchy */
-  --text-primary: #0a0f1d;        /* Deep Navy */
-  --text-secondary: #526077;      /* Refined Slate */
-  --text-muted: #8c9ba5;          /* Muted Gray */
+  /* Text & Hierarchy (High Contrast & Visually Appealing) */
+  --text-primary: #070b14;        /* Rich Obsidian (maximum contrast & legibility) */
+  --text-secondary: #334155;      /* Slate-700 (crisp reading experience) */
+  --text-muted: #64748b;          /* Slate-500 (balanced subtle information) */
   --text-inverse: #ffffff;
 
-  /* Brand Accents */
-  --brand-blue: #2563eb;          /* Royal Blue */
+  /* Brand Accents - Vibrant Electric Cobalt & Gradient */
+  --brand-blue: #2563eb;
   --brand-blue-hover: #1d4ed8;
   --brand-blue-light: #eff6ff;
   --brand-blue-border: #bfdbfe;
+  --brand-gradient: linear-gradient(135deg, #0284c7 0%, #2563eb 50%, #7c3aed 100%);
+  --brand-gradient-hover: linear-gradient(135deg, #0369a1 0%, #1d4ed8 50%, #6d28d9 100%);
 
-  /* Platform Tints (Pastel & Soft) */
-  --tint-youtube: #fff8f8;
-  --border-youtube: rgba(239, 68, 68, 0.14);
+  /* Platform Tints (Refined Modern Tone) */
+  --tint-youtube: #fff5f5;
+  --border-youtube: rgba(239, 68, 68, 0.18);
   --color-youtube: #ff0000;
 
-  --tint-tiktok: #fafbfc;
-  --border-tiktok: rgba(15, 23, 42, 0.12);
+  --tint-tiktok: #f8fafc;
+  --border-tiktok: rgba(15, 23, 42, 0.15);
   --color-tiktok: #000000;
 
-  --tint-facebook: #f6faff;
-  --border-facebook: rgba(37, 99, 235, 0.14);
+  --tint-facebook: #f0f7ff;
+  --border-facebook: rgba(37, 99, 235, 0.18);
   --color-facebook: #1877f2;
 
-  --tint-instagram: #fdf6fb;
-  --border-instagram: rgba(217, 70, 239, 0.14);
+  --tint-instagram: #fdf2f8;
+  --border-instagram: rgba(217, 70, 239, 0.18);
   --color-instagram: #e1306c;
 
   /* Borders & Shadows */
-  --border-light: #e5e9f0;
-  --border-card: #edf2f7;
+  --border-light: #e2e8f0;
+  --border-card: #cbd5e1;
   --border-focus: #2563eb;
 
-  --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.03);
-  --shadow-md: 0 8px 24px -4px rgba(15, 23, 42, 0.05), 0 2px 6px -2px rgba(15, 23, 42, 0.02);
-  --shadow-lg: 0 20px 40px -10px rgba(15, 23, 42, 0.07), 0 4px 12px -2px rgba(15, 23, 42, 0.02);
-  --shadow-downloader: 0 20px 50px -12px rgba(37, 99, 235, 0.12), 0 0 0 1px rgba(37, 99, 235, 0.14);
-  --shadow-floating-tile: 0 16px 36px -6px rgba(15, 23, 42, 0.1), 0 4px 12px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 16px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 16px 36px -6px rgba(15, 23, 42, 0.1), 0 4px 12px -2px rgba(15, 23, 42, 0.04);
+  --shadow-downloader: 0 20px 50px -12px rgba(37, 99, 235, 0.16), 0 0 0 1px rgba(37, 99, 235, 0.15);
+  --shadow-floating-tile: 0 16px 36px -6px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.05);
 
   /* Radii */
   --radius-xs: 8px;
@@ -69,39 +73,35 @@
   --container-max-w: 1220px;
   --container-pad: 24px;
   --header-height: 80px;
-
-  /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 [data-theme='dark'] {
-  --bg-page: #0b0f19;
-  --bg-page-mesh: radial-gradient(at 10% 8%, rgba(37, 99, 235, 0.08) 0px, transparent 48%),
-                  radial-gradient(at 90% 12%, rgba(139, 92, 246, 0.07) 0px, transparent 45%);
-  --bg-surface: #141c2e;
-  --bg-surface-elevated: #1a243a;
-  --bg-subtle: #111827;
+  --bg-page: #080c16;
+  --bg-page-mesh: radial-gradient(at 15% 10%, rgba(37, 99, 235, 0.12) 0px, transparent 50%),
+                  radial-gradient(at 85% 15%, rgba(124, 58, 237, 0.1) 0px, transparent 50%);
+  --bg-surface: #111827;
+  --bg-surface-elevated: #1a2234;
+  --bg-subtle: #0f172a;
   --bg-subtle-hover: #1e293b;
 
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
 
-  --border-light: #26334a;
-  --border-card: #202b3f;
+  --border-light: rgba(255, 255, 255, 0.1);
+  --border-card: rgba(255, 255, 255, 0.12);
   --border-focus: #60a5fa;
 
-  --tint-youtube: rgba(239, 68, 68, 0.08);
-  --tint-tiktok: rgba(248, 250, 252, 0.05);
-  --tint-facebook: rgba(37, 99, 235, 0.08);
-  --tint-instagram: rgba(217, 70, 239, 0.08);
+  --tint-youtube: rgba(239, 68, 68, 0.1);
+  --tint-tiktok: rgba(248, 250, 252, 0.06);
+  --tint-facebook: rgba(37, 99, 235, 0.1);
+  --tint-instagram: rgba(217, 70, 239, 0.1);
 
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.45);
-  --shadow-downloader: 0 20px 50px -12px rgba(37, 99, 235, 0.25), 0 0 0 1px rgba(96, 165, 250, 0.3);
-  --shadow-floating-tile: 0 16px 36px -6px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+  --shadow-downloader: 0 20px 50px -12px rgba(37, 99, 235, 0.35), 0 0 0 1px rgba(96, 165, 250, 0.35);
+  --shadow-floating-tile: 0 16px 36px -6px rgba(0, 0, 0, 0.6);
 }
 
 /* Reset & Base */
@@ -120,6 +120,7 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   overflow-x: hidden;
   max-width: 100vw;
   width: 100%;

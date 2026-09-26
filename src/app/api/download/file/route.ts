@@ -81,6 +81,8 @@ export async function GET(request: NextRequest) {
       return Response.redirect(serveUrl.toString(), 302);
     }
 
+
+
     const reqHost = request.headers.get('host')?.toLowerCase();
     const isSelfHost = reqHost && (targetUrl.includes(`://${reqHost}/`) || targetUrl.startsWith('/'));
 
@@ -256,9 +258,7 @@ export async function HEAD(request: NextRequest) {
       return Response.redirect(serveUrl.toString(), 302);
     }
 
-    if (targetUrl.includes('savenow.to') || targetUrl.includes('loader.to')) {
-      return Response.redirect(targetUrl, 302);
-    }
+
 
     const upstreamRes = await fetch(targetUrl, {
       method: 'HEAD',

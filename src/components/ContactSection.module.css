@@ -69,17 +69,19 @@
   overflow: hidden;
 }
 
-.whatsappCard {
-  background: linear-gradient(135deg, #128c7e 0%, #25d366 100%);
+.helpdeskCard {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #2563eb 100%);
   color: #ffffff;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 36px -6px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(37, 99, 235, 0.2);
 }
 
 .channelIconBox {
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(37, 99, 235, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -89,7 +91,8 @@
 
 .channelBadge {
   display: inline-block;
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(37, 99, 235, 0.35);
+  color: #93c5fd;
   font-size: 0.72rem;
   font-weight: 700;
   padding: 3px 10px;
@@ -97,6 +100,7 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   margin-bottom: 8px;
+  border: 1px solid rgba(147, 197, 253, 0.25);
 }
 
 .channelTitle {
@@ -108,29 +112,32 @@
 
 .channelDesc {
   font-size: 0.92rem;
-  opacity: 0.92;
+  opacity: 0.9;
   line-height: 1.5;
   margin-bottom: 20px;
+  color: #cbd5e1;
 }
 
-.whatsappBtn {
+.helpdeskBtn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #ffffff;
-  color: #128c7e;
+  background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%);
+  color: #ffffff;
   font-weight: 700;
   font-size: 0.92rem;
   padding: 11px 22px;
   border-radius: var(--radius-full);
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
   transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.whatsappBtn:hover {
+.helpdeskBtn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
+  background: linear-gradient(135deg, #1d4ed8 0%, #0369a1 100%);
 }
 
 .subChannelsGrid {
