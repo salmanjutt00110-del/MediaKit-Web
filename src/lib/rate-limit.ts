@@ -8,7 +8,7 @@ const ipRequestCounts = new Map<string, RateLimitRecord>();
 
 // Clean up stale entries every 5 minutes to prevent memory leaks
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  const timer = setInterval(() => {
     const now = Date.now();
     for (const [key, record] of ipRequestCounts.entries()) {
       if (now > record.resetTime) {
@@ -16,6 +16,7 @@ if (typeof setInterval !== 'undefined') {
       }
     }
   }, 5 * 60 * 1000);
+  timer.unref?.();
 }
 
 export interface RateLimitConfig {

@@ -1,5 +1,5 @@
 import { MediaFormat, MediaMetadata, PlatformType } from '../types';
-import { MediaProvider, ProviderDownloadResult } from './base';
+import { MediaProvider, ProviderDownloadResult, DownloadProgressCallback } from './base';
 import { logger } from '../logger';
 import { cleanAndDecodeTitle, sanitizeFilename, probeUrlSize } from '../string-utils';
 import { ytDlpRunner } from '../ytdlp';
@@ -290,10 +290,16 @@ export class InstagramAdapter extends MediaProvider {
     try {
       const snapItems = await extractSnapSave(resolvedUrl);
       if (snapItems && snapItems.length > 0) {
+        // Fetch metadata in parallel for authentic title and author
+        const meta = await this.scrapeInstagramMetadata(shortcode, resolvedUrl).catch(
+          (): { title?: string; author?: string; thumbnailUrl?: string; directVideoUrl?: string } => ({})
+        );
+        const realTitle = meta.title || `Instagram Reel (${shortcode})`;
+        const realAuthor = meta.author || 'Instagram Creator';
         const bestItem = snapItems[0];
-        const rawThumbnail = bestItem.thumbnail;
+        const rawThumbnail = bestItem.thumbnail || meta.thumbnailUrl;
         const thumbnailUrl = rawThumbnail
-          ? `/api/thumbnail?url=${encodeURIComponent(rawThumbnail)}`
+          ? (rawThumbnail.startsWith('/api') ? rawThumbnail : `/api/thumbnail?url=${encodeURIComponent(rawThumbnail)}`)
           : undefined;
 
         const formats: MediaFormat[] = snapItems.map((item, idx) => {
@@ -324,8 +330,8 @@ export class InstagramAdapter extends MediaProvider {
         const result: MediaMetadata = {
           id: shortcode,
           platform: 'instagram',
-          title: `Instagram Reel (${shortcode})`,
-          author: 'Instagram Creator',
+          title: realTitle,
+          author: realAuthor,
           thumbnailUrl,
           sourceUrl: resolvedUrl,
           formats,
@@ -412,11 +418,11 @@ export class InstagramAdapter extends MediaProvider {
       try {
         const info = await Promise.race([
           ytDlpRunner.getMediaInfo(resolvedUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('yt-dlp timeout')), 6000)),
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('yt-dlp timeout')), 28000)),
         ]);
         if (info && info.formats && info.formats.length > 0) {
           const proxiedThumb = info.thumbnailUrl
-            ? `/api/thumbnail?url=${encodeURIComponent(info.thumbnailUrl)}`
+            ? (info.thumbnailUrl.startsWith('/api') ? info.thumbnailUrl : `/api/thumbnail?url=${encodeURIComponent(info.thumbnailUrl)}`)
             : undefined;
 
           const realTitle = info.title && !info.title.toLowerCase().includes('instagram video')
@@ -456,17 +462,21 @@ export class InstagramAdapter extends MediaProvider {
     return media.formats || [];
   }
 
-  async download(media: MediaMetadata, formatId: string): Promise<ProviderDownloadResult> {
+  async download(
+    media: MediaMetadata,
+    formatId: string,
+    onProgress?: DownloadProgressCallback
+  ): Promise<ProviderDownloadResult> {
     const isMp3 = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
     const ext = isMp3 ? 'mp3' : 'mp4';
     const cleanTitle = sanitizeFilename(media.title || 'Instagram_Video', ext);
 
-    // 1. If format has directVideoUrl or prepared download URL, proxy it safely with attachment header
+    // 1. If format has directVideoUrl or prepared download URL and NOT requesting MP3 audio conversion
     const format = media.formats.find((f) => f.id === formatId);
     let directUrl = format?.downloadUrl;
 
-    if (!directUrl) {
-      const anyFmtWithUrl = media.formats.find((f) => f.downloadUrl && f.downloadUrl.startsWith('http'));
+    if (!directUrl && !isMp3) {
+      const anyFmtWithUrl = media.formats.find((f) => f.downloadUrl && f.downloadUrl.startsWith('http') && f.format !== 'mp3');
       if (anyFmtWithUrl) {
         directUrl = anyFmtWithUrl.downloadUrl;
       } else {
@@ -478,7 +488,7 @@ export class InstagramAdapter extends MediaProvider {
       }
     }
 
-    if (directUrl && directUrl.startsWith('http')) {
+    if (!isMp3 && directUrl && directUrl.startsWith('http')) {
       const safeUrl = directUrl.startsWith('/api/download/file') || directUrl.startsWith('/api/download/serve')
         ? directUrl
         : `/api/download/file?url=${encodeURIComponent(directUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
@@ -500,31 +510,10 @@ export class InstagramAdapter extends MediaProvider {
       };
     }
 
-    // 3. Try yt-dlp direct stream or downloadMedia
+    // 3. Try yt-dlp downloadMedia (handles audio/video DASH merge or true MP3 audio conversion)
     if (ytDlpRunner.isAvailable()) {
       try {
-        const streamUrl = await ytDlpRunner.getStreamUrl(media.sourceUrl, formatId);
-        if (streamUrl && streamUrl.startsWith('http')) {
-          const safeUrl = `/api/download/file?url=${encodeURIComponent(
-            streamUrl
-          )}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
-          igStreamCache.set(cacheKey, {
-            url: safeUrl,
-            expiry: Date.now() + 2 * 60 * 60 * 1000,
-          });
-          return {
-            success: true,
-            downloadUrl: safeUrl,
-            message: 'Direct media download prepared successfully.',
-          };
-        }
-      } catch (err: unknown) {
-        const error = err as Error;
-        logger.warn('Instagram yt-dlp getStreamUrl failed, trying downloadMedia', { msg: error.message });
-      }
-
-      try {
-        const localResult = await ytDlpRunner.downloadMedia(media, formatId);
+        const localResult = await ytDlpRunner.downloadMedia(media, formatId, onProgress);
         if (localResult && localResult.serveUrl) {
           igStreamCache.set(cacheKey, {
             url: localResult.serveUrl,
@@ -542,8 +531,20 @@ export class InstagramAdapter extends MediaProvider {
         }
       } catch (err: unknown) {
         const error = err as Error;
-        logger.warn('Instagram yt-dlp download attempt', { msg: error.message });
+        logger.warn('Instagram yt-dlp download attempt failed', { msg: error.message });
       }
+    }
+
+    // 4. Fallback for direct URL (e.g. if yt-dlp is unavailable but directUrl is present)
+    if (directUrl && directUrl.startsWith('http')) {
+      const safeUrl = directUrl.startsWith('/api/download/file') || directUrl.startsWith('/api/download/serve')
+        ? directUrl
+        : `/api/download/file?url=${encodeURIComponent(directUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
+      return {
+        success: true,
+        downloadUrl: safeUrl,
+        message: 'Direct media download prepared successfully.',
+      };
     }
 
     throw new Error('Unable to download this Instagram video. Instagram restricts access to most content. For unrestricted downloads, place a cookies.txt file from your Instagram session into the bin/ folder. Public posts may work without cookies.');

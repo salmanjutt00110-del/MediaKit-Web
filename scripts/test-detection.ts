@@ -244,4 +244,6 @@ if (r1.allowed && r2.allowed && !r3.allowed) {
 console.log(`\nResults: ${passed} passed, ${failed} failed out of ${testCases.length + 2} tests.`);
 if (failed > 0) {
   process.exit(1);
+} else {
+  process.exit(0);
 }

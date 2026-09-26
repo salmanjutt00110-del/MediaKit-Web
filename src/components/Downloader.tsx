@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Lock,
   BookOpen,
+  Search,
 } from 'lucide-react';
 import { detectPlatform, getPlatformDisplayName, extractUrlFromText } from '@/lib/detect';
 import {
@@ -36,6 +37,7 @@ import {
 } from '@/lib/types';
 import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon, PinterestIcon } from './PlatformIcons';
 import DownloadResult from './DownloadResult';
+import YouTubeSearch from './YouTubeSearch/YouTubeSearch';
 import styles from './Downloader.module.css';
 
 interface BatchItem {
@@ -112,6 +114,7 @@ export function getRecommendedAutoFormat(formats?: MediaFormat[]): MediaFormat |
 }
 
 export default function Downloader() {
+  const [mainMode, setMainMode] = useState<'url' | 'youtube_search'>('url');
   const [activeTab, setActiveTab] = useState<'single' | 'batch'>('single');
 
   // Single Downloader State
@@ -932,34 +935,53 @@ export default function Downloader() {
   return (
     <section id="downloader" className={styles.downloaderSection} aria-label="Media Downloader">
       <div className="app-container">
-        <div className={styles.downloaderContainer}>
-          {/* Mode Switcher Tabs (Single Video | Batch Download | 25 MAX) */}
+        <div className={`${styles.downloaderContainer} ${mainMode === 'youtube_search' ? styles.downloaderContainerWide : ''}`}>
+          {/* Mode Switcher Tabs (Paste URL | Search YouTube | Batch Links) */}
           <div className={styles.modeTabsWrapper}>
             <div className={styles.modeTabsCapsule}>
               <button
                 type="button"
-                onClick={() => setActiveTab('single')}
-                className={`${styles.modeTab} ${activeTab === 'single' ? styles.modeTabActive : ''}`}
+                onClick={() => {
+                  setMainMode('url');
+                  setActiveTab('single');
+                }}
+                className={`${styles.modeTab} ${mainMode === 'url' && activeTab === 'single' ? styles.modeTabActive : ''}`}
               >
                 <LinkIcon size={14} />
-                <span>Single Video</span>
+                <span>Paste URL</span>
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('batch')}
-                className={`${styles.modeTab} ${activeTab === 'batch' ? styles.modeTabActive : ''}`}
+                onClick={() => setMainMode('youtube_search')}
+                className={`${styles.modeTab} ${mainMode === 'youtube_search' ? styles.modeTabActive : ''}`}
+              >
+                <Search size={14} />
+                <span>Search YouTube</span>
+                <span className={styles.newBadgePill}>NEW</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMainMode('url');
+                  setActiveTab('batch');
+                }}
+                className={`${styles.modeTab} ${mainMode === 'url' && activeTab === 'batch' ? styles.modeTabActive : ''}`}
               >
                 <BookOpen size={14} />
-                <span>Batch Download</span>
+                <span>Batch Links</span>
+                <span className={styles.modeBadgePill}>25 MAX</span>
               </button>
-              <div className={styles.modeBadgePill}>
-                <span>25 MAX</span>
-              </div>
             </div>
           </div>
 
-          {/* TAB 1: SINGLE DOWNLOADER FORM */}
-          {activeTab === 'single' && (
+          {/* MODE 1: YOUTUBE SMART SEARCH & BATCH DISCOVERY */}
+          {mainMode === 'youtube_search' && <YouTubeSearch />}
+
+          {/* MODE 2: URL DOWNLOADER (SINGLE & MULTI-LINK BATCH) */}
+          {mainMode === 'url' && (
+            <>
+              {/* TAB 1: SINGLE DOWNLOADER FORM */}
+              {activeTab === 'single' && (
             <form onSubmit={handleSubmit} noValidate className={styles.downloaderForm}>
               {/* Input Capsule */}
               <div
@@ -1549,6 +1571,8 @@ export default function Downloader() {
               )}
             </div>
           )}
+        </>
+      )}
 
           {/* Toast Notification (Clipboard/Mobile) */}
           {clipboardToast && (

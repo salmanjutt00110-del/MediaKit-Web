@@ -38,7 +38,17 @@ export function getCookiesPath(platform?: string): string | null {
     );
   }
   for (const c of candidates) {
-    if (fs.existsSync(c)) return c;
+    if (fs.existsSync(c)) {
+      if (platform === 'instagram' && !c.includes('instagram_cookies.txt')) {
+        try {
+          const content = fs.readFileSync(c, 'utf-8');
+          if (!content.includes('instagram.com')) {
+            continue;
+          }
+        } catch {}
+      }
+      return c;
+    }
   }
   return null;
 }
@@ -258,6 +268,7 @@ export const ytDlpRunner = {
       const args = ['-j', '--skip-download', '--no-playlist'];
 
       const isYouTube = targetUrl.includes('youtube.com') || targetUrl.includes('youtu.be');
+      const isInstagram = targetUrl.includes('instagram.com') || targetUrl.includes('instagr.am');
       const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
       args.push('--js-runtimes', nodeRuntime);
 
@@ -269,7 +280,7 @@ export const ytDlpRunner = {
           args.push('--cookies', ytCookies);
         }
       } else {
-        const cookies = getCookiesPath();
+        const cookies = getCookiesPath(isInstagram ? 'instagram' : undefined);
         if (cookies) {
           args.push('--cookies', cookies);
         }
@@ -405,11 +416,12 @@ export const ytDlpRunner = {
 
               for (const f of igProgressive) {
                 const height = f.height || 720;
+                const formatId = height >= 1080 ? '1080p' : height >= 720 ? '720p' : `${height}p`;
                 const label = height >= 1080 ? '1080p HD (High Definition)' : height >= 720 ? '720p HD (Standard HD)' : `${height}p SD`;
-                if (!seenQualities.has(label)) {
-                  seenQualities.add(label);
+                if (!seenQualities.has(formatId)) {
+                  seenQualities.add(formatId);
                   formats.push({
-                    id: f.format_id || `${height}p`,
+                    id: formatId,
                     format: 'mp4',
                     quality: label,
                     resolution: `${f.width || 720}x${height}`,
@@ -431,11 +443,12 @@ export const ytDlpRunner = {
 
                 for (const f of igVideoFormats) {
                   const height = f.height || 720;
+                  const formatId = height >= 1080 ? '1080p' : height >= 720 ? '720p' : `${height}p`;
                   const label = height >= 1080 ? '1080p HD (High Definition)' : height >= 720 ? '720p HD (Standard HD)' : `${height}p SD`;
-                  if (!seenQualities.has(label)) {
-                    seenQualities.add(label);
+                  if (!seenQualities.has(formatId)) {
+                    seenQualities.add(formatId);
                     formats.push({
-                      id: f.format_id || `${height}p`,
+                      id: formatId,
                       format: 'mp4',
                       quality: label,
                       resolution: `${f.width || 720}x${height}`,
@@ -609,7 +622,10 @@ export const ytDlpRunner = {
       const stats = fs.statSync(cachedFilePath);
       if (stats.size > 1024) {
         if (!isMp3) {
-          const requestedHeight = parseInt(formatId.replace(/[^0-9]/g, ''), 10) || 720;
+          let requestedHeight = parseInt(formatId.replace(/[^0-9]/g, ''), 10);
+          if (!requestedHeight) {
+            requestedHeight = formatId.toLowerCase().includes('sd') ? 480 : 720;
+          }
           const knownHeight = validatedCacheHeights.get(cacheToken);
 
           if (knownHeight !== undefined) {
@@ -711,6 +727,8 @@ export const ytDlpRunner = {
         args.push('--postprocessor-args', 'ffmpeg:-threads 4 -preset ultrafast');
       }
 
+      const isInstagram = media.sourceUrl?.includes('instagram.com') || media.sourceUrl?.includes('instagr.am');
+
       if (isYouTube) {
         args.push('-4');
         args.push('--extractor-args', 'youtube:player_client=android,web');
@@ -719,7 +737,7 @@ export const ytDlpRunner = {
           args.push('--cookies', ytCookies);
         }
       } else {
-        const cookies = getCookiesPath();
+        const cookies = getCookiesPath(isInstagram ? 'instagram' : undefined);
         if (cookies) {
           args.push('--cookies', cookies);
         }
@@ -743,8 +761,8 @@ export const ytDlpRunner = {
         if (formatId.includes('2160') || formatId.includes('4k')) height = 2160;
         else if (formatId.includes('1440')) height = 1440;
         else if (formatId.includes('1080')) height = 1080;
-        else if (formatId.includes('720')) height = 720;
-        else if (formatId.includes('480')) height = 480;
+        else if (formatId.includes('720') || formatId.toLowerCase() === 'hd') height = 720;
+        else if (formatId.includes('480') || formatId.toLowerCase() === 'sd') height = 480;
         else if (formatId.includes('360')) height = 360;
         else if (formatId.includes('240')) height = 240;
         else if (formatId.includes('144')) height = 144;
