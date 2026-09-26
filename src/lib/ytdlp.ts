@@ -731,7 +731,6 @@ export const ytDlpRunner = {
 
       if (isYouTube) {
         args.push('-4');
-        args.push('--extractor-args', 'youtube:player_client=android,web');
         const ytCookies = getCookiesPath('youtube');
         if (ytCookies) {
           args.push('--cookies', ytCookies);

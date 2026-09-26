@@ -52,3 +52,4 @@ next-env.d.ts
 
 # root reference images
 /ChatGPT Image*.png
+/scratch/

@@ -410,7 +410,42 @@ export class YouTubeDownloadProvider {
     const isAudio =
       formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
 
-    // 2. High-Speed Conversion Engine (Savenow / direct CDN delivery)
+    // 2. Primary Engine: High-performance local yt-dlp + ffmpeg pipeline
+    if (ytDlpRunner.isAvailable()) {
+      try {
+        onProgress?.({ percent: 20, stage: 'Starting high-speed media processing...' });
+        const fullMedia = { ...media, sourceUrl: canonicalUrl };
+
+        const fileResult = await ytDlpRunner.downloadMedia(fullMedia, formatId, onProgress);
+        if (fileResult && fileResult.serveUrl) {
+          const result: ProviderDownloadResult = {
+            success: true,
+            downloadUrl: fileResult.serveUrl,
+            fileSizeBytes: fileResult.fileSizeBytes,
+            fileSizeFormatted: fileResult.fileSizeFormatted,
+            resolution: fileResult.resolution,
+            duration: fileResult.duration,
+            message: 'Media successfully processed and ready for download.',
+          };
+
+          youtubeStreamCache.set(cacheKey, {
+            url: fileResult.serveUrl,
+            fileResult: result,
+            expiry: Date.now() + 30 * 60 * 1000,
+          });
+
+          return result;
+        }
+      } catch (dlErr: unknown) {
+        logger.warn('Primary yt-dlp engine encountered issue, falling back to secondary CDN', {
+          msg: (dlErr as Error).message,
+          videoId,
+          formatId,
+        });
+      }
+    }
+
+    // 3. Fallback Engine: Savenow CDN delivery
     const savenowUrl = await fetchSavenowStream(canonicalUrl, formatId, onProgress);
     if (savenowUrl) {
       const resLabel = isAudio
@@ -438,41 +473,6 @@ export class YouTubeDownloadProvider {
       });
 
       return result;
-    }
-
-    // 3. Secondary Engine: yt-dlp (local binary if available)
-    if (ytDlpRunner.isAvailable()) {
-      try {
-        onProgress?.({ percent: 30, stage: 'Processing with local download engine...' });
-        const fullMedia = { ...media, sourceUrl: canonicalUrl };
-
-        const fileResult = await ytDlpRunner.downloadMedia(fullMedia, formatId, onProgress);
-        if (fileResult && fileResult.serveUrl) {
-          const result: ProviderDownloadResult = {
-            success: true,
-            downloadUrl: fileResult.serveUrl,
-            fileSizeBytes: fileResult.fileSizeBytes,
-            fileSizeFormatted: fileResult.fileSizeFormatted,
-            resolution: fileResult.resolution,
-            duration: fileResult.duration,
-            message: 'Media successfully processed and ready for download.',
-          };
-
-          youtubeStreamCache.set(cacheKey, {
-            url: fileResult.serveUrl,
-            fileResult: result,
-            expiry: Date.now() + 30 * 60 * 1000,
-          });
-
-          return result;
-        }
-      } catch (dlErr: unknown) {
-        logger.warn('YouTube yt-dlp downloadMedia failed', {
-          msg: (dlErr as Error).message,
-          videoId,
-          formatId,
-        });
-      }
     }
 
     return {
