@@ -950,7 +950,8 @@ export default function Downloader() {
                 title="Single Video Downloader"
               >
                 <LinkIcon size={14} className={styles.tabIcon} />
-                <span className={styles.tabLabel}>Single Video</span>
+                <span className={styles.desktopTabLabel}>Single Video</span>
+                <span className={styles.mobileTabLabel}>Single</span>
               </button>
               <button
                 type="button"
@@ -959,7 +960,8 @@ export default function Downloader() {
                 title="Search YouTube & Batch Select"
               >
                 <Search size={14} className={styles.tabIcon} />
-                <span className={styles.tabLabel}>Search YouTube</span>
+                <span className={styles.desktopTabLabel}>Search YouTube</span>
+                <span className={styles.mobileTabLabel}>Search YT</span>
                 <span className={styles.newBadgePill}>NEW</span>
               </button>
               <button
@@ -972,7 +974,8 @@ export default function Downloader() {
                 title="Batch Multi-Link Download"
               >
                 <BookOpen size={14} className={styles.tabIcon} />
-                <span className={styles.tabLabel}>Batch Download</span>
+                <span className={styles.desktopTabLabel}>Batch Download</span>
+                <span className={styles.mobileTabLabel}>Batch</span>
                 <span className={styles.modeBadgePill}>25 MAX</span>
               </button>
             </div>

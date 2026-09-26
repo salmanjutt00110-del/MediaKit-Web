@@ -32,7 +32,7 @@
 
 .platformGrid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 16px;
   width: 100%;
 }
@@ -86,6 +86,16 @@
   border-color: rgba(230, 0, 35, 0.08);
 }
 
+.cardCanva {
+  background: linear-gradient(180deg, #ffffff 60%, #f0fdf4 100%);
+  border-color: rgba(0, 196, 204, 0.12);
+}
+
+.cardChatGPT {
+  background: linear-gradient(180deg, #ffffff 60%, #f0fdf9 100%);
+  border-color: rgba(16, 163, 127, 0.12);
+}
+
 [data-theme='dark'] .cardYouTube {
   background: linear-gradient(180deg, #141c2e 60%, rgba(239, 68, 68, 0.1) 100%);
   border-color: rgba(239, 68, 68, 0.22);
@@ -109,6 +119,16 @@
 [data-theme='dark'] .cardPinterest {
   background: linear-gradient(180deg, #141c2e 60%, rgba(230, 0, 35, 0.1) 100%);
   border-color: rgba(230, 0, 35, 0.22);
+}
+
+[data-theme='dark'] .cardCanva {
+  background: linear-gradient(180deg, #141c2e 60%, rgba(0, 196, 204, 0.12) 100%);
+  border-color: rgba(0, 196, 204, 0.25);
+}
+
+[data-theme='dark'] .cardChatGPT {
+  background: linear-gradient(180deg, #141c2e 60%, rgba(16, 163, 127, 0.12) 100%);
+  border-color: rgba(16, 163, 127, 0.25);
 }
 
 .cardTop {
@@ -145,6 +165,14 @@
 
 .squirclePinterest {
   background: #e60023;
+}
+
+.squircleCanva {
+  background: #00c4cc;
+}
+
+.squircleChatGPT {
+  background: #10a37f;
 }
 
 .cardBottom {
@@ -203,6 +231,16 @@
   color: #c026d3;
 }
 
+.btnTeal {
+  background: #ecfeff;
+  color: #0891b2;
+}
+
+.btnGreen {
+  background: #f0fdf4;
+  color: #16a34a;
+}
+
 [data-theme='dark'] .btnRed {
   background: rgba(239, 68, 68, 0.18);
   color: #f87171;
@@ -216,6 +254,16 @@
 [data-theme='dark'] .btnPurple {
   background: rgba(217, 70, 239, 0.18);
   color: #e879f9;
+}
+
+[data-theme='dark'] .btnTeal {
+  background: rgba(8, 145, 178, 0.18);
+  color: #22d3ee;
+}
+
+[data-theme='dark'] .btnGreen {
+  background: rgba(22, 163, 74, 0.18);
+  color: #4ade80;
 }
 
 @media (max-width: 980px) {

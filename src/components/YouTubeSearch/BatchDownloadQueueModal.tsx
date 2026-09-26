@@ -349,6 +349,17 @@ export default function BatchDownloadQueueModal({
         return false;
       }
 
+      // Auto-retry transient failures up to 2 times with a backoff delay before failing
+      if (item.retryCount < 2 && !isCanceledRef.current) {
+        updateItem(item.id, {
+          status: 'preparing',
+          stageMessage: `Retrying (${item.retryCount + 1}/2)...`,
+          retryCount: item.retryCount + 1,
+        });
+        await new Promise((r) => setTimeout(r, 1500));
+        return processSingleItem({ ...item, retryCount: item.retryCount + 1 });
+      }
+
       const errMsg = err?.message || 'Unable to download this file right now.';
       updateItem(item.id, {
         status: 'failed',

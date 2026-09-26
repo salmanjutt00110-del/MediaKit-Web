@@ -264,9 +264,33 @@
     margin-bottom: 0;
   }
 
-  /* Decorative Artwork Hidden on Mobile to prioritize instant download input above the fold */
+  /* 3D Composition Artwork on Mobile (Canva, ChatGPT, YouTube, TikTok, Insta) */
   .visualWrapper {
-    display: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: auto;
+    width: 100%;
+    margin-top: 10px;
+    margin-bottom: 8px;
+  }
+
+  .stageContainer {
+    width: 220px;
+    height: 180px;
+  }
+
+  .artworkImg {
+    width: 180px;
+    height: 180px;
+  }
+
+  .floatingPinterestBadge {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    bottom: 12px;
+    left: 20px;
   }
 }
 

@@ -208,6 +208,27 @@
   margin-right: 4px;
 }
 
+.newBadgePill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  border-radius: 9999px;
+  margin-left: 2px;
+}
+
+.desktopTabLabel {
+  display: inline;
+}
+
+.mobileTabLabel {
+  display: none;
+}
+
 /* 4 Feature Indicators Strip */
 .featuresStrip {
   display: grid;
@@ -651,22 +672,44 @@
   }
 }
 
+@media (max-width: 580px) {
+  .desktopTabLabel {
+    display: none;
+  }
+
+  .mobileTabLabel {
+    display: inline;
+    font-weight: 700;
+  }
+
+  .modeBadgePill,
+  .newBadgePill {
+    display: none;
+  }
+}
+
 @media (max-width: 480px) {
   .modeTabsCapsule {
     width: 100%;
-    justify-content: center;
-    max-width: 350px;
+    justify-content: space-between;
+    max-width: 100%;
+    display: flex;
+    gap: 3px;
+    padding: 3px;
   }
 
   .modeTab {
-    padding: 6px 12px;
-    font-size: 0.82rem;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 7px 4px;
+    font-size: 0.78rem;
     gap: 4px;
+    justify-content: center;
   }
 
-  .modeBadgePill {
-    padding: 2px 7px;
-    font-size: 0.62rem;
+  .modeBadgePill,
+  .newBadgePill {
+    display: none;
   }
 
   .inputCapsule {
@@ -686,13 +729,19 @@
 }
 
 @media (max-width: 360px) {
-  .modeTab {
-    padding: 5px 8px;
-    font-size: 0.74rem;
-    gap: 4px;
+  .modeTabsCapsule {
+    padding: 2px;
+    gap: 2px;
   }
 
-  .modeBadgePill {
+  .modeTab {
+    padding: 6px 2px;
+    font-size: 0.70rem;
+    gap: 2px;
+  }
+
+  .modeBadgePill,
+  .newBadgePill {
     display: none;
   }
 

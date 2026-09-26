@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
-import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon, PinterestIcon } from './PlatformIcons';
+import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon, PinterestIcon, CanvaIcon, ChatGPTIcon } from './PlatformIcons';
 import styles from './SupportedPlatforms.module.css';
 
 const platforms = [
@@ -56,6 +56,26 @@ const platforms = [
     squircleClass: styles.squirclePinterest,
     cardClass: styles.cardPinterest,
     btnClass: styles.btnRed,
+  },
+  {
+    id: 'canva',
+    name: 'Canva',
+    description: 'Design Media & Videos',
+    href: '#downloader',
+    icon: <CanvaIcon size={28} color="#ffffff" />,
+    squircleClass: styles.squircleCanva,
+    cardClass: styles.cardCanva,
+    btnClass: styles.btnTeal,
+  },
+  {
+    id: 'chatgpt',
+    name: 'ChatGPT',
+    description: 'AI Generated Media & Audio',
+    href: '#downloader',
+    icon: <ChatGPTIcon size={28} color="#ffffff" />,
+    squircleClass: styles.squircleChatGPT,
+    cardClass: styles.cardChatGPT,
+    btnClass: styles.btnGreen,
   },
 ];
 

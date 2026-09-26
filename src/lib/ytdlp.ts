@@ -838,7 +838,12 @@ export const ytDlpRunner = {
           if (dlMatch) {
             const rawPct = parseFloat(dlMatch[1]);
             const totalSize = dlMatch[2];
-            const speed = dlMatch[3];
+            let speed = dlMatch[3];
+
+            // Smooth out misleading initial socket handshake speed (<20% KiB/s)
+            if (speed.toLowerCase().includes('kib') && rawPct < 20) {
+              speed = 'High Speed';
+            }
 
             let overallPct: number;
             let stage: string;
