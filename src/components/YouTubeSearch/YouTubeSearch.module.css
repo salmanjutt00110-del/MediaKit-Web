@@ -1232,12 +1232,15 @@
 }
 
 .queueItemTitle {
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 600;
   color: #0f172a;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 .queueItemMeta {
@@ -1334,7 +1337,27 @@
 }
 
 /* --- Responsive Adjustments --- */
+.bottomSheetHandle {
+  display: none;
+}
+
+.stickyBarSpacer {
+  display: block;
+  height: 88px;
+  width: 100%;
+}
+
 @media (max-width: 640px) {
+  .bottomSheetHandle {
+    display: block;
+    width: 42px;
+    height: 4px;
+    border-radius: 9999px;
+    background: #cbd5e1;
+    margin: 8px auto 0 auto;
+    flex-shrink: 0;
+  }
+
   .searchHeader {
     gap: 12px;
     margin-bottom: 16px;
@@ -1354,8 +1377,10 @@
   }
 
   .clearInputBtn {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
     margin-right: 4px;
   }
 
@@ -1363,6 +1388,7 @@
     padding: 8px 14px;
     font-size: 0.88rem;
     gap: 6px;
+    min-height: 40px;
   }
 
   .controlsStrip {
@@ -1381,8 +1407,9 @@
   .filterSelect {
     flex: 1;
     min-width: 0;
-    padding: 6px 8px;
-    font-size: 0.8rem;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+    min-height: 40px;
   }
 
   .selectionControls {
@@ -1392,33 +1419,286 @@
     align-items: center;
   }
 
+  /* Compact Horizontal Video Cards on Mobile: 2-3 Cards visible without excessive scrolling */
   .resultsGrid {
-    gap: 14px;
+    gap: 10px;
     margin-bottom: 20px;
   }
 
+  .resultCard {
+    flex-direction: row;
+    align-items: stretch;
+    border-radius: 14px;
+    padding: 8px;
+    gap: 10px;
+    min-height: 94px;
+  }
+
+  .cardThumbnailContainer {
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+    height: 76px;
+    border-radius: 8px;
+    aspect-ratio: auto;
+    flex-shrink: 0;
+  }
+
+  .cardDurationBadge {
+    bottom: 4px;
+    right: 4px;
+    font-size: 0.68rem;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
   .cardBody {
-    padding: 12px;
-    gap: 8px;
+    padding: 0 2px;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .cardSelectionRow {
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .cardCheckbox {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    margin-top: 1px;
+    flex-shrink: 0;
   }
 
   .cardTitle {
-    font-size: 0.88rem;
+    font-size: 0.82rem;
+    line-height: 1.25;
+    font-weight: 600;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
+  .cardMetaRow {
+    font-size: 0.72rem;
+    color: #64748b;
+    gap: 4px;
+    margin-top: 1px;
+  }
+
+  .cardFooterActions {
+    margin-top: 3px;
+    padding-top: 0;
+    border-top: none;
+    gap: 6px;
+  }
+
+  .previewBtn {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    min-height: 32px;
+  }
+
+  .selectToggleBtn {
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    min-height: 32px;
+  }
+
+  /* Matching Horizontal Skeleton Cards */
+  .skeletonCard {
+    flex-direction: row;
+    align-items: stretch;
+    border-radius: 14px;
+    padding: 8px;
+    gap: 10px;
+    min-height: 94px;
+  }
+
+  .skeletonThumb {
+    width: 120px;
+    min-width: 120px;
+    height: 76px;
+    border-radius: 8px;
+    aspect-ratio: auto;
+    flex-shrink: 0;
+  }
+
+  .skeletonBody {
+    padding: 0 2px;
+    flex: 1;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  /* Docked Sticky Bottom Bar on Mobile */
   .stickyActionBar {
-    bottom: 12px;
-    width: calc(100% - 20px);
-    padding: 8px 12px 8px 16px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)) 16px;
+    background: rgba(15, 23, 42, 0.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.45);
+    z-index: 85;
   }
 
   .stickyCountText {
     display: none;
   }
 
-  .stickyDownloadBtn {
-    padding: 8px 16px;
+  .stickyCountBadge {
     font-size: 0.88rem;
+    padding: 4px 12px;
+    min-height: 34px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .stickyBtnGroup {
+    flex: 1;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .stickyClearBtn {
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+  }
+
+  .stickyDownloadBtn {
+    min-height: 44px;
+    padding: 10px 18px;
+    font-size: 0.9rem;
+    flex: 1;
+    max-width: 200px;
+    justify-content: center;
+  }
+
+  /* Bottom Sheet Modals on Mobile */
+  .modalOverlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modalContent {
+    border-radius: 24px 24px 0 0;
+    max-width: 100%;
+    width: 100%;
+    max-height: 85vh;
+    animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .modalHeader {
+    padding: 12px 18px;
+    position: sticky;
+    top: 0;
+    background: #ffffff;
+    z-index: 10;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .modalTitle {
+    font-size: 1.1rem;
+  }
+
+  .modalCloseBtn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .modalBody {
+    padding: 16px 18px;
+    gap: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .modalFooter {
+    padding: 14px 18px calc(14px + env(safe-area-inset-bottom, 0px));
+    position: sticky;
+    bottom: 0;
+    background: #ffffff;
+    border-top: 1px solid #f1f5f9;
+    z-index: 10;
+  }
+
+  .formatOptionCard {
+    min-height: 48px;
+    padding: 12px 14px;
+  }
+
+  .startDownloadBtn {
+    min-height: 44px;
+    font-size: 0.92rem;
+  }
+
+  .modalCancelBtn {
+    min-height: 44px;
+  }
+
+  /* Queue Items Layout on Mobile */
+  .queueItemCard {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .queueItemInfo {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .queueItemThumb {
+    width: 76px;
+    height: 44px;
+  }
+
+  .queueItemText {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .queueItemTitle {
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+
+  .queueItemStatusBadge {
+    align-self: flex-start;
+    font-size: 0.76rem;
+    padding: 4px 10px;
+  }
+}
+
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }
 

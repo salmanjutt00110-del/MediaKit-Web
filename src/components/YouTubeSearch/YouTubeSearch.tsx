@@ -597,7 +597,8 @@ export default function YouTubeSearch() {
         </div>
       ) : null}
 
-      {/* 6. Sticky Action Bar (appears whenever 1 or more videos are selected) */}
+      {/* 6. Sticky Action Bar Spacer & Bar */}
+      {selectedCount > 0 && <div className={styles.stickyBarSpacer} aria-hidden="true" />}
       {selectedCount > 0 && (
         <div className={styles.stickyActionBar} role="region" aria-label="Batch actions">
           <div className={styles.stickyCountGroup}>

@@ -395,6 +395,7 @@ export default function BatchDownloadQueueModal({
   return (
     <div className={styles.modalOverlay} onClick={onClose} role="dialog" aria-modal="true">
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.bottomSheetHandle} aria-hidden="true" />
         <div className={styles.modalHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h3 className={styles.modalTitle}>Batch Download Queue</h3>

@@ -33,6 +33,7 @@ export default function VideoPreviewModal({ video, onClose }: VideoPreviewModalP
         className={`${styles.modalContent} ${styles.previewModalContent}`}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className={styles.bottomSheetHandle} aria-hidden="true" />
         <div className={styles.modalHeader}>
           <h3 className={styles.modalTitle} title={video.title}>
             {video.title}

@@ -95,6 +95,7 @@ export default function FormatSelectionModal({
   return (
     <div className={styles.modalOverlay} onClick={onClose} role="dialog" aria-modal="true">
       <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.bottomSheetHandle} aria-hidden="true" />
         <div className={styles.modalHeader}>
           <h3 className={styles.modalTitle}>Choose Download Format</h3>
           <button

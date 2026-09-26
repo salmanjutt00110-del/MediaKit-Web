@@ -1971,4 +1971,47 @@
   box-shadow: 0 1px 4px rgba(2, 132, 199, 0.3);
 }
 
+/* Batch Skeleton Shimmer Loader */
+.batchSkeletonThumb {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: batchShimmer 1.5s infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:global([data-theme='dark']) .batchSkeletonThumb {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+}
+
+.batchSkeletonLine {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: batchShimmer 1.5s infinite;
+  margin-bottom: 8px;
+}
+
+:global([data-theme='dark']) .batchSkeletonLine {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+}
+
+@keyframes batchShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+
 

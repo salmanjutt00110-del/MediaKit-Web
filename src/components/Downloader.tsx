@@ -23,6 +23,7 @@ import {
   Lock,
   BookOpen,
   Search,
+  Loader2,
 } from 'lucide-react';
 import { detectPlatform, getPlatformDisplayName, extractUrlFromText } from '@/lib/detect';
 import {
@@ -1451,6 +1452,10 @@ export default function Downloader() {
                               className={styles.batchCardThumb}
                               loading="lazy"
                             />
+                          ) : item.status === 'resolving' || item.status === 'pending' ? (
+                            <div className={styles.batchSkeletonThumb}>
+                              <Loader2 size={24} className={styles.loadingSpinnerSmall} />
+                            </div>
                           ) : (
                             <div className={styles.batchCardThumbPlaceholder}>
                               <FileVideo size={32} opacity={0.4} />
@@ -1469,14 +1474,22 @@ export default function Downloader() {
 
                         <div className={styles.batchCardBody}>
                           <span className={styles.batchItemIndex}>#{idx + 1}</span>
-                          <h3 className={styles.batchItemTitle} title={item.mediaInfo?.title || item.url}>
-                            {item.mediaInfo?.title || item.url}
-                          </h3>
-
-                          {item.mediaInfo?.author && (
-                            <span className={styles.batchItemAuthor}>
-                              {item.mediaInfo.author}
-                            </span>
+                          {item.status === 'resolving' || item.status === 'pending' ? (
+                            <div style={{ marginTop: '4px', width: '100%' }}>
+                              <div className={styles.batchSkeletonLine} style={{ width: '85%' }} />
+                              <div className={styles.batchSkeletonLine} style={{ width: '55%' }} />
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className={styles.batchItemTitle} title={item.mediaInfo?.title || item.url}>
+                                {item.mediaInfo?.title || item.url}
+                              </h3>
+                              {item.mediaInfo?.author && (
+                                <span className={styles.batchItemAuthor}>
+                                  {item.mediaInfo.author}
+                                </span>
+                              )}
+                            </>
                           )}
 
                           {item.status === 'error' && (
