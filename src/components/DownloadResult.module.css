@@ -948,6 +948,12 @@
   }
 }
 
+.btnSpinner {
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 .scriptLoadingText {
   font-size: 0.88rem;
   font-weight: 600;

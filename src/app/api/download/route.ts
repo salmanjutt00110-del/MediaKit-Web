@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Download Stream Extraction
+    const t0 = Date.now();
     logger.info('Extracting download stream', {
       platform: detection.platform,
       formatId,
@@ -107,9 +108,39 @@ export async function POST(request: NextRequest) {
           duration: clientMediaInfo.duration,
           thumbnailUrl: clientMediaInfo.thumbnailUrl,
           sourceUrl: detection.normalizedUrl,
-          formats: [],
+          formats: Array.isArray(clientMediaInfo.formats) ? clientMediaInfo.formats : [],
         }
       : await provider.getMediaInfo(detection.normalizedUrl);
+
+    // Fast-path: If format was already resolved and has a direct download URL, return instantly (0ms delay)
+    const existingFormat = resolvedMediaInfo.formats?.find(
+      (f: any) => f.id === formatId && f.downloadUrl && typeof f.downloadUrl === 'string' && f.downloadUrl.startsWith('http')
+    );
+
+    if (existingFormat && existingFormat.downloadUrl) {
+      const isAudio = formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
+      const ext = isAudio ? 'mp3' : 'mp4';
+      const cleanTitle = (resolvedMediaInfo.title || 'media').replace(/[/\\?%*:|"<>]/g, '_').trim();
+      const directSafeUrl = existingFormat.downloadUrl.startsWith('/api/download/')
+        ? existingFormat.downloadUrl
+        : `/api/download/file?url=${encodeURIComponent(existingFormat.downloadUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
+
+      const tEnd = Date.now();
+      return NextResponse.json({
+        success: true,
+        data: {
+          downloadUrl: directSafeUrl,
+          resolution: existingFormat.resolution || existingFormat.quality,
+          duration: resolvedMediaInfo.duration,
+          fileSize: existingFormat.fileSize,
+          message: 'Direct media download prepared instantly.',
+          timings: {
+            requestTimeMs: tEnd - t0,
+            fastPath: true,
+          },
+        },
+      });
+    }
 
     const isEventStream = request.headers.get('accept')?.includes('text/event-stream');
 
@@ -218,6 +249,9 @@ export async function POST(request: NextRequest) {
         fileSizeBytes: downloadResult.fileSizeBytes,
         resolution: downloadResult.resolution,
         duration: downloadResult.duration,
+        timings: {
+          requestTimeMs: Date.now() - t0,
+        },
       },
     });
   } catch (err: unknown) {

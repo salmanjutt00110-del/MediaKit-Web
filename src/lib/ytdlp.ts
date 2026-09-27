@@ -79,31 +79,39 @@ function getYtDlpCommand(): YtDlpCommand | null {
   if (cachedCommand) return cachedCommand;
 
   if (isWin) {
-    // 1. Native python with yt_dlp (avoids PyInstaller temp unpacking issues)
-    try {
-      const check = spawnSync('python.exe', ['-m', 'yt_dlp', '--version'], { timeout: 3000 });
-      if (check.status === 0) {
-        cachedCommand = { cmd: 'python.exe', prefixArgs: ['-m', 'yt_dlp'] };
-        return cachedCommand;
-      }
-    } catch {}
+    // 1. Check known Python runtimes that have yt_dlp installed
+    const pythonCandidates = [
+      'C:\\Program Files\\Python311\\python.exe',
+      'C:\\Users\\salma\\AppData\\Local\\Programs\\Python\\Python312\\python.exe',
+      'python.exe',
+      'python',
+      'py.exe',
+    ];
 
-    try {
-      const check = spawnSync('python', ['-m', 'yt_dlp', '--version'], { timeout: 3000 });
-      if (check.status === 0) {
-        cachedCommand = { cmd: 'python', prefixArgs: ['-m', 'yt_dlp'] };
-        return cachedCommand;
-      }
-    } catch {}
-
-    // 2. Windows standalone binary in bin/yt-dlp.exe
-    const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
-    if (fs.existsSync(winPath)) {
-      cachedCommand = { cmd: winPath, prefixArgs: [] };
-      return cachedCommand;
+    for (const pyPath of pythonCandidates) {
+      try {
+        const check = spawnSync(pyPath, ['-m', 'yt_dlp', '--version'], { timeout: 3000 });
+        if (check.status === 0) {
+          cachedCommand = { cmd: pyPath, prefixArgs: ['-m', 'yt_dlp'] };
+          logger.info('Using verified Python yt-dlp engine', { cmd: pyPath });
+          return cachedCommand;
+        }
+      } catch {}
     }
 
-    // 3. System PATH yt-dlp.exe
+    // 2. Windows standalone binary in bin/yt-dlp.exe (MUST verify status === 0 to avoid corrupted PyInstaller unpack errors)
+    const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
+    if (fs.existsSync(winPath)) {
+      try {
+        const check = spawnSync(winPath, ['--version'], { timeout: 3000 });
+        if (check.status === 0) {
+          cachedCommand = { cmd: winPath, prefixArgs: [] };
+          return cachedCommand;
+        }
+      } catch {}
+    }
+
+    // 3. System PATH yt-dlp.exe (verified)
     try {
       const check = spawnSync('yt-dlp.exe', ['--version'], { timeout: 3000 });
       if (check.status === 0) {

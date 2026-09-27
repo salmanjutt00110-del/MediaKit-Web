@@ -10,6 +10,7 @@ import {
   Film,
   Music,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { MediaFormat, MediaMetadata, PlatformType } from '@/lib/types';
 import { YouTubeIcon, TikTokIcon, FacebookIcon, InstagramIcon, PinterestIcon } from './PlatformIcons';
@@ -306,6 +307,7 @@ export default function DownloadResult({
             {(() => {
               const autoHdLnk = getFormatDownloadLink(highestVideoFormat);
               const autoHdName = getFormatFilename(highestVideoFormat);
+              const isThisDownloading = isDownloading && downloadingFormatId === highestVideoFormat.id;
               return autoHdLnk ? (
                 <a
                   href={autoHdLnk}
@@ -313,15 +315,21 @@ export default function DownloadResult({
                   className={styles.autoHdBtn}
                   onClick={(e) => {
                     e.preventDefault();
-                    onDownloadFormat && onDownloadFormat(highestVideoFormat.id);
+                    if (!isDownloading) {
+                      onDownloadFormat && onDownloadFormat(highestVideoFormat.id);
+                    }
                   }}
                   aria-label={`Download Auto HD ${highestVideoFormat.quality}`}
+                  aria-busy={isThisDownloading}
+                  style={isDownloading && !isThisDownloading ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
                 >
-                  <Download size={16} />
+                  {isThisDownloading ? (
+                    <Loader2 size={16} className={styles.btnSpinner} />
+                  ) : (
+                    <Download size={16} />
+                  )}
                   <span>
-                    {isDownloading && downloadingFormatId === highestVideoFormat.id
-                      ? 'Downloading...'
-                      : 'Download Auto HD'}
+                    {isThisDownloading ? 'Downloading...' : 'Download Auto HD'}
                   </span>
                 </a>
               ) : (
@@ -331,12 +339,15 @@ export default function DownloadResult({
                   onClick={() => onDownloadFormat && onDownloadFormat(highestVideoFormat.id)}
                   disabled={isDownloading}
                   aria-label={`Download Auto HD ${highestVideoFormat.quality}`}
+                  aria-busy={isThisDownloading}
                 >
-                  <Download size={16} />
+                  {isThisDownloading ? (
+                    <Loader2 size={16} className={styles.btnSpinner} />
+                  ) : (
+                    <Download size={16} />
+                  )}
                   <span>
-                    {isDownloading && downloadingFormatId === highestVideoFormat.id
-                      ? 'Preparing...'
-                      : 'Download Auto HD'}
+                    {isThisDownloading ? 'Preparing...' : 'Download Auto HD'}
                   </span>
                 </button>
               );
@@ -357,6 +368,7 @@ export default function DownloadResult({
                   {mp4Formats.map((fmt: MediaFormat) => {
                     const dlLink = getFormatDownloadLink(fmt);
                     const filename = getFormatFilename(fmt);
+                    const isFmtDownloading = isDownloading && downloadingFormatId === fmt.id;
                     return (
                       <div key={fmt.id} className={styles.formatRow}>
                         <div className={styles.formatInfo}>
@@ -373,15 +385,21 @@ export default function DownloadResult({
                             className={styles.rowDownloadBtn}
                             onClick={(e) => {
                               e.preventDefault();
-                              onDownloadFormat && onDownloadFormat(fmt.id);
+                              if (!isDownloading) {
+                                onDownloadFormat && onDownloadFormat(fmt.id);
+                              }
                             }}
                             aria-label={`Download MP4 ${fmt.quality}`}
+                            aria-busy={isFmtDownloading}
+                            style={isDownloading && !isFmtDownloading ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
                           >
-                            <Download size={14} />
+                            {isFmtDownloading ? (
+                              <Loader2 size={14} className={styles.btnSpinner} />
+                            ) : (
+                              <Download size={14} />
+                            )}
                             <span>
-                              {isDownloading && downloadingFormatId === fmt.id
-                                ? 'Downloading...'
-                                : 'Instant Download'}
+                              {isFmtDownloading ? 'Downloading...' : 'Instant Download'}
                             </span>
                           </a>
                         ) : (
@@ -391,12 +409,15 @@ export default function DownloadResult({
                             onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
                             disabled={isDownloading}
                             aria-label={`Download MP4 ${fmt.quality}`}
+                            aria-busy={isFmtDownloading}
                           >
-                            <Download size={14} />
+                            {isFmtDownloading ? (
+                              <Loader2 size={14} className={styles.btnSpinner} />
+                            ) : (
+                              <Download size={14} />
+                            )}
                             <span>
-                              {isDownloading && downloadingFormatId === fmt.id
-                                ? 'Preparing File...'
-                                : 'Download'}
+                              {isFmtDownloading ? 'Preparing...' : 'Download'}
                             </span>
                           </button>
                         )}
@@ -418,6 +439,7 @@ export default function DownloadResult({
                   {mp3Formats.map((fmt: MediaFormat) => {
                     const dlLink = getFormatDownloadLink(fmt);
                     const filename = getFormatFilename(fmt);
+                    const isFmtDownloading = isDownloading && downloadingFormatId === fmt.id;
                     return (
                       <div key={fmt.id} className={styles.formatRow}>
                         <div className={styles.formatInfo}>
@@ -434,15 +456,21 @@ export default function DownloadResult({
                             className={styles.rowDownloadBtnAudio}
                             onClick={(e) => {
                               e.preventDefault();
-                              onDownloadFormat && onDownloadFormat(fmt.id);
+                              if (!isDownloading) {
+                                onDownloadFormat && onDownloadFormat(fmt.id);
+                              }
                             }}
                             aria-label="Download MP3 Audio"
+                            aria-busy={isFmtDownloading}
+                            style={isDownloading && !isFmtDownloading ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
                           >
-                            <Download size={14} />
+                            {isFmtDownloading ? (
+                              <Loader2 size={14} className={styles.btnSpinner} />
+                            ) : (
+                              <Download size={14} />
+                            )}
                             <span>
-                              {isDownloading && downloadingFormatId === fmt.id
-                                ? 'Downloading...'
-                                : 'Instant Download'}
+                              {isFmtDownloading ? 'Downloading...' : 'Instant Download'}
                             </span>
                           </a>
                         ) : (
@@ -452,12 +480,15 @@ export default function DownloadResult({
                             onClick={() => onDownloadFormat && onDownloadFormat(fmt.id)}
                             disabled={isDownloading}
                             aria-label="Download MP3 Audio"
+                            aria-busy={isFmtDownloading}
                           >
-                            <Download size={14} />
+                            {isFmtDownloading ? (
+                              <Loader2 size={14} className={styles.btnSpinner} />
+                            ) : (
+                              <Download size={14} />
+                            )}
                             <span>
-                              {isDownloading && downloadingFormatId === fmt.id
-                                ? 'Preparing File...'
-                                : 'Download MP3'}
+                              {isFmtDownloading ? 'Preparing...' : 'Download MP3'}
                             </span>
                           </button>
                         )}

@@ -543,37 +543,25 @@ export default function Downloader() {
 
       let finalEndpoint = targetFormat?.downloadUrl;
 
-      // If stream is not yet cached or requires server-side processing/merging
-      if (!finalEndpoint || !finalEndpoint.includes('/api/download/serve')) {
-        let progressVal = 20;
-        let progressTimer: NodeJS.Timeout | undefined;
+      // If stream is not yet available, request it from backend with full mediaInfo fast-path
+      const hasDirectUrl =
+        finalEndpoint &&
+        (finalEndpoint.startsWith('http://') ||
+          finalEndpoint.startsWith('https://') ||
+          finalEndpoint.startsWith('/api/download/'));
 
+      if (!hasDirectUrl) {
         if (!isBatch) {
           setDownloadingFormatId(formatId);
           setState('downloading');
           setError(null);
           setDownloadProgress({
-            percent: 20,
-            receivedMB: 'Connecting to high-speed media server...',
+            percent: 0,
+            receivedMB: 'Preparing media stream...',
             totalMB: '',
             active: true,
             formatTitle: targetFormat?.quality || formatId,
           });
-
-          progressTimer = setInterval(() => {
-            progressVal = Math.min(88, progressVal + (progressVal < 50 ? 8 : 4));
-            const msg =
-              progressVal < 45
-                ? 'Downloading high-definition video stream...'
-                : progressVal < 70
-                ? 'Merging video & audio with FFmpeg...'
-                : 'Finalizing file for your Downloads folder...';
-            setDownloadProgress((prev) => ({
-              ...prev,
-              percent: progressVal,
-              receivedMB: msg,
-            }));
-          }, 450);
         }
 
         let dlResponse: Response;
@@ -585,11 +573,12 @@ export default function Downloader() {
             body: JSON.stringify({
               url: currentMedia.sourceUrl,
               formatId,
+              mediaInfo: currentMedia,
             }),
           });
           dlData = await dlResponse.json().catch(() => ({}));
-        } finally {
-          if (progressTimer) clearInterval(progressTimer);
+        } catch {
+          dlResponse = new Response(null, { status: 500 });
         }
 
         if (!dlResponse.ok || !dlData.success) {

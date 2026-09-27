@@ -37,12 +37,23 @@
   width: 100%;
 }
 
+@keyframes platformCardReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .platformCard {
   background: var(--bg-surface);
   border: 1.5px solid var(--border-card);
   border-radius: var(--radius-xl);
   padding: 32px 24px;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -52,48 +63,62 @@
   overflow: hidden;
   text-decoration: none;
   color: inherit;
+  animation: platformCardReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, box-shadow;
 }
 
 .platformCard:hover {
-  transform: translateY(-4px);
-  border-color: rgba(37, 99, 235, 0.25);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-4px) scale(1.015);
+  border-color: rgba(37, 99, 235, 0.3);
+  box-shadow: 0 16px 32px -4px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.platformCard:hover .iconSquircle {
+  transform: scale(1.08) rotate(-2deg);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
 }
 
 /* Individual subtle ambient card backgrounds matching Reference 2 */
 .cardYouTube {
   background: linear-gradient(180deg, #ffffff 60%, #fff6f6 100%);
   border-color: rgba(255, 0, 0, 0.08);
+  animation-delay: 0.05s;
 }
 
 .cardTikTok {
   background: linear-gradient(180deg, #ffffff 60%, #f8fafc 100%);
   border-color: rgba(15, 23, 42, 0.08);
+  animation-delay: 0.10s;
 }
 
 .cardFacebook {
   background: linear-gradient(180deg, #ffffff 60%, #f4f8ff 100%);
   border-color: rgba(24, 119, 242, 0.08);
+  animation-delay: 0.15s;
 }
 
 .cardInstagram {
   background: linear-gradient(180deg, #ffffff 60%, #fdf5fb 100%);
   border-color: rgba(225, 48, 108, 0.08);
+  animation-delay: 0.20s;
 }
 
 .cardPinterest {
   background: linear-gradient(180deg, #ffffff 60%, #fff5f5 100%);
   border-color: rgba(230, 0, 35, 0.08);
+  animation-delay: 0.25s;
 }
 
 .cardCanva {
   background: linear-gradient(180deg, #ffffff 60%, #f0fdf4 100%);
   border-color: rgba(0, 196, 204, 0.12);
+  animation-delay: 0.30s;
 }
 
 .cardChatGPT {
   background: linear-gradient(180deg, #ffffff 60%, #f0fdf9 100%);
   border-color: rgba(16, 163, 127, 0.12);
+  animation-delay: 0.35s;
 }
 
 [data-theme='dark'] .cardYouTube {

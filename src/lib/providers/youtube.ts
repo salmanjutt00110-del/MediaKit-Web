@@ -400,8 +400,45 @@ export class YouTubeDownloadProvider {
     const isAudio =
       formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
 
-    // 2. Primary Engine: High-performance local yt-dlp + ffmpeg pipeline
+    // 2. Ultra-Fast Direct Streaming Path (Time to Start: ~2s)
+    // If requesting audio or progressive video format, extract direct stream URL without waiting for full server download
     if (ytDlpRunner.isAvailable()) {
+      if (isAudio || formatId === '360p' || formatId.includes('direct')) {
+        try {
+          onProgress?.({ percent: 35, stage: 'Connecting to direct stream...' });
+          const streamUrl = await ytDlpRunner.getStreamUrl(canonicalUrl, formatId);
+          if (streamUrl && streamUrl.startsWith('http')) {
+            const cleanTitle = (media.title || 'media').replace(/[/\\?%*:|"<>]/g, '_').trim();
+            const ext = isAudio ? 'mp3' : 'mp4';
+            const safeDownloadUrl = `/api/download/file?url=${encodeURIComponent(streamUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
+
+            const result: ProviderDownloadResult = {
+              success: true,
+              downloadUrl: safeDownloadUrl,
+              duration: media.duration,
+              resolution: isAudio ? undefined : '360p',
+              message: 'Direct high-speed media stream ready.',
+            };
+
+            youtubeStreamCache.set(cacheKey, {
+              url: safeDownloadUrl,
+              fileResult: result,
+              expiry: Date.now() + 30 * 60 * 1000,
+            });
+
+            onProgress?.({ percent: 100, stage: 'Stream ready ✓' });
+            return result;
+          }
+        } catch (streamErr: unknown) {
+          logger.warn('Direct stream extraction fallback to full pipeline', {
+            msg: (streamErr as Error).message,
+            videoId,
+            formatId,
+          });
+        }
+      }
+
+      // 3. Primary Engine: High-performance local yt-dlp + ffmpeg pipeline
       try {
         onProgress?.({ percent: 20, stage: 'Starting high-speed media processing...' });
         const fullMedia = { ...media, sourceUrl: canonicalUrl };
