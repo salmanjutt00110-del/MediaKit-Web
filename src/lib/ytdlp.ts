@@ -812,13 +812,50 @@ export const ytDlpRunner = {
       let isAudioStream = false;
       let stderrOutput = '';
 
-      // Safety timeout: kill child if it hangs longer than 75s (prevents stuck UI)
-      const downloadTimeout = setTimeout(() => {
-        try { child.kill('SIGKILL'); } catch {}
+      let isSettled = false;
+      const cleanupTemp = () => {
         try { if (fs.existsSync(tempOutputFile)) fs.unlinkSync(tempOutputFile); } catch {}
-        logger.warn('Download killed by safety timeout (75s)', { cacheToken });
-        reject(new Error('Media stream processing timed out.'));
-      }, 75_000);
+      };
+
+      const safeResolve = (val: DownloadedMediaFile) => {
+        if (isSettled) return;
+        isSettled = true;
+        clearInterval(activityInterval);
+        resolve(val);
+      };
+
+      const safeReject = (err: Error) => {
+        if (isSettled) return;
+        isSettled = true;
+        clearInterval(activityInterval);
+        cleanupTemp();
+        reject(err);
+      };
+
+      // Adaptive Activity Timeout: Only terminate if yt-dlp stalls completely for 120s with zero progress/data,
+      // or exceeds 30 minutes total (prevents killing long 1080p/4K 2-hour video downloads).
+      let lastActivityTime = Date.now();
+      const startTime = Date.now();
+      const INACTIVITY_TIMEOUT_MS = 120_000;
+      const MAX_TOTAL_TIMEOUT_MS = 1800_000;
+
+      const activityInterval = setInterval(() => {
+        const now = Date.now();
+        const inactiveDuration = now - lastActivityTime;
+        const totalDuration = now - startTime;
+
+        if (inactiveDuration > INACTIVITY_TIMEOUT_MS || totalDuration > MAX_TOTAL_TIMEOUT_MS) {
+          try { child.kill('SIGKILL'); } catch {}
+          logger.warn('Download terminated by safety timeout', {
+            cacheToken,
+            inactiveDurationMs: inactiveDuration,
+            totalDurationMs: totalDuration,
+          });
+          safeReject(new Error(inactiveDuration > INACTIVITY_TIMEOUT_MS
+            ? 'Media stream processing timed out due to network inactivity.'
+            : 'Media stream processing exceeded maximum duration limit.'));
+        }
+      }, 5_000);
 
       child.stdout.on('data', (chunk) => {
         const text = chunk.toString();
@@ -873,6 +910,7 @@ export const ytDlpRunner = {
       });
 
       child.stderr.on('data', (chunk) => {
+        lastActivityTime = Date.now();
         stderrOutput += chunk.toString();
       });
 
@@ -881,11 +919,11 @@ export const ytDlpRunner = {
         try {
           if (fs.existsSync('/tmp/yt-dlp')) fs.unlinkSync('/tmp/yt-dlp');
         } catch {}
-        reject(new Error(`Failed to start yt-dlp engine: ${err.message}`));
+        safeReject(new Error(`Failed to start yt-dlp engine: ${err.message}`));
       });
 
       child.on('close', async (exitCode) => {
-        clearTimeout(downloadTimeout);
+        clearInterval(activityInterval);
         if (fs.existsSync(tempOutputFile)) {
           try {
             onProgress?.({
@@ -913,8 +951,8 @@ export const ytDlpRunner = {
             });
 
             if (!validation.isValid) {
-              try { fs.unlinkSync(tempOutputFile); } catch {}
-              return reject(new Error(`Download validation failed: ${validation.error}`));
+              cleanupTemp();
+              return safeReject(new Error(`Download validation failed: ${validation.error}`));
             }
 
             // Resolution validation: log if downloaded quality is below requested
@@ -944,14 +982,14 @@ export const ytDlpRunner = {
             });
 
             fs.copyFileSync(tempOutputFile, cachedFilePath);
-            try { fs.unlinkSync(tempOutputFile); } catch {}
+            cleanupTemp();
             const cleanTitle = sanitizeFilename(media.title || 'media', targetExt);
             onProgress?.({
               percent: 100,
               stage: 'Completed',
               total: validation.fileSizeFormatted,
             });
-            return resolve({
+            return safeResolve({
               serveUrl: `/api/download/serve?token=${safeEncodeURIComponent(cacheToken)}&title=${safeEncodeURIComponent(cleanTitle)}&ext=${targetExt}`,
               fileSizeBytes: validation.fileSizeBytes,
               fileSizeFormatted: validation.fileSizeFormatted,
@@ -959,9 +997,9 @@ export const ytDlpRunner = {
               duration: validation.probe.durationSeconds ? `${Math.round(validation.probe.durationSeconds)}s` : undefined,
             });
           } catch (e: unknown) {
-            try { if (fs.existsSync(tempOutputFile)) fs.unlinkSync(tempOutputFile); } catch {}
+            cleanupTemp();
             const err = e as Error;
-            return reject(new Error(`Failed to process validated media file: ${err.message}`));
+            return safeReject(new Error(`Failed to process validated media file: ${err.message}`));
           }
         }
 
@@ -999,17 +1037,18 @@ export const ytDlpRunner = {
 
           const err = new Error(cleanErr || `Download failed with exit code ${exitCode}`);
           (err as unknown as { code: string }).code = errCode;
-          return reject(err);
+          return safeReject(err);
         }
 
-        reject(new Error('Download completed but target file was not generated.'));
+        safeReject(new Error('Download completed but target file was not generated.'));
       });
     });
 
     inflightDownloads.set(cacheToken, downloadPromise);
-    downloadPromise.finally(() => {
-      inflightDownloads.delete(cacheToken);
-    });
+    downloadPromise.then(
+      () => { inflightDownloads.delete(cacheToken); },
+      () => { inflightDownloads.delete(cacheToken); }
+    );
 
     return downloadPromise;
   },
