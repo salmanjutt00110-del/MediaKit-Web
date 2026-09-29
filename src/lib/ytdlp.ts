@@ -79,33 +79,34 @@ function getYtDlpCommand(): YtDlpCommand | null {
   if (cachedCommand) return cachedCommand;
 
   if (isWin) {
-    // 1. Check known Python runtimes that have yt_dlp installed
-    const pythonCandidates = [
-      'C:\\Program Files\\Python311\\python.exe',
-      'C:\\Users\\salma\\AppData\\Local\\Programs\\Python\\Python312\\python.exe',
-      'python.exe',
-      'python',
-      'py.exe',
-    ];
-
-    for (const pyPath of pythonCandidates) {
-      try {
-        const check = spawnSync(pyPath, ['-m', 'yt_dlp', '--version'], { timeout: 3000 });
-        if (check.status === 0) {
-          cachedCommand = { cmd: pyPath, prefixArgs: ['-m', 'yt_dlp'] };
-          logger.info('Using verified Python yt-dlp engine', { cmd: pyPath });
-          return cachedCommand;
-        }
-      } catch {}
-    }
-
-    // 2. Windows standalone binary in bin/yt-dlp.exe (MUST verify status === 0 to avoid corrupted PyInstaller unpack errors)
+    // 1. Windows standalone binary in bin/yt-dlp.exe (verified status === 0)
     const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
     if (fs.existsSync(winPath)) {
       try {
         const check = spawnSync(winPath, ['--version'], { timeout: 3000 });
         if (check.status === 0) {
           cachedCommand = { cmd: winPath, prefixArgs: [] };
+          return cachedCommand;
+        }
+      } catch {}
+    }
+
+    // 2. Python runtimes with yt_dlp module installed (e.g. py -m yt_dlp, python -m yt_dlp)
+    const pythonCandidates: { cmd: string; args: string[] }[] = [
+      { cmd: 'py', args: ['-m', 'yt_dlp'] },
+      { cmd: 'py.exe', args: ['-m', 'yt_dlp'] },
+      { cmd: 'python', args: ['-m', 'yt_dlp'] },
+      { cmd: 'python.exe', args: ['-m', 'yt_dlp'] },
+      { cmd: 'C:\\Program Files\\Python311\\python.exe', args: ['-m', 'yt_dlp'] },
+      { cmd: 'C:\\Users\\salma\\AppData\\Local\\Programs\\Python\\Python312\\python.exe', args: ['-m', 'yt_dlp'] },
+    ];
+
+    for (const py of pythonCandidates) {
+      try {
+        const check = spawnSync(/*turbopackIgnore: true*/ py.cmd, [...py.args, '--version'], { timeout: 3000 });
+        if (check.status === 0) {
+          cachedCommand = { cmd: py.cmd, prefixArgs: py.args };
+          logger.info('Using verified Python yt-dlp engine', { cmd: py.cmd });
           return cachedCommand;
         }
       } catch {}
@@ -282,7 +283,6 @@ export const ytDlpRunner = {
 
       if (isYouTube) {
         args.push('-4');
-        args.push('--extractor-args', 'youtube:player_client=android,web');
         const ytCookies = getCookiesPath('youtube');
         if (ytCookies) {
           args.push('--cookies', ytCookies);
@@ -721,7 +721,6 @@ export const ytDlpRunner = {
         '--no-playlist',
         '--no-warnings',
         '--no-check-certificates',
-        '--prefer-free-formats',
         '--no-mtime',
         '--no-part',
         '--newline',
@@ -780,26 +779,18 @@ export const ytDlpRunner = {
         else if (formatId.includes('240')) height = 240;
         else if (formatId.includes('144')) height = 144;
 
-        // Prefer h264 (avc1) to guarantee remux-only merge (no transcode), with fallback to any codec at target height
-        const minHeight = Math.max(144, Math.round(height * 0.72));
         const isExactId = /^\d+$/.test(formatId) || formatId.includes('+');
 
-        const formatArg = isExactId
-          ? (formatId.includes('+') ? formatId : `${formatId}+bestaudio/${formatId}/best`)
-          : [
-              `bestvideo[height<=${height}][height>=${minHeight}][vcodec^=avc1]+bestaudio[ext=m4a]`,
-              `bestvideo[height<=${height}][height>=${minHeight}]+bestaudio`,
-              `bestvideo[height<=${height}]+bestaudio`,
-              `best[height<=${height}]`,
-              `bestvideo+bestaudio`,
-              `best`,
-            ].join('/');
+        logger.info('yt-dlp format selection', { formatId, height, isExactId });
 
-        logger.info('yt-dlp format selection', { formatId, height, formatArg: formatArg.slice(0, 120) });
+        if (isExactId) {
+          args.push('-f', formatId.includes('+') ? formatId : `${formatId}+bestaudio/${formatId}/best`);
+        } else {
+          args.push('-S', `res:${height}`);
+          args.push('-f', 'bestvideo+bestaudio/best');
+        }
 
         args.push(
-          '-f',
-          formatArg,
           '--merge-output-format',
           'mp4',
           '--concurrent-fragments',
@@ -1045,7 +1036,6 @@ export const ytDlpRunner = {
         const nodeRuntime = process.execPath ? `node:${process.execPath}` : 'node';
         args.push('--js-runtimes', nodeRuntime);
         args.push('-4');
-        args.push('--extractor-args', 'youtube:player_client=android,web');
         const ytCookies = getCookiesPath('youtube');
         if (ytCookies) {
           args.push('--cookies', ytCookies);

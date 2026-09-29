@@ -401,9 +401,9 @@ export class YouTubeDownloadProvider {
       formatId.toLowerCase().includes('mp3') || formatId.toLowerCase().includes('audio');
 
     // 2. Ultra-Fast Direct Streaming Path (Time to Start: ~2s)
-    // If requesting audio or progressive video format, extract direct stream URL without waiting for full server download
+    // If requesting progressive video format (360p/itag 18), extract direct stream URL without waiting for full server download
     if (ytDlpRunner.isAvailable()) {
-      if (isAudio || formatId === '360p' || formatId.includes('direct')) {
+      if (formatId === '360p' || formatId === '18' || formatId.includes('direct')) {
         try {
           onProgress?.({ percent: 35, stage: 'Connecting to direct stream...' });
           const streamUrl = await ytDlpRunner.getStreamUrl(canonicalUrl, formatId);
@@ -472,7 +472,7 @@ export class YouTubeDownloadProvider {
       }
     }
 
-    // 3. Fallback Engine: Savenow CDN delivery
+    // 4. Fallback Engine: Savenow CDN delivery (Safely Proxied through /api/download/file - NEVER direct ad redirect)
     const savenowUrl = await fetchSavenowStream(canonicalUrl, formatId, onProgress);
     if (savenowUrl) {
       const resLabel = isAudio
@@ -485,16 +485,20 @@ export class YouTubeDownloadProvider {
         ? '480p'
         : '360p';
 
+      const cleanTitle = (media.title || 'media').replace(/[/\\?%*:|"<>]/g, '_').trim();
+      const ext = isAudio ? 'mp3' : 'mp4';
+      const safeDownloadUrl = `/api/download/file?url=${encodeURIComponent(savenowUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
+
       const result: ProviderDownloadResult = {
         success: true,
-        downloadUrl: savenowUrl,
+        downloadUrl: safeDownloadUrl,
         resolution: resLabel,
         duration: media.duration,
         message: 'Media successfully processed and ready for download.',
       };
 
       youtubeStreamCache.set(cacheKey, {
-        url: savenowUrl,
+        url: safeDownloadUrl,
         fileResult: result,
         expiry: Date.now() + 30 * 60 * 1000,
       });

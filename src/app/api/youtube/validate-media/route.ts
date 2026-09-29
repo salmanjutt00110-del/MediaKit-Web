@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
               os.tmpdir(),
             ];
             for (const d of possibleDirs) {
-              const testP = path.join(d, fileName);
-              if (fs.existsSync(testP)) {
+              const testP = path.join(/*turbopackIgnore: true*/ d, fileName);
+              if (fs.existsSync(/*turbopackIgnore: true*/ testP)) {
                 localDiskPath = testP;
                 break;
               }

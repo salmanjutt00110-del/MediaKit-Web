@@ -477,13 +477,9 @@ export default function Downloader() {
     const isAlreadyInternalEndpoint =
       finalDlUrl.startsWith('/api/download/file') ||
       finalDlUrl.startsWith('/api/download/serve');
-    const isDirectCdn =
-      finalDlUrl.includes('savenow.to') ||
-      finalDlUrl.includes('loader.to');
 
-    const downloadUrlToTrigger = isDirectCdn
-      ? finalDlUrl
-      : isAlreadyInternalEndpoint
+    // All external or non-internal streams are strictly proxied to guarantee direct, ad-free downloads
+    const downloadUrlToTrigger = isAlreadyInternalEndpoint
       ? finalDlUrl
       : `/api/download/file?url=${encodeURIComponent(finalDlUrl)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
 
@@ -658,10 +654,7 @@ export default function Downloader() {
         const isInternal =
           finalEndpoint.startsWith('/api/download/file') ||
           finalEndpoint.startsWith('/api/download/serve');
-        const isDirectCdn =
-          finalEndpoint.includes('savenow.to') ||
-          finalEndpoint.includes('loader.to');
-        const finalProxied = (isInternal || isDirectCdn)
+        const finalProxied = isInternal
           ? finalEndpoint
           : `/api/download/file?url=${encodeURIComponent(finalEndpoint)}&title=${encodeURIComponent(safeTitle)}&ext=${ext}`;
 
