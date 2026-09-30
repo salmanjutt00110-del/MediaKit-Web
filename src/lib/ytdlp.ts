@@ -79,19 +79,8 @@ function getYtDlpCommand(): YtDlpCommand | null {
   if (cachedCommand) return cachedCommand;
 
   if (isWin) {
-    // 1. Windows standalone binary in bin/yt-dlp.exe (verified status === 0)
-    const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
-    if (fs.existsSync(winPath)) {
-      try {
-        const check = spawnSync(winPath, ['--version'], { timeout: 3000 });
-        if (check.status === 0) {
-          cachedCommand = { cmd: winPath, prefixArgs: [] };
-          return cachedCommand;
-        }
-      } catch {}
-    }
-
-    // 2. Python runtimes with yt_dlp module installed (e.g. py -m yt_dlp, python -m yt_dlp)
+    // 1. Python runtimes with yt_dlp module installed (e.g. py -m yt_dlp, py.exe -m yt_dlp)
+    // Faster, cleaner, and avoids Windows Defender PyInstaller temporary file extraction locks
     const pythonCandidates: { cmd: string; args: string[] }[] = [
       { cmd: 'py', args: ['-m', 'yt_dlp'] },
       { cmd: 'py.exe', args: ['-m', 'yt_dlp'] },
@@ -107,6 +96,18 @@ function getYtDlpCommand(): YtDlpCommand | null {
         if (check.status === 0) {
           cachedCommand = { cmd: py.cmd, prefixArgs: py.args };
           logger.info('Using verified Python yt-dlp engine', { cmd: py.cmd });
+          return cachedCommand;
+        }
+      } catch {}
+    }
+
+    // 2. Windows standalone binary in bin/yt-dlp.exe (verified status === 0)
+    const winPath = path.resolve(process.cwd(), 'bin', 'yt-dlp.exe');
+    if (fs.existsSync(winPath)) {
+      try {
+        const check = spawnSync(winPath, ['--version'], { timeout: 3000 });
+        if (check.status === 0) {
+          cachedCommand = { cmd: winPath, prefixArgs: [] };
           return cachedCommand;
         }
       } catch {}

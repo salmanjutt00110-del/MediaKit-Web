@@ -239,118 +239,15 @@ export class InstagramAdapter extends MediaProvider {
     const cached = getCachedMedia(resolvedUrl) || getCachedMedia(rawUrl) || getCachedMedia(shortcode);
     if (cached) return cached;
 
-    // 1. Tier 1: Fast Direct Web Extractor via Embed Scraper & oEmbed (<3 seconds)
+    // 1. Tier 1: Fast Direct Web Extractor via GetMyFB + Parallel Embed Metadata Scraper (<2s)
     try {
-      const meta = await this.scrapeInstagramMetadata(shortcode, resolvedUrl);
-
-      // If direct video url was scraped from embed
-      if (meta.directVideoUrl) {
-        const formats: MediaFormat[] = [
-          {
-            id: 'hd',
-            format: 'mp4',
-            quality: 'HD Video (MP4)',
-            resolution: '720x1280',
-            hasAudio: true,
-            hasVideo: true,
-            downloadUrl: meta.directVideoUrl,
-          },
-          {
-            id: 'mp3',
-            format: 'mp3',
-            quality: 'Original Audio (MP3)',
-            hasAudio: true,
-            hasVideo: false,
-            downloadUrl: meta.directVideoUrl,
-          },
-        ];
-
-        const result: MediaMetadata = {
-          id: shortcode,
-          platform: 'instagram',
-          title: meta.title || `Instagram Reel (${shortcode})`,
-          author: meta.author || 'Instagram Creator',
-          thumbnailUrl: meta.thumbnailUrl ? `/api/thumbnail?url=${encodeURIComponent(meta.thumbnailUrl)}` : undefined,
-          sourceUrl: resolvedUrl,
-          formats,
-          requiresProviderSetup: false,
-        };
-
-        setCachedMedia(resolvedUrl, result);
-        setCachedMedia(rawUrl, result);
-        setCachedMedia(shortcode, result);
-        return result;
-      }
-    } catch (err: unknown) {
-      const error = err as Error;
-      logger.warn('Instagram Tier 1 extraction warning', { msg: error.message });
-    }
-
-    // 2. Tier 2: SnapSave native extractor fallback
-    try {
-      const snapItems = await extractSnapSave(resolvedUrl);
-      if (snapItems && snapItems.length > 0) {
-        // Fetch metadata in parallel for authentic title and author
-        const meta = await this.scrapeInstagramMetadata(shortcode, resolvedUrl).catch(
+      const [getmyfb, meta] = await Promise.all([
+        this.extractGetMyFB(resolvedUrl),
+        this.scrapeInstagramMetadata(shortcode, resolvedUrl).catch(
           (): { title?: string; author?: string; thumbnailUrl?: string; directVideoUrl?: string } => ({})
-        );
-        const realTitle = meta.title || `Instagram Reel (${shortcode})`;
-        const realAuthor = meta.author || 'Instagram Creator';
-        const bestItem = snapItems[0];
-        const rawThumbnail = bestItem.thumbnail || meta.thumbnailUrl;
-        const thumbnailUrl = rawThumbnail
-          ? (rawThumbnail.startsWith('/api') ? rawThumbnail : `/api/thumbnail?url=${encodeURIComponent(rawThumbnail)}`)
-          : undefined;
+        ),
+      ]);
 
-        const formats: MediaFormat[] = snapItems.map((item, idx) => {
-          const resLabel = item.resolution || (idx === 0 ? 'HD Video (High Definition)' : 'SD Quality (Fast Download)');
-          const isHd = resLabel.toLowerCase().includes('hd') || resLabel.includes('720') || resLabel.includes('1080');
-          return {
-            id: isHd ? 'hd' : `sd_${idx}`,
-            format: 'mp4',
-            quality: resLabel,
-            resolution: isHd ? '720x1280' : '480x854',
-            hasAudio: true,
-            hasVideo: true,
-            downloadUrl: item.url,
-          };
-        });
-
-        if (bestItem.url) {
-          formats.push({
-            id: 'mp3',
-            format: 'mp3',
-            quality: 'Original Audio (MP3)',
-            hasAudio: true,
-            hasVideo: false,
-            downloadUrl: bestItem.url,
-          });
-        }
-
-        const result: MediaMetadata = {
-          id: shortcode,
-          platform: 'instagram',
-          title: realTitle,
-          author: realAuthor,
-          thumbnailUrl,
-          sourceUrl: resolvedUrl,
-          formats,
-          requiresProviderSetup: false,
-        };
-
-        setCachedMedia(resolvedUrl, result);
-        setCachedMedia(rawUrl, result);
-        setCachedMedia(shortcode, result);
-        return result;
-      }
-    } catch (err: unknown) {
-      const error = err as Error;
-      logger.warn('Instagram snapsave extraction error', { msg: error.message });
-    }
-
-    // 3. Tier 3: GetMyFB web extractor fallback
-    try {
-      const getmyfb = await this.extractGetMyFB(resolvedUrl);
       if (getmyfb && (getmyfb.hdUrl || getmyfb.sdUrl)) {
         const hdUrl = getmyfb.hdUrl;
         const sdUrl = getmyfb.sdUrl;
@@ -392,12 +289,59 @@ export class InstagramAdapter extends MediaProvider {
           });
         }
 
+        const bestThumb = getmyfb.thumb || meta?.thumbnailUrl;
+        const thumbnailUrl = bestThumb
+          ? (bestThumb.startsWith('/api') ? bestThumb : `/api/thumbnail?url=${encodeURIComponent(bestThumb)}`)
+          : undefined;
+
+        const realTitle = meta?.title || getmyfb.title || `Instagram Reel (${shortcode})`;
+        const realAuthor = meta?.author || 'Instagram Creator';
+
         const result: MediaMetadata = {
           id: shortcode,
           platform: 'instagram',
-          title: getmyfb.title || `Instagram Reel (${shortcode})`,
-          author: 'Instagram Creator',
-          thumbnailUrl: getmyfb.thumb ? `/api/thumbnail?url=${encodeURIComponent(getmyfb.thumb)}` : undefined,
+          title: realTitle,
+          author: realAuthor,
+          thumbnailUrl,
+          sourceUrl: resolvedUrl,
+          formats,
+          requiresProviderSetup: false,
+        };
+
+        setCachedMedia(resolvedUrl, result);
+        setCachedMedia(rawUrl, result);
+        setCachedMedia(shortcode, result);
+        return result;
+      }
+
+      // If direct video url was scraped from embed
+      if (meta?.directVideoUrl) {
+        const formats: MediaFormat[] = [
+          {
+            id: 'hd',
+            format: 'mp4',
+            quality: 'HD Video (MP4)',
+            resolution: '720x1280',
+            hasAudio: true,
+            hasVideo: true,
+            downloadUrl: meta.directVideoUrl,
+          },
+          {
+            id: 'mp3',
+            format: 'mp3',
+            quality: 'Original Audio (MP3)',
+            hasAudio: true,
+            hasVideo: false,
+            downloadUrl: meta.directVideoUrl,
+          },
+        ];
+
+        const result: MediaMetadata = {
+          id: shortcode,
+          platform: 'instagram',
+          title: meta.title || `Instagram Reel (${shortcode})`,
+          author: meta.author || 'Instagram Creator',
+          thumbnailUrl: meta.thumbnailUrl ? `/api/thumbnail?url=${encodeURIComponent(meta.thumbnailUrl)}` : undefined,
           sourceUrl: resolvedUrl,
           formats,
           requiresProviderSetup: false,
@@ -410,15 +354,15 @@ export class InstagramAdapter extends MediaProvider {
       }
     } catch (err: unknown) {
       const error = err as Error;
-      logger.warn('Instagram GetMyFB fallback warning', { msg: error.message });
+      logger.warn('Instagram Tier 1 extraction warning', { msg: error.message });
     }
 
-    // 4. Tier 4: yt-dlp native extraction fallback
+    // 2. Tier 2: yt-dlp native extraction fallback
     if (ytDlpRunner.isAvailable()) {
       try {
         const info = await Promise.race([
           ytDlpRunner.getMediaInfo(resolvedUrl),
-          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('yt-dlp timeout')), 28000)),
+          new Promise<null>((_, reject) => setTimeout(() => reject(new Error('yt-dlp timeout')), 15000)),
         ]);
         if (info && info.formats && info.formats.length > 0) {
           const proxiedThumb = info.thumbnailUrl
@@ -455,6 +399,65 @@ export class InstagramAdapter extends MediaProvider {
       }
     }
 
+    // 3. Tier 3: SnapSave native extractor fallback (with fast 3s timeout)
+    try {
+      const snapItems = await Promise.race([
+        extractSnapSave(resolvedUrl),
+        new Promise<null>((r) => setTimeout(() => r(null), 3000)),
+      ]);
+      if (snapItems && snapItems.length > 0) {
+        const bestItem = snapItems[0];
+        const rawThumbnail = bestItem.thumbnail;
+        const thumbnailUrl = rawThumbnail
+          ? (rawThumbnail.startsWith('/api') ? rawThumbnail : `/api/thumbnail?url=${encodeURIComponent(rawThumbnail)}`)
+          : undefined;
+
+        const formats: MediaFormat[] = snapItems.map((item, idx) => {
+          const resLabel = item.resolution || (idx === 0 ? 'HD Video (High Definition)' : 'SD Quality (Fast Download)');
+          const isHd = resLabel.toLowerCase().includes('hd') || resLabel.includes('720') || resLabel.includes('1080');
+          return {
+            id: isHd ? 'hd' : `sd_${idx}`,
+            format: 'mp4',
+            quality: resLabel,
+            resolution: isHd ? '720x1280' : '480x854',
+            hasAudio: true,
+            hasVideo: true,
+            downloadUrl: item.url,
+          };
+        });
+
+        if (bestItem.url) {
+          formats.push({
+            id: 'mp3',
+            format: 'mp3',
+            quality: 'Original Audio (MP3)',
+            hasAudio: true,
+            hasVideo: false,
+            downloadUrl: bestItem.url,
+          });
+        }
+
+        const result: MediaMetadata = {
+          id: shortcode,
+          platform: 'instagram',
+          title: `Instagram Reel (${shortcode})`,
+          author: 'Instagram Creator',
+          thumbnailUrl,
+          sourceUrl: resolvedUrl,
+          formats,
+          requiresProviderSetup: false,
+        };
+
+        setCachedMedia(resolvedUrl, result);
+        setCachedMedia(rawUrl, result);
+        setCachedMedia(shortcode, result);
+        return result;
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      logger.warn('Instagram snapsave extraction error', { msg: error.message });
+    }
+
     throw new Error('Unable to download this Instagram video. Please make sure the reel or post is public and try again.');
   }
 
@@ -471,12 +474,12 @@ export class InstagramAdapter extends MediaProvider {
     const ext = isMp3 ? 'mp3' : 'mp4';
     const cleanTitle = sanitizeFilename(media.title || 'Instagram_Video', ext);
 
-    // 1. If format has directVideoUrl or prepared download URL and NOT requesting MP3 audio conversion
+    // 1. Check if the requested format has a direct download URL
     const format = media.formats.find((f) => f.id === formatId);
     let directUrl = format?.downloadUrl;
 
-    if (!directUrl && !isMp3) {
-      const anyFmtWithUrl = media.formats.find((f) => f.downloadUrl && f.downloadUrl.startsWith('http') && f.format !== 'mp3');
+    if (!directUrl) {
+      const anyFmtWithUrl = media.formats.find((f) => f.downloadUrl && f.downloadUrl.startsWith('http'));
       if (anyFmtWithUrl) {
         directUrl = anyFmtWithUrl.downloadUrl;
       } else {
@@ -484,11 +487,17 @@ export class InstagramAdapter extends MediaProvider {
         const freshMeta = await this.scrapeInstagramMetadata(shortcode, media.sourceUrl);
         if (freshMeta.directVideoUrl) {
           directUrl = freshMeta.directVideoUrl;
+        } else {
+          const fresh = await this.extractGetMyFB(media.sourceUrl);
+          if (fresh?.hdUrl || fresh?.sdUrl) {
+            directUrl = isMp3 ? (fresh.sdUrl || fresh.hdUrl) : (fresh.hdUrl || fresh.sdUrl);
+          }
         }
       }
     }
 
-    if (!isMp3 && directUrl && directUrl.startsWith('http')) {
+    // Direct stream fast-path (instant response for browser download)
+    if (directUrl && directUrl.startsWith('http')) {
       const safeUrl = directUrl.startsWith('/api/download/file') || directUrl.startsWith('/api/download/serve')
         ? directUrl
         : `/api/download/file?url=${encodeURIComponent(directUrl)}&title=${encodeURIComponent(cleanTitle)}&ext=${ext}`;
@@ -535,7 +544,7 @@ export class InstagramAdapter extends MediaProvider {
       }
     }
 
-    // 4. Fallback for direct URL (e.g. if yt-dlp is unavailable but directUrl is present)
+    // 4. Fallback for direct URL
     if (directUrl && directUrl.startsWith('http')) {
       const safeUrl = directUrl.startsWith('/api/download/file') || directUrl.startsWith('/api/download/serve')
         ? directUrl
@@ -547,6 +556,6 @@ export class InstagramAdapter extends MediaProvider {
       };
     }
 
-    throw new Error('Unable to download this Instagram video. Instagram restricts access to most content. For unrestricted downloads, place a cookies.txt file from your Instagram session into the bin/ folder. Public posts may work without cookies.');
+    throw new Error('Unable to download this Instagram video. Please make sure the reel or post is public and try again.');
   }
 }

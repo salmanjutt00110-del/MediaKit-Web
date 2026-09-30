@@ -302,17 +302,21 @@ export class FacebookAdapter extends MediaProvider {
     let fbHd = vikasData.hdUrl;
     let fbSd = vikasData.sdUrl;
 
-    // 2. Tier 2: If streams are missing OR thumbnail is missing, fetch from GetMyFB & SnapSave
+    // 2. Tier 2: If streams are missing OR thumbnail is missing, fetch from GetMyFB first
     let getmyfbData: { hdUrl?: string; sdUrl?: string; title?: string; thumb?: string } | null = null;
     if (!fbHd || !fbSd || !fbThumb) {
-      const [gfb, snapItems] = await Promise.all([
-        this.extractGetMyFB(resolvedUrl).catch(() => null),
-        extractSnapSave(resolvedUrl).catch(() => null),
-      ]);
-      getmyfbData = gfb;
-      if (!fbHd) fbHd = getmyfbData?.hdUrl || snapItems?.[0]?.url || undefined;
-      if (!fbSd) fbSd = getmyfbData?.sdUrl || snapItems?.[1]?.url || snapItems?.[0]?.url || undefined;
-      if (!fbThumb) fbThumb = getmyfbData?.thumb || snapItems?.[0]?.thumbnail || undefined;
+      getmyfbData = await this.extractGetMyFB(resolvedUrl).catch(() => null);
+      if (getmyfbData?.hdUrl) fbHd = getmyfbData.hdUrl;
+      if (getmyfbData?.sdUrl) fbSd = getmyfbData.sdUrl;
+      if (getmyfbData?.thumb) fbThumb = getmyfbData.thumb;
+
+      // If still missing streams, try SnapSave
+      if (!fbHd && !fbSd) {
+        const snapItems = await extractSnapSave(resolvedUrl).catch(() => null);
+        if (!fbHd) fbHd = snapItems?.[0]?.url || undefined;
+        if (!fbSd) fbSd = snapItems?.[1]?.url || snapItems?.[0]?.url || undefined;
+        if (!fbThumb) fbThumb = snapItems?.[0]?.thumbnail || undefined;
+      }
     }
 
     // 3. Tier 3: yt-dlp fallback with timeout if web scrapers missed streams or thumbnail

@@ -86,7 +86,7 @@ export async function extractSnapSave(url: string): Promise<SnapMediaItem[] | nu
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
       },
       body: formData.toString(),
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(3000),
     });
 
     if (!res.ok) return null;
