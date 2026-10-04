@@ -55,19 +55,23 @@ export interface SeoLandingPageProps {
   articles?: RichArticle[];
   faqs: { question: string; answer: string }[];
   structuredData?: any;
+  relatedTools?: { name: string; href?: string; url?: string; description?: string; icon?: string }[];
 }
 
 const defaultRelatedTools = [
+  { name: 'Online Video Downloader', href: '/online-video-downloader' },
+  { name: 'YouTube Video Downloader', href: '/youtube-video-downloader' },
+  { name: 'YouTube Shorts Downloader', href: '/youtube-shorts-downloader' },
+  { name: 'YouTube to MP3 Converter', href: '/youtube-mp3' },
+  { name: 'TikTok Video Downloader', href: '/tiktok-video-downloader' },
+  { name: 'Instagram Video Downloader', href: '/instagram-video-downloader' },
+  { name: 'Instagram Reels Downloader', href: '/instagram-reels-downloader' },
+  { name: 'Facebook Video Downloader', href: '/facebook-video-downloader' },
+  { name: 'Facebook Reels Downloader', href: '/facebook-reels-downloader' },
+  { name: 'Pinterest Video Downloader', href: '/pinterest-video-downloader' },
+  { name: 'MP4 Video Downloader', href: '/mp4-video-downloader' },
+  { name: 'MP3 Video Downloader', href: '/mp3-video-downloader' },
   { name: 'Free Without Watermark', href: '/free-video-downloader-without-watermark' },
-  { name: 'YouTube Downloader', href: '/youtube-video-downloader' },
-  { name: 'YouTube Shorts', href: '/youtube-shorts-downloader' },
-  { name: 'TikTok Downloader', href: '/tiktok-video-downloader' },
-  { name: 'Instagram Video', href: '/instagram-video-downloader' },
-  { name: 'Instagram Reels', href: '/instagram-reels-downloader' },
-  { name: 'Facebook Downloader', href: '/facebook-video-downloader' },
-  { name: 'Facebook Reels', href: '/facebook-reels-downloader' },
-  { name: 'Pinterest Downloader', href: '/pinterest-video-downloader' },
-  { name: 'YouTube to MP3', href: '/youtube-mp3' },
 ];
 
 const defaultDeviceGuides: DeviceGuide[] = [
@@ -158,6 +162,7 @@ export default function SeoLandingPage({
   articles,
   faqs,
   structuredData,
+  relatedTools,
 }: SeoLandingPageProps) {
   const displayTitle = highlightWord && title.includes(highlightWord) ? (
     <>
@@ -190,7 +195,7 @@ export default function SeoLandingPage({
             </li>
             <li className={styles.breadcrumbSeparator}>/</li>
             <li className={styles.breadcrumbItem}>
-              <Link href="/video-downloader">Tools</Link>
+              <Link href="/online-video-downloader">Tools</Link>
             </li>
             <li className={styles.breadcrumbSeparator}>/</li>
             <li className={styles.breadcrumbCurrent} aria-current="page">
@@ -217,6 +222,34 @@ export default function SeoLandingPage({
 
         {/* Embedded Interactive Downloader */}
         <Downloader />
+
+        {/* Trust & Transparency Note */}
+        <div className="app-container" style={{ marginTop: '-12px', marginBottom: '24px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              gap: '16px',
+              padding: '12px 20px',
+              borderRadius: '12px',
+              background: 'var(--bg-subtle)',
+              border: '1px solid var(--border-light)',
+              fontSize: '0.85rem',
+              color: 'var(--text-secondary)',
+              textAlign: 'center',
+            }}
+          >
+            <span>✓ No Registration Required</span>
+            <span>•</span>
+            <span>✓ Auto Platform Detection</span>
+            <span>•</span>
+            <span>✓ Source-Dependent Formats (up to 4K/1080p)</span>
+            <span>•</span>
+            <span>✓ Personal &amp; Fair Use Only</span>
+          </div>
+        </div>
 
         {/* SUPPORTED URL EXAMPLES */}
         {supportedUrls && supportedUrls.length > 0 && (
@@ -443,8 +476,8 @@ export default function SeoLandingPage({
             </div>
 
             <div className={styles.relatedGrid}>
-              {defaultRelatedTools.map((tool, idx) => (
-                <Link key={idx} href={tool.href} className={styles.relatedCard}>
+              {(relatedTools || defaultRelatedTools).map((tool, idx) => (
+                <Link key={idx} href={tool.href || tool.url || '/'} className={styles.relatedCard}>
                   <span>{tool.name}</span>
                   <ArrowRight size={14} style={{ marginLeft: 'auto' }} />
                 </Link>

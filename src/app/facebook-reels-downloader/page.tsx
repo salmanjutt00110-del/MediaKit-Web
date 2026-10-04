@@ -2,32 +2,31 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'Facebook Reels Downloader — Download FB Reels 1080p HD Free | MediaKit',
+  title: 'Facebook Reels Downloader | MediaKit',
   description:
-    'Download Facebook Reels videos in 1080p Full HD with crystal-clear audio for free. No watermarks, fast browser download, works on iPhone, Android, and PC.',
+    'Download Facebook Reels online in HD MP4 with synchronized audio. Paste any public FB Reel link into MediaKit for fast, browser-based saving on mobile or desktop.',
   keywords: [
     'facebook reels downloader',
     'download facebook reels',
     'fb reels download',
     'save facebook reels hd',
-    'download fb reels without watermark',
     'facebook reels to mp4',
     'free facebook reels downloader',
   ],
   alternates: {
-    canonical: '/facebook-reels-downloader',
+    canonical: 'https://mediakit.website/facebook-reels-downloader',
   },
   openGraph: {
-    title: 'Facebook Reels Downloader — Download FB Reels 1080p HD Free | MediaKit',
+    title: 'Facebook Reels Downloader | MediaKit',
     description:
-      'Download Facebook Reels videos in Full HD with crystal clear audio. 100% free online Facebook Reels downloader.',
-    url: '/facebook-reels-downloader',
+      'Save vertical Facebook Reels clips with synchronized audio in standard MP4 format. Free, browser-based downloader with no app installation needed.',
+    url: 'https://mediakit.website/facebook-reels-downloader',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Facebook Reels Downloader — MediaKit',
-    description: 'Save vertical Facebook Reels in 1080p HD with no watermarks.',
+    title: 'Facebook Reels Downloader | MediaKit',
+    description: 'Save vertical Facebook Reels clips with original synchronized audio in MP4 format.',
   },
 };
 
@@ -35,19 +34,24 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
     {
+      '@type': 'WebPage',
+      '@id': 'https://mediakit.website/facebook-reels-downloader#webpage',
+      url: 'https://mediakit.website/facebook-reels-downloader',
+      name: 'Facebook Reels Downloader | MediaKit',
+      description:
+        'Download Facebook Reels online in HD MP4 with synchronized audio. Paste any public FB Reel link into MediaKit for fast, browser-based saving.',
+      isPartOf: {
+        '@type': 'WebSite',
+        '@id': 'https://mediakit.website/#website',
+      },
+    },
+    {
       '@type': 'WebApplication',
       name: 'MediaKit Facebook Reels Downloader',
       url: 'https://mediakit.website/facebook-reels-downloader',
       applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Windows, macOS, Linux, Android, iOS',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.9',
-        ratingCount: '11450',
-        bestRating: '5',
-        worstRating: '1',
-      },
     },
     {
       '@type': 'BreadcrumbList',
@@ -62,7 +66,7 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 2,
           name: 'Tools',
-          item: 'https://mediakit.website/video-downloader',
+          item: 'https://mediakit.website/online-video-downloader',
         },
         {
           '@type': 'ListItem',
@@ -75,24 +79,24 @@ const jsonLd = {
     {
       '@type': 'HowTo',
       name: 'How to Download Facebook Reels',
-      description: 'Quick 3-step guide to download Facebook Reels without watermark.',
+      description: 'Quick 3-step guide to download public Facebook Reels with MediaKit.',
       step: [
         {
           '@type': 'HowToStep',
-          name: 'Copy FB Reel Link',
-          text: 'On Facebook, tap Share on the Reel, and select "Copy Link".',
+          name: 'Copy Facebook Reel Link',
+          text: 'Open Facebook, navigate to the Reel, tap the Share icon, and choose "Copy Link".',
           position: 1,
         },
         {
           '@type': 'HowToStep',
           name: 'Paste into MediaKit',
-          text: 'Paste the Reel link into the search bar above.',
+          text: 'Paste the copied Facebook Reel URL into the input field above and click Download.',
           position: 2,
         },
         {
           '@type': 'HowToStep',
-          name: 'Download HD Video',
-          text: 'Select 1080p HD and click Download to save the vertical MP4 clip.',
+          name: 'Select Available Format',
+          text: 'Choose your preferred video quality or audio option from the detected stream choices.',
           position: 3,
         },
       ],
@@ -105,7 +109,7 @@ const jsonLd = {
           name: 'How do I download a Facebook Reel?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'On the Facebook app or web, tap Share on the Reel, select "Copy Link", paste it into MediaKit above, and click Download.',
+            text: 'On the Facebook app or website, tap Share on the Reel, select "Copy Link", paste it into MediaKit above, and click Download to view available formats.',
           },
         },
         {
@@ -113,31 +117,31 @@ const jsonLd = {
           name: 'Are Facebook Reels downloaded with synchronized audio?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Yes! All downloaded Facebook Reels include the original high-fidelity audio track synchronized with the video.',
+            text: 'Yes. MediaKit extracts the public Facebook stream containing synchronized original audio and speech.',
           },
         },
         {
           '@type': 'Question',
-          name: 'Can I download Facebook Reels without watermark?',
+          name: 'Can MediaKit download private Facebook Reels or Stories?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Yes, MediaKit extracts the clean source video stream with zero site watermarks or overlay logos.',
+            text: 'No. MediaKit only processes public Reels that do not require an active login or private group membership.',
           },
         },
         {
           '@type': 'Question',
-          name: 'How do I save Facebook Reels on iPhone or iPad?',
+          name: 'How do I save Facebook Reels on iPhone or Android?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Paste the Reel link into Safari on MediaKit, download the file, and tap "Save Video" to add it to your Photos app.',
+            text: 'Open Safari or Chrome on your mobile phone, open mediakit.website/facebook-reels-downloader, paste the Reel link, and save the MP4 video directly to your gallery or files folder.',
           },
         },
         {
           '@type': 'Question',
-          name: 'Is this Facebook Reels downloader free?',
+          name: 'What formats are supported for Facebook Reels?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Yes, MediaKit is 100% free with unlimited downloads and no registration required.',
+            text: 'Reels are provided in universal MP4 vertical (9:16) format, matching the resolutions provided by the source server (up to 1080p where available).',
           },
         },
       ],
@@ -145,13 +149,40 @@ const jsonLd = {
   ],
 };
 
+const customRelatedTools = [
+  {
+    name: 'Facebook Video Downloader',
+    url: '/facebook-video-downloader',
+    description: 'Download standard Facebook feed videos, public group posts, and watch clips.',
+    icon: '📘',
+  },
+  {
+    name: 'Instagram Reels Downloader',
+    url: '/instagram-reels-downloader',
+    description: 'Download public Instagram Reels with original audio in crisp vertical MP4.',
+    icon: '📸',
+  },
+  {
+    name: 'TikTok Video Downloader',
+    url: '/tiktok-video-downloader',
+    description: 'Save viral TikTok clips in HD MP4 without watermarks.',
+    icon: '🎵',
+  },
+  {
+    name: 'Online Video Downloader',
+    url: '/online-video-downloader',
+    description: 'All-in-one multi-platform downloader for YouTube, TikTok, Instagram, and more.',
+    icon: '🌐',
+  },
+];
+
 export default function FacebookReelsDownloaderPage() {
   return (
     <SeoLandingPage
-      badgeText="Facebook Reels Downloader"
-      title="Download Facebook Reels in 1080p HD"
-      highlightWord="1080p HD"
-      subtitle="Save vertical Facebook Reels clips with crystal clear audio directly to your mobile phone or PC with zero watermarks."
+      badgeText="Facebook Reels Tool"
+      title="Facebook Reels Downloader"
+      highlightWord="Downloader"
+      subtitle="Save public vertical Facebook Reels clips with synchronized sound in MP4 format directly to your phone or desktop."
       supportedUrls={[
         'https://www.facebook.com/reel/1234567890/',
         'https://www.facebook.com/share/r/1234567890/',
@@ -159,26 +190,26 @@ export default function FacebookReelsDownloaderPage() {
       ]}
       features={[
         {
-          title: 'Full Resolution Vertical Video',
+          title: 'Full Vertical 9:16 Video',
           description:
-            'Extracts the highest available MP4 bitrate with authentic colors and vertical 9:16 framing.',
+            'Extracts public Facebook Reels in standard vertical aspect ratios up to 1080p HD based on source availability.',
         },
         {
-          title: 'Crystal Clear Audio Quality',
+          title: 'Synchronized Stereo Audio',
           description:
-            'Preserves the complete stereo audio mix with zero compression artifacts or audio lag.',
+            'Preserves the original vocal tracks, background music, and stereo audio without sync drift.',
         },
         {
-          title: 'Zero Watermarks or Ads',
+          title: 'Direct Browser Downloads',
           description:
-            'Downloads start immediately in your web browser with no watermarks and no third-party apps required.',
+            'Save clips directly in Chrome, Safari, Firefox, or Edge without installing apps or browser extensions.',
         },
       ]}
       faqs={[
         {
           question: 'Are Facebook Reels downloaded with sound?',
           answer:
-            'Yes! All downloaded Facebook Reels include full synchronized sound and speech.',
+            'Yes. All downloaded Facebook Reels include full synchronized sound and speech.',
         },
         {
           question: 'Does MediaKit work on iPhone and Android for Facebook Reels?',
@@ -188,7 +219,7 @@ export default function FacebookReelsDownloaderPage() {
         {
           question: 'Can I download private Facebook Reels?',
           answer:
-            'No, MediaKit strictly adheres to platform security and only processes publicly viewable Reels.',
+            'No, MediaKit strictly adheres to platform privacy and only processes publicly viewable Reels.',
         },
         {
           question: 'What format do Facebook Reels save as?',
@@ -197,6 +228,7 @@ export default function FacebookReelsDownloaderPage() {
         },
       ]}
       structuredData={jsonLd}
+      relatedTools={customRelatedTools}
     />
   );
 }

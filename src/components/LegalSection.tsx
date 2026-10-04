@@ -95,9 +95,19 @@ export default function LegalSection() {
             <div className={styles.pointItem}>
               <div className={styles.pointIcon}><CheckCircle2 size={18} /></div>
               <div>
-                <h4 className={styles.pointTitle}>User Responsibility</h4>
+                <h4 className={styles.pointTitle}>Format &amp; Resolution Availability</h4>
                 <p className={styles.pointText}>
-                  By using MediaKit, you agree that you are solely responsible for verifying that you have the right or legitimate permission to download and store the requested content.
+                  Available formats and resolutions (e.g. 1080p, 4K, 720p, or MP3) depend entirely on what is provided by the source platform. MediaKit accurately presents authentic streams without artificially fabricating resolutions.
+                </p>
+              </div>
+            </div>
+
+            <div className={styles.pointItem}>
+              <div className={styles.pointIcon}><CheckCircle2 size={18} /></div>
+              <div>
+                <h4 className={styles.pointTitle}>User Responsibility &amp; Rights</h4>
+                <p className={styles.pointText}>
+                  By using MediaKit, you agree that you are solely responsible for downloading only content that you own, have licensed, or have legal permission to access under applicable copyright and fair use guidelines.
                 </p>
               </div>
             </div>

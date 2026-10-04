@@ -196,10 +196,10 @@ export default function ReviewsSection() {
             <span>Community Feedback</span>
           </div>
           <h2 id="reviews-heading" className={styles.sectionTitle}>
-            Loved by Over <span className={styles.highlight}>10,000+ Creators</span>
+            Community <span className={styles.highlight}>Feedback &amp; Experiences</span>
           </h2>
           <p className={styles.sectionSubtitle}>
-            See what video editors, marketers, and daily creators say about their MediaKit experience.
+            What creators, researchers, and video editors say about using MediaKit.
           </p>
 
           {/* Action Row: Rating Pill + Add Review Button */}
@@ -211,7 +211,7 @@ export default function ReviewsSection() {
                 ))}
               </div>
               <span className={styles.ratingText}>
-                <strong>4.9 / 5.0</strong> rating based on 2,400+ verified downloads
+                Trusted for clean streams, high-definition MP4s, and studio MP3 audio
               </span>
             </div>
 

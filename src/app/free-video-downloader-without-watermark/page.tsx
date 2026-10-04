@@ -42,13 +42,6 @@ const jsonLd = {
       applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Windows, macOS, Linux, Android, iOS',
       offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.9',
-        ratingCount: '15840',
-        bestRating: '5',
-        worstRating: '1',
-      },
     },
     {
       '@type': 'BreadcrumbList',
@@ -63,7 +56,7 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 2,
           name: 'Tools',
-          item: 'https://mediakit.website/video-downloader',
+          item: 'https://mediakit.website/online-video-downloader',
         },
         {
           '@type': 'ListItem',

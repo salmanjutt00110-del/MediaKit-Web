@@ -2,46 +2,43 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'Facebook Video Downloader Online - Free HD | MediaKit',
+  title: {
+    absolute: 'Facebook Video Downloader | MediaKit',
+  },
   description:
-    'Download Facebook videos and Reels online for free. HD quality, no registration, instant download. Works on any device and browser. Free Facebook video downloader by MediaKit.',
+    'Download Facebook videos online in HD quality for free. Works with Facebook Watch, public videos, and mobile links on any device with MediaKit.',
   keywords: [
-    'facebook video downloader online - free hd',
-    'facebook video downloader hd online free',
     'facebook video downloader',
+    'facebook downloader',
     'download facebook videos',
     'fb video downloader',
-    'facebook reels download',
-    'download fb reels',
-    'free facebook video downloader',
+    'download fb video online',
     'facebook video download hd',
-    'fdown alternative',
-    'fbdown online free',
   ],
   alternates: {
     canonical: 'https://mediakit.website/facebook-video-downloader',
   },
   openGraph: {
-    title: 'Facebook Video Downloader Online - Free HD | MediaKit',
+    title: 'Facebook Video Downloader | MediaKit',
     description:
-      'Download Facebook videos and Reels online for free. HD quality, no registration, instant download. Works on any device and browser.',
+      'Download Facebook videos online in HD quality for free. Works with Facebook Watch, public videos, and mobile links on any device with MediaKit.',
     url: 'https://mediakit.website/facebook-video-downloader',
     type: 'website',
     images: [
       {
-        url: '/logo.png',
+        url: 'https://mediakit.website/logo.png',
         width: 512,
         height: 512,
-        alt: 'MediaKit — Facebook Video Downloader Online Free HD',
+        alt: 'MediaKit Facebook Video Downloader',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Facebook Video Downloader Online - Free HD | MediaKit',
+    title: 'Facebook Video Downloader | MediaKit',
     description:
-      'Download Facebook videos and Reels online for free. HD quality, no registration, instant download.',
-    images: ['/logo.png'],
+      'Download Facebook videos online in HD quality for free. Works with Facebook Watch, public videos, and mobile links on any device.',
+    images: ['https://mediakit.website/logo.png'],
   },
 };
 
@@ -49,10 +46,22 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
     {
-      '@type': 'SoftwareApplication',
+      '@type': 'WebPage',
+      '@id': 'https://mediakit.website/facebook-video-downloader#webpage',
+      url: 'https://mediakit.website/facebook-video-downloader',
+      name: 'Facebook Video Downloader | MediaKit',
+      description:
+        'Download Facebook videos online in HD quality for free. Works with Facebook Watch, public videos, and mobile links on any device with MediaKit.',
+      isPartOf: {
+        '@type': 'WebSite',
+        '@id': 'https://mediakit.website/#website',
+      },
+    },
+    {
+      '@type': 'WebApplication',
+      '@id': 'https://mediakit.website/facebook-video-downloader#app',
       name: 'MediaKit Facebook Video Downloader',
-      applicationCategory: 'UtilitiesApplication',
-      applicationSubCategory: 'Video Downloader',
+      applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Web Browser, iOS, Android, Windows, macOS, Linux',
       url: 'https://mediakit.website/facebook-video-downloader',
       offers: {
@@ -60,14 +69,12 @@ const jsonLd = {
         price: '0',
         priceCurrency: 'USD',
       },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.9',
-        bestRating: '5',
-        worstRating: '1',
-        ratingCount: '17850',
-        reviewCount: '12100',
-      },
+      featureList: [
+        'Download public Facebook videos and Watch clips in HD',
+        'Auto-resolve fb.watch and mobile URL links',
+        'MP4 video format with synchronized audio',
+        'No registration or browser extensions needed',
+      ],
     },
     {
       '@type': 'BreadcrumbList',
@@ -82,7 +89,7 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 2,
           name: 'Tools',
-          item: 'https://mediakit.website/video-downloader',
+          item: 'https://mediakit.website/online-video-downloader',
         },
         {
           '@type': 'ListItem',
@@ -233,9 +240,9 @@ export default function FacebookVideoDownloaderPage() {
   return (
     <SeoLandingPage
       badgeText="Facebook Video Downloader"
-      title="Facebook Video Downloader Online - Free HD"
-      highlightWord="Online - Free HD"
-      subtitle="Download Facebook videos and Reels online for free. HD quality, no registration, instant download. Works on any device and browser. Free Facebook video downloader by MediaKit."
+      title="Facebook Video Downloader"
+      highlightWord="Video Downloader"
+      subtitle="Download Facebook videos and public clips in HD quality with clear audio. Fast, free online tool with no registration required."
       supportedUrls={[
         'https://www.facebook.com/watch/?v=1234567890',
         'https://www.facebook.com/reel/1234567890',
@@ -385,6 +392,15 @@ export default function FacebookVideoDownloaderPage() {
         },
       ]}
       structuredData={jsonLd}
+      relatedTools={[
+        { name: 'Facebook Reels Downloader', href: '/facebook-reels-downloader' },
+        { name: 'Online Video Downloader', href: '/online-video-downloader' },
+        { name: 'YouTube Video Downloader', href: '/youtube-video-downloader' },
+        { name: 'TikTok Video Downloader', href: '/tiktok-video-downloader' },
+        { name: 'Instagram Video Downloader', href: '/instagram-video-downloader' },
+        { name: 'Pinterest Video Downloader', href: '/pinterest-video-downloader' },
+        { name: 'MP4 Video Downloader', href: '/mp4-video-downloader' },
+      ]}
     />
   );
 }

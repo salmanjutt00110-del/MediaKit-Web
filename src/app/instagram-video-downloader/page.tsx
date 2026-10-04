@@ -2,46 +2,43 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'Instagram Downloader - Reels, Stories Free | MediaKit',
+  title: {
+    absolute: 'Instagram Video Downloader – Download Instagram Videos | MediaKit',
+  },
   description:
-    'Download Instagram Reels, Stories & Videos free. HD quality, no login required, no watermark. Works on iPhone & Android instantly. Best Instagram downloader — MediaKit.',
+    'Download Instagram videos and public posts in HD MP4 with audio. 100% free, anonymous, and no login or account required on MediaKit.',
   keywords: [
-    'instagram downloader',
     'instagram video downloader',
-    'download instagram reels without watermark free',
-    'instagram reels downloader',
-    'instagram video downloader online no login',
-    'save instagram story without them knowing free',
-    'instagram reels downloader iphone free',
-    'download instagram videos hd free online',
-    'save instagram audio',
-    'instagram carousel downloader',
-    'fastest instagram downloader',
+    'instagram downloader',
+    'download instagram videos',
+    'save instagram video',
+    'instagram post downloader',
+    'instagram video download hd',
   ],
   alternates: {
     canonical: 'https://mediakit.website/instagram-video-downloader',
   },
   openGraph: {
-    title: 'Instagram Downloader - Reels, Stories Free | MediaKit',
+    title: 'Instagram Video Downloader – Download Instagram Videos | MediaKit',
     description:
-      'Download Instagram Reels, Stories & Videos free. HD quality, no login required, no watermark. Works on iPhone & Android instantly.',
+      'Download Instagram videos and public posts in HD MP4 with audio. 100% free, anonymous, and no login or account required on MediaKit.',
     url: 'https://mediakit.website/instagram-video-downloader',
     type: 'website',
     images: [
       {
-        url: '/logo.png',
+        url: 'https://mediakit.website/logo.png',
         width: 512,
         height: 512,
-        alt: 'MediaKit — Instagram Downloader Reels & Stories Free',
+        alt: 'MediaKit Instagram Video Downloader',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Instagram Downloader - Reels, Stories Free | MediaKit',
+    title: 'Instagram Video Downloader – Download Instagram Videos | MediaKit',
     description:
-      'Download Instagram Reels, Stories & Videos free. HD quality, no login required, no watermark.',
-    images: ['/logo.png'],
+      'Download Instagram videos and public posts in HD MP4 with audio. 100% free, anonymous, and no login or account required.',
+    images: ['https://mediakit.website/logo.png'],
   },
 };
 
@@ -49,10 +46,22 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
     {
-      '@type': 'SoftwareApplication',
-      name: 'MediaKit Instagram Downloader',
-      applicationCategory: 'UtilitiesApplication',
-      applicationSubCategory: 'Video Downloader',
+      '@type': 'WebPage',
+      '@id': 'https://mediakit.website/instagram-video-downloader#webpage',
+      url: 'https://mediakit.website/instagram-video-downloader',
+      name: 'Instagram Video Downloader – Download Instagram Videos | MediaKit',
+      description:
+        'Download Instagram videos and public posts in HD MP4 with audio. 100% free, anonymous, and no login or account required.',
+      isPartOf: {
+        '@type': 'WebSite',
+        '@id': 'https://mediakit.website/#website',
+      },
+    },
+    {
+      '@type': 'WebApplication',
+      '@id': 'https://mediakit.website/instagram-video-downloader#app',
+      name: 'MediaKit Instagram Video Downloader',
+      applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Web Browser, iOS, Android, Windows, macOS, Linux',
       url: 'https://mediakit.website/instagram-video-downloader',
       offers: {
@@ -60,14 +69,12 @@ const jsonLd = {
         price: '0',
         priceCurrency: 'USD',
       },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.9',
-        bestRating: '5',
-        worstRating: '1',
-        ratingCount: '19420',
-        reviewCount: '13890',
-      },
+      featureList: [
+        'Download public Instagram video posts and carousels',
+        'Preserve original HD 1080p source stream clarity',
+        'Audio synchronized in standard MP4 container',
+        'No login credentials or account authorization required',
+      ],
     },
     {
       '@type': 'BreadcrumbList',
@@ -82,7 +89,7 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 2,
           name: 'Tools',
-          item: 'https://mediakit.website/video-downloader',
+          item: 'https://mediakit.website/online-video-downloader',
         },
         {
           '@type': 'ListItem',
@@ -232,10 +239,10 @@ const jsonLd = {
 export default function InstagramVideoDownloaderPage() {
   return (
     <SeoLandingPage
-      badgeText="Instagram Downloader"
-      title="Instagram Downloader - Reels, Stories Free"
-      highlightWord="Reels, Stories Free"
-      subtitle="Download Instagram Reels, Stories & Videos free. HD quality, no login required, no watermark. Works on iPhone & Android instantly. Best Instagram downloader — MediaKit."
+      badgeText="Instagram Video Downloader"
+      title="Instagram Video Downloader"
+      highlightWord="Video Downloader"
+      subtitle="Download Instagram videos, public posts, and carousels in HD MP4 with synchronized audio. 100% free, anonymous, with no login or software needed."
       supportedUrls={[
         'https://www.instagram.com/reel/Cxxxxxxxxx/',
         'https://www.instagram.com/p/POST_ID/',
@@ -416,6 +423,14 @@ export default function InstagramVideoDownloaderPage() {
         },
       ]}
       structuredData={jsonLd}
+      relatedTools={[
+        { name: 'Instagram Reels Downloader', href: '/instagram-reels-downloader' },
+        { name: 'Online Video Downloader', href: '/online-video-downloader' },
+        { name: 'TikTok Video Downloader', href: '/tiktok-video-downloader' },
+        { name: 'YouTube Video Downloader', href: '/youtube-video-downloader' },
+        { name: 'Facebook Video Downloader', href: '/facebook-video-downloader' },
+        { name: 'Pinterest Video Downloader', href: '/pinterest-video-downloader' },
+      ]}
     />
   );
 }

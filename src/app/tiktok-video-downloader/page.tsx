@@ -2,49 +2,43 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'TikTok Video Downloader Without Watermark HD | MediaKit',
+  title: {
+    absolute: 'TikTok Video Downloader – Download TikTok Videos | MediaKit',
+  },
   description:
-    'Download TikTok videos without watermark in HD quality. Free online tool — no app, no registration, no watermark. Works on iPhone, Android & PC. Fast & safe. Try MediaKit now.',
+    'Download TikTok videos without watermark in HD quality. Free online TikTok downloader — no app, no registration, no watermark with MediaKit.',
   keywords: [
+    'tiktok video downloader',
+    'tiktok downloader',
+    'download tiktok videos',
     'tiktok video downloader without watermark',
-    'tiktok downloader without watermark',
-    'download tiktok video without watermark online free 2026',
-    'how to download tiktok without watermark iphone',
-    'save tiktok video without watermark to camera roll',
-    'tiktok downloader without watermark iphone safari',
-    'tiktok video download hd mp4 no watermark free',
-    'how to download tiktok video without watermark android',
-    'bulk tiktok downloader without watermark',
-    'tiktok video downloader no watermark no login',
-    'tiktok to mp3 320kbps',
-    'tiktok mp4 downloader hd free online',
-    'savefrom tiktok',
-    'ssstik alternative',
+    'tiktok no watermark downloader',
+    'save tiktok video',
   ],
   alternates: {
     canonical: 'https://mediakit.website/tiktok-video-downloader',
   },
   openGraph: {
-    title: 'TikTok Video Downloader Without Watermark HD | MediaKit',
+    title: 'TikTok Video Downloader – Download TikTok Videos | MediaKit',
     description:
       'Download TikTok videos without watermark in HD quality. Free online tool — no app, no registration, no watermark. Works on iPhone, Android & PC.',
     url: 'https://mediakit.website/tiktok-video-downloader',
     type: 'website',
     images: [
       {
-        url: '/logo.png',
+        url: 'https://mediakit.website/logo.png',
         width: 512,
         height: 512,
-        alt: 'MediaKit — TikTok Video Downloader Without Watermark',
+        alt: 'MediaKit TikTok Video Downloader',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TikTok Video Downloader Without Watermark HD | MediaKit',
+    title: 'TikTok Video Downloader – Download TikTok Videos | MediaKit',
     description:
       'Download TikTok videos without watermark in HD quality. Free online tool — no app, no registration, no watermark. Works on iPhone, Android & PC.',
-    images: ['/logo.png'],
+    images: ['https://mediakit.website/logo.png'],
   },
 };
 
@@ -52,10 +46,22 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
     {
-      '@type': 'SoftwareApplication',
+      '@type': 'WebPage',
+      '@id': 'https://mediakit.website/tiktok-video-downloader#webpage',
+      url: 'https://mediakit.website/tiktok-video-downloader',
+      name: 'TikTok Video Downloader – Download TikTok Videos | MediaKit',
+      description:
+        'Download TikTok videos without watermark in HD quality. Free online tool — no app, no registration, no watermark.',
+      isPartOf: {
+        '@type': 'WebSite',
+        '@id': 'https://mediakit.website/#website',
+      },
+    },
+    {
+      '@type': 'WebApplication',
+      '@id': 'https://mediakit.website/tiktok-video-downloader#app',
       name: 'MediaKit TikTok Video Downloader',
-      applicationCategory: 'UtilitiesApplication',
-      applicationSubCategory: 'Video Downloader',
+      applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Web Browser, iOS, Android, Windows, macOS, Linux',
       url: 'https://mediakit.website/tiktok-video-downloader',
       offers: {
@@ -63,14 +69,13 @@ const jsonLd = {
         price: '0',
         priceCurrency: 'USD',
       },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.9',
-        bestRating: '5',
-        worstRating: '1',
-        ratingCount: '20418',
-        reviewCount: '14250',
-      },
+      featureList: [
+        'Direct CDN stream extraction without watermark',
+        'HD 1080p and original uploaded quality preservation',
+        'Supports vt.tiktok.com, vm.tiktok.com and standard URLs',
+        'MP3 audio extraction from TikTok videos',
+        'No registration or app installation required',
+      ],
     },
     {
       '@type': 'BreadcrumbList',
@@ -85,12 +90,12 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 2,
           name: 'Tools',
-          item: 'https://mediakit.website/video-downloader',
+          item: 'https://mediakit.website/online-video-downloader',
         },
         {
           '@type': 'ListItem',
           position: 3,
-          name: 'TikTok Video Downloader Without Watermark',
+          name: 'TikTok Video Downloader',
           item: 'https://mediakit.website/tiktok-video-downloader',
         },
       ],
@@ -252,9 +257,9 @@ export default function TikTokDownloaderPage() {
   return (
     <SeoLandingPage
       badgeText="TikTok Video Downloader"
-      title="TikTok Video Downloader Without Watermark HD"
-      highlightWord="Without Watermark HD"
-      subtitle="Download TikTok videos without watermark in HD 1080p quality. Free online tool — no app, no registration, no watermark. Works on iPhone, Android & PC."
+      title="TikTok Video Downloader"
+      highlightWord="Video Downloader"
+      subtitle="Download TikTok videos without watermark in HD quality. Free online tool — no app, no registration, no watermark with MediaKit."
       supportedUrls={[
         'https://www.tiktok.com/@username/video/7123456789012345678',
         'https://vm.tiktok.com/ZM8example/',
@@ -518,6 +523,16 @@ export default function TikTokDownloaderPage() {
         },
       ]}
       structuredData={jsonLd}
+      relatedTools={[
+        { name: 'YouTube Video Downloader', href: '/youtube-video-downloader' },
+        { name: 'Instagram Video Downloader', href: '/instagram-video-downloader' },
+        { name: 'Instagram Reels Downloader', href: '/instagram-reels-downloader' },
+        { name: 'Facebook Video Downloader', href: '/facebook-video-downloader' },
+        { name: 'Pinterest Video Downloader', href: '/pinterest-video-downloader' },
+        { name: 'Online Video Downloader', href: '/online-video-downloader' },
+        { name: 'MP4 Video Downloader', href: '/mp4-video-downloader' },
+        { name: 'MP3 Video Downloader', href: '/mp3-video-downloader' },
+      ]}
     />
   );
 }

@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     'hd video downloader',
   ],
   alternates: {
-    canonical: '/video-downloader',
+    canonical: 'https://mediakit.website/online-video-downloader',
   },
   openGraph: {
     title: 'Free Video Downloader Without Watermark — Universal Online Tool | MediaKit',

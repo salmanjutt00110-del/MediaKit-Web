@@ -14,8 +14,8 @@ export default function Hero() {
           </div>
 
           <h1 className={styles.heroHeading}>
-            Download from
-            <span className={styles.headingBlue}> Any Platform.</span>
+            Download Videos from
+            <span className={styles.headingBlue}> Any Platform</span>
           </h1>
 
           <p className={styles.supportingText}>

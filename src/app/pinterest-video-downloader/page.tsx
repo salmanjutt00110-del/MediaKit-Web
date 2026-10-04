@@ -2,18 +2,14 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'Pinterest Video Downloader - HD Free | MediaKit',
+  title: 'Pinterest Video Downloader | MediaKit',
   description:
-    'Download Pinterest videos, GIFs and images free in HD. No login required, no watermark. Works on iPhone, Android & PC. Fast Pinterest video downloader by MediaKit.',
+    'Download Pinterest videos, Idea Pins, and animated GIFs in original MP4 quality with MediaKit. Paste any pin link or pin.it short URL for fast browser-based saving.',
   keywords: [
-    'pinterest video downloader - hd free',
-    'pinterest video downloader no watermark free',
     'pinterest video downloader',
     'download pinterest videos',
     'pinterest downloader',
     'save pinterest videos',
-    'pinterest video download hd',
-    'klickpin alternative',
     'pinterest pin downloader',
     'pinterest gif downloader',
   ],
@@ -21,26 +17,17 @@ export const metadata: Metadata = {
     canonical: 'https://mediakit.website/pinterest-video-downloader',
   },
   openGraph: {
-    title: 'Pinterest Video Downloader - HD Free | MediaKit',
+    title: 'Pinterest Video Downloader | MediaKit',
     description:
-      'Download Pinterest videos, GIFs and images free in HD. No login required, no watermark. Works on iPhone, Android & PC.',
+      'Download Pinterest videos, Idea Pins, and animated GIFs in original MP4 quality. Works with pin.it short links on iPhone, Android, and PC.',
     url: 'https://mediakit.website/pinterest-video-downloader',
     type: 'website',
-    images: [
-      {
-        url: '/logo.png',
-        width: 512,
-        height: 512,
-        alt: 'MediaKit — Pinterest Video Downloader HD Free',
-      },
-    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Pinterest Video Downloader - HD Free | MediaKit',
+    title: 'Pinterest Video Downloader | MediaKit',
     description:
-      'Download Pinterest videos, GIFs and images free in HD. No login required, no watermark.',
-    images: ['/logo.png'],
+      'Download Pinterest videos and GIFs with MediaKit. Free, fast, and works with standard and pin.it links.',
   },
 };
 
@@ -48,24 +35,27 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
     {
-      '@type': 'SoftwareApplication',
+      '@type': 'WebPage',
+      '@id': 'https://mediakit.website/pinterest-video-downloader#webpage',
+      url: 'https://mediakit.website/pinterest-video-downloader',
+      name: 'Pinterest Video Downloader | MediaKit',
+      description:
+        'Download Pinterest videos, Idea Pins, and animated GIFs in original MP4 quality with MediaKit. Paste any pin link or pin.it short URL.',
+      isPartOf: {
+        '@type': 'WebSite',
+        '@id': 'https://mediakit.website/#website',
+      },
+    },
+    {
+      '@type': 'WebApplication',
       name: 'MediaKit Pinterest Video Downloader',
       applicationCategory: 'UtilitiesApplication',
-      applicationSubCategory: 'Video Downloader',
       operatingSystem: 'Web Browser, iOS, Android, Windows, macOS, Linux',
       url: 'https://mediakit.website/pinterest-video-downloader',
       offers: {
         '@type': 'Offer',
         price: '0',
         priceCurrency: 'USD',
-      },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.9',
-        bestRating: '5',
-        worstRating: '1',
-        ratingCount: '14890',
-        reviewCount: '9840',
       },
     },
     {
@@ -81,7 +71,7 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 2,
           name: 'Tools',
-          item: 'https://mediakit.website/video-downloader',
+          item: 'https://mediakit.website/online-video-downloader',
         },
         {
           '@type': 'ListItem',
@@ -94,49 +84,31 @@ const jsonLd = {
     {
       '@type': 'HowTo',
       name: 'How to Download Pinterest Videos, GIFs and Pins',
-      description:
-        'Save Pinterest videos in HD MP4 without watermark in 4 easy steps.',
-      totalTime: 'PT1M',
-      estimatedCost: {
-        '@type': 'MonetaryAmount',
-        currency: 'USD',
-        value: '0',
-      },
-      tool: [
-        {
-          '@type': 'HowToTool',
-          name: 'MediaKit Pinterest Downloader',
-          url: 'https://mediakit.website/pinterest-video-downloader',
-        },
-      ],
+      description: 'Save Pinterest video pins in HD MP4 in 4 easy steps.',
       step: [
         {
           '@type': 'HowToStep',
           position: 1,
           name: 'Copy Pinterest Pin Link',
-          text: 'Open Pinterest, tap the three dots or Share icon on the video pin, and select "Copy Link".',
-          url: 'https://mediakit.website/pinterest-video-downloader#step1',
+          text: 'Open Pinterest, tap the three dots or Share icon on the video pin, and select "Copy Link". Both pin.it and pinterest.com links are supported.',
         },
         {
           '@type': 'HowToStep',
           position: 2,
           name: 'Paste into MediaKit',
-          text: 'Paste the link into the download box on MediaKit.',
-          url: 'https://mediakit.website/pinterest-video-downloader#step2',
+          text: 'Paste the copied URL into the MediaKit search bar above.',
         },
         {
           '@type': 'HowToStep',
           position: 3,
-          name: 'Click Download',
-          text: 'Hit the Download button. MediaKit extracts the original CDN MP4 stream.',
-          url: 'https://mediakit.website/pinterest-video-downloader#step3',
+          name: 'Inspect Detected Formats',
+          text: 'MediaKit parses the Pinterest CDN stream and presents the available video resolutions and media types.',
         },
         {
           '@type': 'HowToStep',
           position: 4,
-          name: 'Save Direct HD Video',
-          text: 'Save the video or GIF directly to your device gallery or local storage.',
-          url: 'https://mediakit.website/pinterest-video-downloader#step4',
+          name: 'Download File',
+          text: 'Click Download to save the MP4 video, animated GIF, or image directly to your local storage.',
         },
       ],
     },
@@ -148,15 +120,7 @@ const jsonLd = {
           name: 'How do I download videos from Pinterest?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Copy the Pinterest video pin URL (tap Share > Copy Link), paste it into MediaKit above, and click Download to save the MP4 video directly to your device.',
-          },
-        },
-        {
-          '@type': 'Question',
-          name: 'Can I download Pinterest GIFs and images?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Yes! MediaKit supports animated GIFs, video pins, and full-resolution images from Pinterest.',
+            text: 'Copy the Pinterest video pin URL (tap Share > Copy Link), paste it into MediaKit above, and click Download to inspect and save the source MP4 video file.',
           },
         },
         {
@@ -164,23 +128,23 @@ const jsonLd = {
           name: 'Does MediaKit work with pin.it short links?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Yes! MediaKit automatically unrolls and resolves pin.it shortened links and international Pinterest URLs.',
+            text: 'Yes! MediaKit automatically unrolls and resolves pin.it mobile shortened links as well as international Pinterest domains.',
           },
         },
         {
           '@type': 'Question',
-          name: 'How do I save Pinterest videos on iPhone?',
+          name: 'Can I download Pinterest GIFs and images as well as videos?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'Paste the pin link in Safari on MediaKit, tap Download, open the video from the Safari download manager, tap Share, and tap "Save Video" to store it in Photos.',
+            text: 'Yes. MediaKit detects whether a pin contains an MP4 video, an animated GIF, or a static high-resolution image.',
           },
         },
         {
           '@type': 'Question',
-          name: 'Is there a watermark on downloaded Pinterest videos?',
+          name: 'How do I save Pinterest videos on iPhone or iPad?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'No! MediaKit retrieves the pristine source file before any platform overlay is applied.',
+            text: 'Paste the pin link in Safari on MediaKit, tap Download, tap the Safari downloads manager, and select "Save Video" to store it in your iOS Photos gallery.',
           },
         },
         {
@@ -188,39 +152,7 @@ const jsonLd = {
           name: 'Do I need a Pinterest account to download videos?',
           acceptedAnswer: {
             '@type': 'Answer',
-            text: 'No account, login, or registration is required. MediaKit works anonymously.',
-          },
-        },
-        {
-          '@type': 'Question',
-          name: 'Is MediaKit Pinterest downloader free?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Yes, MediaKit is 100% free with unlimited downloads forever.',
-          },
-        },
-        {
-          '@type': 'Question',
-          name: 'What video quality does MediaKit download for Pinterest?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'MediaKit delivers the original uploaded resolution, typically 1080p, 720p, or maximum source bitrate.',
-          },
-        },
-        {
-          '@type': 'Question',
-          name: 'Can I download Idea Pins / Story Pins from Pinterest?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Yes, MediaKit parses video streams from Idea Pins and multi-page video pins.',
-          },
-        },
-        {
-          '@type': 'Question',
-          name: 'Is it safe to download videos using MediaKit?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'MediaKit is secure, HTTPS encrypted, zero-logging, and completely free from malware or adware.',
+            text: 'No Pinterest account or login is required. Any publicly accessible pin can be processed anonymously.',
           },
         },
       ],
@@ -228,13 +160,40 @@ const jsonLd = {
   ],
 };
 
+const customRelatedTools = [
+  {
+    name: 'Online Video Downloader',
+    url: '/online-video-downloader',
+    description: 'Multi-platform media downloader supporting Pinterest, YouTube, TikTok, Instagram, and Facebook.',
+    icon: '🌐',
+  },
+  {
+    name: 'TikTok Video Downloader',
+    url: '/tiktok-video-downloader',
+    description: 'Download viral TikTok videos and sound clips in clean MP4 format.',
+    icon: '🎵',
+  },
+  {
+    name: 'Instagram Video Downloader',
+    url: '/instagram-video-downloader',
+    description: 'Save public Instagram reels, carousel clips, and stories in high definition.',
+    icon: '📸',
+  },
+  {
+    name: 'YouTube Video Downloader',
+    url: '/youtube-video-downloader',
+    description: 'Download YouTube videos in available resolutions from 1080p down to 360p.',
+    icon: '▶️',
+  },
+];
+
 export default function PinterestVideoDownloaderPage() {
   return (
     <SeoLandingPage
-      badgeText="Pinterest Video Downloader"
-      title="Pinterest Video Downloader - HD Free"
-      highlightWord="- HD Free"
-      subtitle="Download Pinterest videos, GIFs and images free in HD. No login required, no watermark. Works on iPhone, Android & PC. Fast Pinterest video downloader by MediaKit."
+      badgeText="Pinterest Video Tool"
+      title="Pinterest Video Downloader"
+      highlightWord="Downloader"
+      subtitle="Download Pinterest videos, Idea Pins, and animated GIFs in original MP4 quality. Works with standard Pinterest and mobile pin.it links."
       supportedUrls={[
         'https://www.pinterest.com/pin/123456789012345678/',
         'https://pin.it/examplePinID',
@@ -245,7 +204,7 @@ export default function PinterestVideoDownloaderPage() {
           number: 1,
           title: 'Copy the Pin Link',
           description:
-            'In Pinterest, tap the Share icon or the three dots on the video pin and tap "Copy Link".',
+            'In Pinterest, tap the Share icon or the three dots on the video pin and tap "Copy Link". Both pin.it and pinterest.com links are supported.',
         },
         {
           number: 2,
@@ -261,16 +220,16 @@ export default function PinterestVideoDownloaderPage() {
         },
         {
           number: 4,
-          title: 'Save Clean HD Media',
+          title: 'Save Clean Media',
           description:
-            'Save your watermark-free MP4 video, animated GIF, or image directly to your device.',
+            'Save your clean MP4 video, animated GIF, or image directly to your device storage.',
         },
       ]}
       features={[
         {
-          title: 'Full Original HD Resolution',
+          title: 'Full Original Resolution',
           description:
-            'Preserves crisp details for DIY guides, recipes, aesthetic loops, and video tutorials.',
+            'Preserves crisp source details for DIY guides, recipes, aesthetic loops, and video tutorials.',
         },
         {
           title: 'pin.it Short Link Auto-Unroll',
@@ -278,9 +237,9 @@ export default function PinterestVideoDownloaderPage() {
             'Seamlessly processes mobile shortened pin.it URLs without manual redirection.',
         },
         {
-          title: 'Zero Watermark or Branding',
+          title: 'Direct Browser Downloads',
           description:
-            'Downloads 100% clean video files without overlays, borders, or promotional logos.',
+            'Downloads start immediately in your web browser with no watermarks and no third-party extensions required.',
         },
         {
           title: 'GIF and Image Support',
@@ -288,42 +247,16 @@ export default function PinterestVideoDownloaderPage() {
             'In addition to MP4 videos, easily save animated GIFs and high-resolution images.',
         },
       ]}
-      comparisonRows={[
-        {
-          feature: 'Resolution',
-          us: '✅ Original HD 1080p/720p',
-          official: '⚠️ In-app Pin Save Only',
-          competitors: '⚠️ Compressed 480p',
-        },
-        {
-          feature: 'pin.it Short Links',
-          us: '✅ Fully Supported',
-          official: 'N/A',
-          competitors: '❌ Link Unroll Errors',
-        },
-        {
-          feature: 'Ads & Redirects',
-          us: '✅ Clean & Minimal',
-          official: '⚠️ Promoted Pins',
-          competitors: '❌ Intrusive Redirects & Popups',
-        },
-        {
-          feature: 'Cost & Limits',
-          us: '✅ 100% Free Forever',
-          official: 'Free in App',
-          competitors: '❌ Download Caps',
-        },
-      ]}
       articles={[
         {
-          title: 'How to Download Pinterest Videos, GIFs and Idea Pins in HD',
+          title: 'How to Download Pinterest Videos and Idea Pins',
           content: [
-            'Pinterest is a treasure trove of inspiration for design, home improvement, cooking, fashion, and crafts. Many of the best tutorials and aesthetic clips are published as video pins.',
-            'While Pinterest allows you to bookmark pins inside secret boards, you cannot natively save the actual video file to your phone\'s camera roll for offline editing or sharing. MediaKit solves this by giving you direct access to the source MP4 video stream.',
+            'Pinterest is a treasure trove of inspiration for design, home improvement, cooking, fashion, and crafts. Many tutorials and creative clips are published as video pins.',
+            'While Pinterest allows you to bookmark pins inside boards, you cannot natively save the actual video file to your camera roll for offline editing or sharing. MediaKit solves this by providing direct access to the source MP4 video stream.',
           ],
         },
         {
-          title: 'Saving Pinterest Video Pins on iPhone (Safari) and Android (Chrome)',
+          title: 'Saving Pinterest Video Pins on Mobile Devices',
           content: [
             'On iPhone: Copy the pin link, open Safari, paste into MediaKit, and tap Download. Tap the Safari download manager to save the video directly to your Photos app.',
             'On Android: Open Chrome, paste the pin.it link, tap Download, and the video immediately saves to your Downloads folder and Gallery.',
@@ -352,37 +285,13 @@ export default function PinterestVideoDownloaderPage() {
             'Paste the pin link in Safari on MediaKit, tap Download, open the video from the Safari download manager, tap Share, and tap "Save Video" to store it in Photos.',
         },
         {
-          question: 'Is there a watermark on downloaded Pinterest videos?',
-          answer:
-            'No! MediaKit retrieves the pristine source file before any platform overlay is applied.',
-        },
-        {
           question: 'Do I need a Pinterest account to download videos?',
           answer:
             'No account, login, or registration is required. MediaKit works anonymously.',
         },
-        {
-          question: 'Is MediaKit Pinterest downloader free?',
-          answer:
-            'Yes, MediaKit is 100% free with unlimited downloads forever.',
-        },
-        {
-          question: 'What video quality does MediaKit download for Pinterest?',
-          answer:
-            'MediaKit delivers the original uploaded resolution, typically 1080p, 720p, or maximum source bitrate.',
-        },
-        {
-          question: 'Can I download Idea Pins / Story Pins from Pinterest?',
-          answer:
-            'Yes, MediaKit parses video streams from Idea Pins and multi-page video pins.',
-        },
-        {
-          question: 'Is it safe to download videos using MediaKit?',
-          answer:
-            'MediaKit is secure, HTTPS encrypted, zero-logging, and completely free from malware or adware.',
-        },
       ]}
       structuredData={jsonLd}
+      relatedTools={customRelatedTools}
     />
   );
 }

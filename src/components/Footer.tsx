@@ -9,7 +9,6 @@ import {
   InstagramIcon,
   FacebookIcon,
   PinterestIcon,
-  XTwitterIcon,
 } from './PlatformIcons';
 import styles from './Footer.module.css';
 
@@ -46,7 +45,7 @@ export default function Footer() {
               </div>
             </Link>
             <p className={styles.brandDescription}>
-              Professional-grade online media utility to download high-definition video, audio, reels, and shorts from across the web.
+              Professional online media utility to download high-definition video, audio, reels, and shorts from supported platforms.
             </p>
           </div>
 
@@ -55,18 +54,18 @@ export default function Footer() {
             <h4 className={styles.footerColTitle}>Video Downloaders</h4>
             <ul className={styles.footerColLinks}>
               <li>
-                <Link href="/free-video-downloader-without-watermark" className={styles.footerLink}>
-                  Free Without Watermark
-                </Link>
-              </li>
-              <li>
                 <Link href="/youtube-video-downloader" className={styles.footerLink}>
-                  YouTube Downloader
+                  YouTube Video Downloader
                 </Link>
               </li>
               <li>
                 <Link href="/youtube-shorts-downloader" className={styles.footerLink}>
-                  YouTube Shorts
+                  YouTube Shorts Downloader
+                </Link>
+              </li>
+              <li>
+                <Link href="/youtube-mp3" className={styles.footerLink}>
+                  YouTube MP3
                 </Link>
               </li>
               <li>
@@ -75,16 +74,21 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/video-downloader" className={styles.footerLink}>
-                  All-in-One Downloader
+                <Link href="/online-video-downloader" className={styles.footerLink}>
+                  Online Video Downloader
+                </Link>
+              </li>
+              <li>
+                <Link href="/mp4-video-downloader" className={styles.footerLink}>
+                  MP4 Video Downloader
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* COLUMN 3: Social Media Tools */}
+          {/* COLUMN 3: Social & Audio */}
           <div>
-            <h4 className={styles.footerColTitle}>Social & Audio</h4>
+            <h4 className={styles.footerColTitle}>Social &amp; Audio</h4>
             <ul className={styles.footerColLinks}>
               <li>
                 <Link href="/instagram-video-downloader" className={styles.footerLink}>
@@ -93,7 +97,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/instagram-reels-downloader" className={styles.footerLink}>
-                  Instagram Reels
+                  Instagram Reels Downloader
                 </Link>
               </li>
               <li>
@@ -103,7 +107,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link href="/facebook-reels-downloader" className={styles.footerLink}>
-                  Facebook Reels
+                  Facebook Reels Downloader
                 </Link>
               </li>
               <li>
@@ -112,30 +116,35 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/youtube-mp3" className={styles.footerLink}>
-                  YouTube to MP3
+                <Link href="/mp3-video-downloader" className={styles.footerLink}>
+                  MP3 Downloader
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* COLUMN 4: Legal & Help */}
+          {/* COLUMN 4: Company & Legal */}
           <div>
-            <h4 className={styles.footerColTitle}>Help & Legal</h4>
+            <h4 className={styles.footerColTitle}>Company &amp; Legal</h4>
             <ul className={styles.footerColLinks}>
               <li>
-                <Link href="/blog" className={styles.footerLink}>
-                  Blog & Articles
+                <Link href="/about" className={styles.footerLink}>
+                  About MediaKit
                 </Link>
               </li>
               <li>
                 <Link href="/faq" className={styles.footerLink}>
-                  FAQ & Guides
+                  FAQ
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className={styles.footerLink}>
-                  Terms of Service
+                <Link href="/blog" className={styles.footerLink}>
+                  Blog &amp; Articles
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className={styles.footerLink}>
+                  Contact Support
                 </Link>
               </li>
               <li>
@@ -144,9 +153,9 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="#contact" className={styles.footerLink}>
-                  Contact Support
-                </a>
+                <Link href="/terms" className={styles.footerLink}>
+                  Terms of Service
+                </Link>
               </li>
             </ul>
           </div>
@@ -177,4 +186,3 @@ export default function Footer() {
     </footer>
   );
 }
-

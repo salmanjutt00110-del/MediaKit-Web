@@ -2,46 +2,44 @@ import type { Metadata } from 'next';
 import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
-  title: 'YouTube Video Downloader - Free HD & 4K MP4 | MediaKit',
+  title: {
+    absolute: 'YouTube Video Downloader – Download YouTube Videos | MediaKit',
+  },
   description:
-    'Download YouTube videos free in HD 1080p and 4K. Save as MP4 or convert to MP3 320kbps. No registration needed. Works on all devices. Unlimited downloads with MediaKit.',
+    'Download YouTube videos in HD 1080p and 4K MP4 with synced audio. Free online downloader with automatic format detection and MP3 conversion on MediaKit.',
   keywords: [
     'youtube video downloader',
-    'youtube to mp4 hd free online no registration',
-    'download youtube video hd 1080p free online',
-    'youtube shorts downloader mp4 free online',
-    'youtube playlist downloader free online',
-    'convert youtube to mp3 320kbps free',
-    'download youtube videos free without software',
-    'youtube 4k downloader online',
-    'free youtube video downloader no watermark',
-    'save youtube videos to camera roll',
-    'youtube video download without app',
+    'youtube downloader',
+    'download youtube videos',
+    'youtube video download online',
+    'youtube to mp4 hd',
+    'youtube 1080p downloader',
+    'youtube 4k video downloader',
   ],
   alternates: {
     canonical: 'https://mediakit.website/youtube-video-downloader',
   },
   openGraph: {
-    title: 'YouTube Video Downloader - Free HD & 4K MP4 | MediaKit',
+    title: 'YouTube Video Downloader – Download YouTube Videos | MediaKit',
     description:
-      'Download YouTube videos free in HD 1080p and 4K. Save as MP4 or convert to MP3 320kbps. No registration needed. Works on all devices.',
+      'Download YouTube videos in HD 1080p and 4K MP4 with synced audio. Free online downloader with automatic format detection and MP3 conversion on MediaKit.',
     url: 'https://mediakit.website/youtube-video-downloader',
     type: 'website',
     images: [
       {
-        url: '/logo.png',
+        url: 'https://mediakit.website/logo.png',
         width: 512,
         height: 512,
-        alt: 'MediaKit — YouTube Video Downloader HD & 4K',
+        alt: 'MediaKit YouTube Video Downloader',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'YouTube Video Downloader - Free HD & 4K MP4 | MediaKit',
+    title: 'YouTube Video Downloader – Download YouTube Videos | MediaKit',
     description:
-      'Download YouTube videos free in HD 1080p and 4K. Save as MP4 or convert to MP3 320kbps.',
-    images: ['/logo.png'],
+      'Download YouTube videos in HD 1080p and 4K MP4 with synced audio. Free online downloader with automatic format detection and MP3 conversion on MediaKit.',
+    images: ['https://mediakit.website/logo.png'],
   },
 };
 
@@ -49,10 +47,22 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
     {
-      '@type': 'SoftwareApplication',
+      '@type': 'WebPage',
+      '@id': 'https://mediakit.website/youtube-video-downloader#webpage',
+      url: 'https://mediakit.website/youtube-video-downloader',
+      name: 'YouTube Video Downloader – Download YouTube Videos | MediaKit',
+      description:
+        'Download YouTube videos in HD 1080p and 4K MP4 with synced audio. Free online downloader with automatic format detection and MP3 conversion on MediaKit.',
+      isPartOf: {
+        '@type': 'WebSite',
+        '@id': 'https://mediakit.website/#website',
+      },
+    },
+    {
+      '@type': 'WebApplication',
+      '@id': 'https://mediakit.website/youtube-video-downloader#app',
       name: 'MediaKit YouTube Video Downloader',
-      applicationCategory: 'UtilitiesApplication',
-      applicationSubCategory: 'Video Downloader',
+      applicationCategory: 'MultimediaApplication',
       operatingSystem: 'Web Browser, iOS, Android, Windows, macOS, Linux',
       url: 'https://mediakit.website/youtube-video-downloader',
       offers: {
@@ -60,14 +70,12 @@ const jsonLd = {
         price: '0',
         priceCurrency: 'USD',
       },
-      aggregateRating: {
-        '@type': 'AggregateRating',
-        ratingValue: '4.9',
-        bestRating: '5',
-        worstRating: '1',
-        ratingCount: '28940',
-        reviewCount: '19820',
-      },
+      featureList: [
+        'Download YouTube videos in up to 1080p Full HD and 4K where available',
+        'Automatic audio/video DASH stream muxing with synchronized audio',
+        'Convert YouTube videos to 320kbps MP3 audio',
+        'No registration, software, or extensions required',
+      ],
     },
     {
       '@type': 'BreadcrumbList',
@@ -82,7 +90,7 @@ const jsonLd = {
           '@type': 'ListItem',
           position: 2,
           name: 'Tools',
-          item: 'https://mediakit.website/video-downloader',
+          item: 'https://mediakit.website/online-video-downloader',
         },
         {
           '@type': 'ListItem',
@@ -233,9 +241,9 @@ export default function YouTubeDownloaderPage() {
   return (
     <SeoLandingPage
       badgeText="YouTube Video Downloader"
-      title="YouTube Video Downloader - Free HD & 4K MP4"
-      highlightWord="Free HD & 4K MP4"
-      subtitle="Download YouTube videos free in HD 1080p and 4K. Save as MP4 or convert to MP3 320kbps. No registration needed. Works on all devices."
+      title="YouTube Video Downloader"
+      highlightWord="Video Downloader"
+      subtitle="Download YouTube videos online in 1080p Full HD and 4K MP4 with synced audio. Free, no software or registration required with MediaKit."
       supportedUrls={[
         'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
         'https://youtu.be/dQw4w9WgXcQ',
@@ -440,6 +448,16 @@ export default function YouTubeDownloaderPage() {
         },
       ]}
       structuredData={jsonLd}
+      relatedTools={[
+        { name: 'YouTube Shorts Downloader', href: '/youtube-shorts-downloader' },
+        { name: 'YouTube to MP3 Converter', href: '/youtube-mp3' },
+        { name: 'Online Video Downloader', href: '/online-video-downloader' },
+        { name: 'MP4 Video Downloader', href: '/mp4-video-downloader' },
+        { name: 'TikTok Video Downloader', href: '/tiktok-video-downloader' },
+        { name: 'Instagram Video Downloader', href: '/instagram-video-downloader' },
+        { name: 'Facebook Video Downloader', href: '/facebook-video-downloader' },
+        { name: 'Pinterest Video Downloader', href: '/pinterest-video-downloader' },
+      ]}
     />
   );
 }

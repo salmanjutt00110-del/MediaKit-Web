@@ -14,6 +14,35 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '**.pinimg.com' },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/video-downloader',
+        destination: '/online-video-downloader',
+        permanent: true,
+      },
+      {
+        source: '/facebook-video-downloader-hd-online-free',
+        destination: '/facebook-video-downloader',
+        permanent: true,
+      },
+      {
+        source: '/instagram-reels-downloader-without-watermark',
+        destination: '/instagram-reels-downloader',
+        permanent: true,
+      },
+      {
+        source: '/pinterest-video-downloader-no-watermark-free',
+        destination: '/pinterest-video-downloader',
+        permanent: true,
+      },
+      {
+        source: '/free-video-downloader-without-watermark',
+        destination: '/online-video-downloader',
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

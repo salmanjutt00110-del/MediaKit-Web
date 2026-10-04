@@ -7,17 +7,18 @@ import { Moon, Sun, Zap, Menu, X, ChevronDown } from 'lucide-react';
 import styles from './Header.module.css';
 
 const toolsList = [
-  { name: '✨ Free Without Watermark', href: '/free-video-downloader-without-watermark' },
-  { name: 'YouTube Downloader', href: '/youtube-video-downloader' },
-  { name: 'YouTube Shorts', href: '/youtube-shorts-downloader' },
-  { name: 'TikTok (No Watermark)', href: '/tiktok-video-downloader' },
-  { name: 'Facebook Downloader', href: '/facebook-video-downloader' },
-  { name: 'Facebook Reels', href: '/facebook-reels-downloader' },
-  { name: 'Instagram Downloader', href: '/instagram-video-downloader' },
-  { name: 'Instagram Reels', href: '/instagram-reels-downloader' },
-  { name: 'Pinterest Downloader', href: '/pinterest-video-downloader' },
+  { name: 'YouTube Video Downloader', href: '/youtube-video-downloader' },
+  { name: 'YouTube Shorts Downloader', href: '/youtube-shorts-downloader' },
   { name: 'YouTube to MP3', href: '/youtube-mp3' },
-  { name: 'All-in-One Downloader', href: '/video-downloader' },
+  { name: 'TikTok Downloader', href: '/tiktok-video-downloader' },
+  { name: 'Instagram Downloader', href: '/instagram-video-downloader' },
+  { name: 'Instagram Reels Downloader', href: '/instagram-reels-downloader' },
+  { name: 'Facebook Downloader', href: '/facebook-video-downloader' },
+  { name: 'Facebook Reels Downloader', href: '/facebook-reels-downloader' },
+  { name: 'Pinterest Downloader', href: '/pinterest-video-downloader' },
+  { name: 'Online Video Downloader', href: '/online-video-downloader' },
+  { name: 'MP4 Video Downloader', href: '/mp4-video-downloader' },
+  { name: 'MP3 Video Downloader', href: '/mp3-video-downloader' },
 ];
 
 export default function Header() {
@@ -136,37 +137,37 @@ export default function Header() {
             </li>
 
             <li className={styles.navItem}>
-              <a
-                href="/#how-it-works"
+              <Link
+                href="/online-video-downloader"
                 className={`${styles.navLink} ${
-                  activeNav === 'how-it-works' ? styles.navLinkActive : ''
+                  activeNav === 'downloader' ? styles.navLinkActive : ''
                 }`}
-                onClick={() => setActiveNav('how-it-works')}
+                onClick={() => setActiveNav('downloader')}
               >
-                How It Works
-              </a>
+                Online Downloader
+              </Link>
             </li>
             <li className={styles.navItem}>
-              <a
-                href="/#reviews"
+              <Link
+                href="/about"
                 className={`${styles.navLink} ${
-                  activeNav === 'reviews' ? styles.navLinkActive : ''
+                  activeNav === 'about' ? styles.navLinkActive : ''
                 }`}
-                onClick={() => setActiveNav('reviews')}
+                onClick={() => setActiveNav('about')}
               >
-                Reviews
-              </a>
+                About
+              </Link>
             </li>
             <li className={styles.navItem}>
-              <a
-                href="/#faq"
+              <Link
+                href="/faq"
                 className={`${styles.navLink} ${
                   activeNav === 'faq' ? styles.navLinkActive : ''
                 }`}
                 onClick={() => setActiveNav('faq')}
               >
                 FAQ
-              </a>
+              </Link>
             </li>
             <li className={styles.navItem}>
               <Link
@@ -180,15 +181,15 @@ export default function Header() {
               </Link>
             </li>
             <li className={styles.navItem}>
-              <a
-                href="/#contact"
+              <Link
+                href="/contact"
                 className={`${styles.navLink} ${
                   activeNav === 'contact' ? styles.navLinkActive : ''
                 }`}
                 onClick={() => setActiveNav('contact')}
               >
                 Contact
-              </a>
+              </Link>
             </li>
           </ul>
         </nav>
@@ -204,10 +205,10 @@ export default function Header() {
             {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
           </button>
 
-          <a href="/#downloader" className={styles.fastFreeBtn}>
+          <Link href="/online-video-downloader" className={styles.fastFreeBtn}>
             <Zap size={15} fill="#ffffff" />
             <span>Fast &amp; Free</span>
-          </a>
+          </Link>
 
           <button
             type="button"
@@ -244,27 +245,27 @@ export default function Header() {
           ))}
 
           <div className={styles.mobileSectionTitle}>Explore</div>
-          <a
-            href="/#how-it-works"
+          <Link
+            href="/online-video-downloader"
             className={styles.mobileNavLink}
             onClick={() => setIsMobileMenuOpen(false)}
           >
-            How It Works
-          </a>
-          <a
-            href="/#reviews"
+            Online Video Downloader
+          </Link>
+          <Link
+            href="/about"
             className={styles.mobileNavLink}
             onClick={() => setIsMobileMenuOpen(false)}
           >
-            Reviews
-          </a>
-          <a
-            href="/#faq"
+            About
+          </Link>
+          <Link
+            href="/faq"
             className={styles.mobileNavLink}
             onClick={() => setIsMobileMenuOpen(false)}
           >
             FAQ
-          </a>
+          </Link>
           <Link
             href="/blog"
             className={styles.mobileNavLink}
@@ -272,13 +273,13 @@ export default function Header() {
           >
             Blog &amp; Guides
           </Link>
-          <a
-            href="/#contact"
+          <Link
+            href="/contact"
             className={styles.mobileNavLink}
             onClick={() => setIsMobileMenuOpen(false)}
           >
             Contact
-          </a>
+          </Link>
         </div>
       )}
     </header>
