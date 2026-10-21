@@ -21,6 +21,13 @@ const pagesToTest = [
   { path: '/privacy', expectedH1: 'Privacy Policy' },
   { path: '/terms', expectedH1: 'Terms of Service' },
   { path: '/blog', expectedH1: 'Video Download Guides & Tutorials' },
+  { path: '/download-youtube-video-without-software' },
+  { path: '/tiktok-to-mp4-free-online' },
+  { path: '/youtube-to-mp4-free-online-no-registration' },
+  { path: '/download-videos-for-offline-viewing-free' },
+  { path: '/how-to-download-tiktok-without-watermark-iphone' },
+  { path: '/how-to-save-tiktok-to-camera-roll' },
+  { path: '/save-instagram-story-without-knowing' },
 ];
 
 async function runAudit() {

@@ -161,6 +161,22 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* POPULAR GUIDES ROW FOR SEO INTERNAL LINKING */}
+        <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '20px', marginBottom: '24px' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Popular Guides &amp; Resources
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: '0.85rem' }}>
+            <Link href="/download-youtube-video-without-software" className={styles.footerLink}>Download YouTube Video Without Software</Link>
+            <Link href="/tiktok-to-mp4-free-online" className={styles.footerLink}>TikTok to MP4 Online</Link>
+            <Link href="/youtube-to-mp4-free-online-no-registration" className={styles.footerLink}>YouTube to MP4 No Registration</Link>
+            <Link href="/download-videos-for-offline-viewing-free" className={styles.footerLink}>Download Videos for Offline Viewing</Link>
+            <Link href="/how-to-download-tiktok-without-watermark-iphone" className={styles.footerLink}>Download TikTok Without Watermark iPhone</Link>
+            <Link href="/how-to-save-tiktok-to-camera-roll" className={styles.footerLink}>Save TikTok to Camera Roll</Link>
+            <Link href="/save-instagram-story-without-knowing" className={styles.footerLink}>Save Instagram Story Anonymously</Link>
+          </div>
+        </div>
+
         {/* BOTTOM ROW */}
         <div className={styles.bottomRow}>
           <span>&copy; {new Date().getFullYear()} MediaKit. All rights reserved.</span>

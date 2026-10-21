@@ -42,6 +42,14 @@ export interface RichArticle {
   content: string[];
 }
 
+export interface RelatedTool {
+  name: string;
+  href?: string;
+  url?: string;
+  description?: string;
+  icon?: string;
+}
+
 export interface SeoLandingPageProps {
   badgeText: string;
   title: string;
@@ -55,10 +63,10 @@ export interface SeoLandingPageProps {
   articles?: RichArticle[];
   faqs: { question: string; answer: string }[];
   structuredData?: any;
-  relatedTools?: { name: string; href?: string; url?: string; description?: string; icon?: string }[];
+  relatedTools?: RelatedTool[];
 }
 
-const defaultRelatedTools = [
+const defaultRelatedTools: RelatedTool[] = [
   { name: 'Online Video Downloader', href: '/online-video-downloader' },
   { name: 'YouTube Video Downloader', href: '/youtube-video-downloader' },
   { name: 'YouTube Shorts Downloader', href: '/youtube-shorts-downloader' },
@@ -71,7 +79,10 @@ const defaultRelatedTools = [
   { name: 'Pinterest Video Downloader', href: '/pinterest-video-downloader' },
   { name: 'MP4 Video Downloader', href: '/mp4-video-downloader' },
   { name: 'MP3 Video Downloader', href: '/mp3-video-downloader' },
-  { name: 'Free Without Watermark', href: '/free-video-downloader-without-watermark' },
+  { name: 'Download Without Software', href: '/download-youtube-video-without-software' },
+  { name: 'TikTok to MP4 Online', href: '/tiktok-to-mp4-free-online' },
+  { name: 'YouTube to MP4 HD', href: '/youtube-to-mp4-free-online-no-registration' },
+  { name: 'Save Offline Videos', href: '/download-videos-for-offline-viewing-free' },
 ];
 
 const defaultDeviceGuides: DeviceGuide[] = [
