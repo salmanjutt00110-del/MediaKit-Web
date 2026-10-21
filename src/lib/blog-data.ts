@@ -1,10 +1,13 @@
+import { TIER_1_ARTICLES } from './blog-articles/tier1';
+import { TIER_2_ARTICLES } from './blog-articles/tier2';
+
 export interface BlogArticle {
   slug: string;
   title: string;
   metaTitle: string;
   metaDescription: string;
   targetKeyword: string;
-  category: 'TikTok' | 'YouTube' | 'Instagram' | 'Facebook' | 'Guides';
+  category: 'TikTok' | 'YouTube' | 'Instagram' | 'Facebook' | 'Pinterest' | 'Guides';
   publishedAt: string;
   updatedAt: string;
   author: string;
@@ -16,7 +19,7 @@ export interface BlogArticle {
   contentHtml: string;
 }
 
-export const BLOG_ARTICLES: BlogArticle[] = [
+const CORE_BLOG_ARTICLES: BlogArticle[] = [
   {
     slug: 'how-to-download-tiktok-videos-without-watermark',
     title: 'How to Download TikTok Videos Without Watermark (Free & Easy)',
@@ -398,6 +401,12 @@ export const BLOG_ARTICLES: BlogArticle[] = [
       </ul>
     `,
   },
+];
+
+export const BLOG_ARTICLES: BlogArticle[] = [
+  ...CORE_BLOG_ARTICLES,
+  ...TIER_1_ARTICLES,
+  ...TIER_2_ARTICLES,
 ];
 
 export function getArticleBySlug(slug: string): BlogArticle | undefined {

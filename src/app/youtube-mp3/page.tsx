@@ -3,7 +3,7 @@ import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
   title: {
-    absolute: 'YouTube MP3 Downloader – Download YouTube Audio | MediaKit',
+    absolute: 'YouTube to MP3 Converter — Free 320kbps, No Registration | MediaKit',
   },
   description:
     'Extract and download high-quality MP3 audio from YouTube videos. Fast, free online audio converter with no software required on MediaKit.',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     canonical: 'https://mediakit.website/youtube-mp3',
   },
   openGraph: {
-    title: 'YouTube MP3 Downloader – Download YouTube Audio | MediaKit',
+    title: 'YouTube to MP3 Converter — Free 320kbps, No Registration | MediaKit',
     description:
       'Extract and download high-quality MP3 audio from YouTube videos. Fast, free online audio converter with no software required on MediaKit.',
     url: 'https://mediakit.website/youtube-mp3',
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'YouTube MP3 Downloader – Download YouTube Audio | MediaKit',
+    title: 'YouTube to MP3 Converter — Free 320kbps, No Registration | MediaKit',
     description:
       'Extract and download high-quality MP3 audio from YouTube videos. Fast, free online audio converter with no software required on MediaKit.',
     images: ['https://mediakit.website/logo.png'],

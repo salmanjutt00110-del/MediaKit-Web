@@ -3,7 +3,7 @@ import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
   title: {
-    absolute: 'TikTok Video Downloader – Download TikTok Videos | MediaKit',
+    absolute: 'TikTok Video Downloader — No Watermark, Free Online 2026 | MediaKit',
   },
   description:
     'Download TikTok videos without watermark in HD quality. Free online TikTok downloader — no app, no registration, no watermark with MediaKit.',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     canonical: 'https://mediakit.website/tiktok-video-downloader',
   },
   openGraph: {
-    title: 'TikTok Video Downloader – Download TikTok Videos | MediaKit',
+    title: 'TikTok Video Downloader — No Watermark, Free Online 2026 | MediaKit',
     description:
       'Download TikTok videos without watermark in HD quality. Free online tool — no app, no registration, no watermark. Works on iPhone, Android & PC.',
     url: 'https://mediakit.website/tiktok-video-downloader',
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TikTok Video Downloader – Download TikTok Videos | MediaKit',
+    title: 'TikTok Video Downloader — No Watermark, Free Online 2026 | MediaKit',
     description:
       'Download TikTok videos without watermark in HD quality. Free online tool — no app, no registration, no watermark. Works on iPhone, Android & PC.',
     images: ['https://mediakit.website/logo.png'],

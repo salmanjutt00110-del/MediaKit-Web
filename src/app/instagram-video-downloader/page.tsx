@@ -3,7 +3,7 @@ import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
   title: {
-    absolute: 'Instagram Video Downloader – Download Instagram Videos | MediaKit',
+    absolute: 'Instagram Reels & Stories Downloader — Free No Login | MediaKit',
   },
   description:
     'Download Instagram videos and public posts in HD MP4 with audio. 100% free, anonymous, and no login or account required on MediaKit.',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     canonical: 'https://mediakit.website/instagram-video-downloader',
   },
   openGraph: {
-    title: 'Instagram Video Downloader – Download Instagram Videos | MediaKit',
+    title: 'Instagram Reels & Stories Downloader — Free No Login | MediaKit',
     description:
       'Download Instagram videos and public posts in HD MP4 with audio. 100% free, anonymous, and no login or account required on MediaKit.',
     url: 'https://mediakit.website/instagram-video-downloader',
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Instagram Video Downloader – Download Instagram Videos | MediaKit',
+    title: 'Instagram Reels & Stories Downloader — Free No Login | MediaKit',
     description:
       'Download Instagram videos and public posts in HD MP4 with audio. 100% free, anonymous, and no login or account required.',
     images: ['https://mediakit.website/logo.png'],

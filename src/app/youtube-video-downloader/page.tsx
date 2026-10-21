@@ -3,7 +3,7 @@ import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
   title: {
-    absolute: 'YouTube Video Downloader – Download YouTube Videos | MediaKit',
+    absolute: 'YouTube Video Downloader — Free HD 1080p No Software | MediaKit',
   },
   description:
     'Download YouTube videos in HD 1080p and 4K MP4 with synced audio. Free online downloader with automatic format detection and MP3 conversion on MediaKit.',
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     canonical: 'https://mediakit.website/youtube-video-downloader',
   },
   openGraph: {
-    title: 'YouTube Video Downloader – Download YouTube Videos | MediaKit',
+    title: 'YouTube Video Downloader — Free HD 1080p No Software | MediaKit',
     description:
       'Download YouTube videos in HD 1080p and 4K MP4 with synced audio. Free online downloader with automatic format detection and MP3 conversion on MediaKit.',
     url: 'https://mediakit.website/youtube-video-downloader',
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'YouTube Video Downloader – Download YouTube Videos | MediaKit',
+    title: 'YouTube Video Downloader — Free HD 1080p No Software | MediaKit',
     description:
       'Download YouTube videos in HD 1080p and 4K MP4 with synced audio. Free online downloader with automatic format detection and MP3 conversion on MediaKit.',
     images: ['https://mediakit.website/logo.png'],

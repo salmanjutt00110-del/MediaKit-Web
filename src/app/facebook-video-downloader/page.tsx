@@ -3,7 +3,7 @@ import SeoLandingPage from '@/components/SeoLandingPage';
 
 export const metadata: Metadata = {
   title: {
-    absolute: 'Facebook Video Downloader | MediaKit',
+    absolute: 'Facebook Video Downloader — Free MP4, No App Needed | MediaKit',
   },
   description:
     'Download Facebook videos online in HD quality for free. Works with Facebook Watch, public videos, and mobile links on any device with MediaKit.',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     canonical: 'https://mediakit.website/facebook-video-downloader',
   },
   openGraph: {
-    title: 'Facebook Video Downloader | MediaKit',
+    title: 'Facebook Video Downloader — Free MP4, No App Needed | MediaKit',
     description:
       'Download Facebook videos online in HD quality for free. Works with Facebook Watch, public videos, and mobile links on any device with MediaKit.',
     url: 'https://mediakit.website/facebook-video-downloader',
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Facebook Video Downloader | MediaKit',
+    title: 'Facebook Video Downloader — Free MP4, No App Needed | MediaKit',
     description:
       'Download Facebook videos online in HD quality for free. Works with Facebook Watch, public videos, and mobile links on any device.',
     images: ['https://mediakit.website/logo.png'],
